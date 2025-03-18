@@ -8,7 +8,7 @@ for those so inclined to perform raw ldapsearches that isnt a complete nightmare
 
 Future features:   
 - Search and list specific types of objects
-- Allow for reading, adding, deleting, and modification of existing LDAP entries
-- Prompt for user password rather than store in code, or read in environment variable containing creds
+- Allow for adding, deleting, and modification of existing LDAP entries
+- Prompt for user password rather than store in code and read in environment variable containing creds
 - Support ldaps and ldap
 - Support different bind types, Simple Bind, GSSAPI, and SASL
