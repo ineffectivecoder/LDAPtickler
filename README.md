@@ -7,7 +7,7 @@ Using ldapsearch is somewhat of a drag and I was hoping to provide a tool
 for those so inclined to perform raw ldapsearches that isnt a complete nightmare to use.
 
 
-Future features:   
+# Initial features:   
 - Prompt for user password rather than store in code and read in environment variable containing creds
 - Search and list specific types of objects
 - Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
