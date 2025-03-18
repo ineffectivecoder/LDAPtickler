@@ -4,7 +4,7 @@ Not to be confused with GOLD apsearch, this is GO LDAPSEARCH
 
 ## What's it for?
 This tool is intended to simplify searching LDAP for various objects.  
-It will support multiple operating systems out of the box, thanks to it being writen in Go. 
+It will support multiple operating systems out of the box, thanks to it being writen in Go.   
 Using ldapsearch is somewhat of a drag and I was hoping to provide a tool  
 for those so inclined to perform raw ldapsearches that isnt a complete nightmare to use.
 
