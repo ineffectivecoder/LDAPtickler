@@ -12,6 +12,6 @@ Future features:
 - Allow for adding, deleting, and modification of existing LDAP entries
 - Prompt for user password rather than store in code and read in environment variable containing creds
 - Support ldaps and ldap
-- Support different bind types, Simple Bind, GSSAPI, and SASL
+- Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
 - Supportdumping the entire database
 - Potentially support BloodHound(Need to look into this more)
