@@ -8,10 +8,14 @@ for those so inclined to perform raw ldapsearches that isnt a complete nightmare
 
 
 Future features:   
-- Search and list specific types of objects
-- Allow for adding, deleting, and modification of existing LDAP entries
 - Prompt for user password rather than store in code and read in environment variable containing creds
-- Support ldaps and ldap
+- Search and list specific types of objects
 - Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
 - Support dumping the entire database
+- Support ldaps and ldap
+
+
+# Stretch goals
+
+- Allow for adding, deleting, and modification of existing LDAP entries
 - Potentially support BloodHound(Need to look into this more)
