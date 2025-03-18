@@ -13,5 +13,5 @@ Future features:
 - Prompt for user password rather than store in code and read in environment variable containing creds
 - Support ldaps and ldap
 - Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
-- Supportdumping the entire database
+- Support dumping the entire database
 - Potentially support BloodHound(Need to look into this more)
