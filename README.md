@@ -1,5 +1,5 @@
 # GoLDAPQuery 
-![GoLDAPQuery](goldapquery.png)
+![GoLDAPQuery](goldapquery.png)  
 Not to be confused with GOLD apquery, this is GoLDAPQuery
 
 
