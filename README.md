@@ -1,4 +1,5 @@
 # GoLDAPQuery 
+![GoLDAPQuery](goldapquery.png)
 Not to be confused with GOLD apsearch, this is GoLDAPQuery
 
 
