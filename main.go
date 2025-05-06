@@ -46,13 +46,14 @@ func init() {
 	if cli.NArg() > 0 {
 		cli.Usage(1)
 	}
-	/* If a username is passed, assume they also want to use a password. Utilize term.ReadPassword to do this
-	without an echo. Passwords as a parameter is bad opsec. May use environment variables as an alternative
-	down the road*/
+	// Validate someone isnt being a silly goose and trying to anonymously bind AND pass creds
 	if flags.anonymous && flags.username != "" {
 		fmt.Printf("[-] One does not simply bind anonymously and with credentials - Sean Bean")
 		os.Exit(1)
 	}
+	/* If a username is passed, assume they also want to use a password. Utilize term.ReadPassword to do this
+	without an echo. Passwords as a parameter is bad opsec. May use environment variables as an alternative
+	down the road*/
 	if flags.username != "" {
 		fmt.Printf("[+] Username detected, Insert your password to be used for bind\n")
 		bytepw, err = term.ReadPassword(int(os.Stdin.Fd()))
