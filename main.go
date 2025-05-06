@@ -42,14 +42,25 @@ func init() {
 	if flags.ldapURL == "" {
 		cli.Usage(1)
 	}
+	// Ensure we are passing no arguments. There shouldnt be any. Only parameters.
 	if cli.NArg() > 0 {
 		cli.Usage(1)
+	}
+	/* If a username is passed, assume they also want to use a password. Utilize term.ReadPassword to do this
+	without an echo. Passwords as a parameter is bad opsec. May use environment variables as an alternative
+	down the road*/
+	if flags.anonymous && flags.username != "" {
+		fmt.Printf("[-] One does not simply bind anonymously and with credentials - Sean Bean")
+		os.Exit(1)
 	}
 	if flags.username != "" {
 		fmt.Printf("[+] Username detected, Insert your password to be used for bind\n")
 		bytepw, err = term.ReadPassword(int(os.Stdin.Fd()))
 		password = string(bytepw)
-		_ = err
+		if err != nil {
+			fmt.Printf("[-] Last received error message %s", err)
+			os.Exit(2)
+		}
 	}
 }
 
