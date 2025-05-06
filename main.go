@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"syscall"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/mjwhitta/cli"
@@ -14,17 +13,18 @@ import (
 
 // Flags
 var flags struct {
-	skipVerify bool
+	anonymous  bool
 	ldapURL    string
+	skipVerify bool
 	username   string
-	password   bool
 }
 
 // Globals
-var bytepw []byte
-var err error
+var password string
 
 func init() {
+	var bytepw []byte
+	var err error
 	// Configure cli package
 	cli.Align = true // Defaults to false
 	cli.Authors = []string{"Chris Hodson r2d2@sostup.id"}
@@ -32,9 +32,10 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	// Parse cli flags
-	cli.Flag(&flags.skipVerify, "k", "skip", false, "Skip SSL verification")
-	cli.Flag(&flags.ldapURL, "s", "", "LDAP(S) URL to connect to")
-	cli.Flag(&flags.username, "u", "", "Username to bind with")
+	cli.Flag(&flags.anonymous, "a", "anonymous", false, "Bind Anonymously")
+	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
+	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
+	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
 	cli.Parse()
 
 	// Check for ldapURL, because wtf are we going to connect to without it
@@ -45,10 +46,10 @@ func init() {
 		cli.Usage(1)
 	}
 	if flags.username != "" {
-
 		fmt.Printf("[+] Username detected, Insert your password to be used for bind\n")
-		bytepw, err = term.ReadPassword(syscall.Stdin)
-
+		bytepw, err = term.ReadPassword(int(os.Stdin.Fd()))
+		password = string(bytepw)
+		_ = err
 	}
 }
 
@@ -60,8 +61,8 @@ func main() {
 	} else {
 		fmt.Printf("[+] We have successfully connected to %s\n", flags.ldapURL)
 	}
-	pass := string(bytepw)
+
 	fmt.Printf("Username is %s\n", flags.username)
-	fmt.Printf("Password is %s\n", pass)
+	fmt.Printf("Password is %s\n", password)
 	defer l.Close()
 }
