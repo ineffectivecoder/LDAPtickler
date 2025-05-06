@@ -5,16 +5,24 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"syscall"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/mjwhitta/cli"
+	"golang.org/x/term"
 )
 
 // Flags
 var flags struct {
-	sslVerify bool
-	ldapURL   string
+	skipVerify bool
+	ldapURL    string
+	username   string
+	password   bool
 }
+
+// Globals
+var bytepw []byte
+var err error
 
 func init() {
 	// Configure cli package
@@ -24,25 +32,36 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	// Parse cli flags
-	cli.Flag(&flags.sslVerify, "b", "bool", false, "Verify cert?")
-	cli.Flag(&flags.ldapURL, "s", "", "LDAP URL to connect to")
+	cli.Flag(&flags.skipVerify, "k", "skip", false, "Skip SSL verification")
+	cli.Flag(&flags.ldapURL, "s", "", "LDAP(S) URL to connect to")
+	cli.Flag(&flags.username, "u", "", "Username to bind with")
 	cli.Parse()
 
-	// Validate cli args
-	if cli.NArg() == 0 {
+	// Check for ldapURL, because wtf are we going to connect to without it
+	if flags.ldapURL == "" {
 		cli.Usage(1)
-	} else if cli.NArg() > 1 {
+	}
+	if cli.NArg() > 0 {
 		cli.Usage(1)
-	} else if flags.ldapURL == "" {
-		cli.Usage(1)
+	}
+	if flags.username != "" {
+
+		fmt.Printf("[+] Username detected, Insert your password to be used for bind\n")
+		bytepw, err = term.ReadPassword(syscall.Stdin)
+
 	}
 }
 
 func main() {
-	//ldapURL := "ldaps://dc01.ad.sostup.id:636"
-	l, err := ldap.DialURL(flags.ldapURL, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: flags.sslVerify}))
+	fmt.Printf("[+] skipVerify currently set to %t\n", flags.skipVerify)
+	l, err := ldap.DialURL(flags.ldapURL, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: flags.skipVerify}))
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		fmt.Printf("[+] We have successfully connected to %s\n", flags.ldapURL)
 	}
+	pass := string(bytepw)
+	fmt.Printf("Username is %s\n", flags.username)
+	fmt.Printf("Password is %s\n", pass)
 	defer l.Close()
 }
