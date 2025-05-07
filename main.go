@@ -31,12 +31,15 @@ var state struct {
 
 // Flags
 var flags struct {
+	basedn     string
+	computers  bool
 	domain     string
 	ldapURL    string
 	password   bool
 	pth        string
 	skipVerify bool
 	username   string
+	users      bool
 }
 
 func check(err error) {
@@ -54,12 +57,15 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	// Parse cli flags
+	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
+	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
+	cli.Flag(&flags.users, "users", false, "Search for all User objects")
 
 	cli.Parse()
 
@@ -139,4 +145,24 @@ func main() {
 
 	check(err)
 	fmt.Printf("[+] We have successfully connected to %s\n", flags.ldapURL)
+
+	if flags.computers {
+		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s", flags.basedn)
+		//filter := fmt.Sprintf("(CN=%s)", ldap.EscapeFilter("(objectClass=*)"))
+		filter := "(objectClass=computer)"
+		searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
+		result, err := l.Search(searchReq)
+		check(err)
+		result.Print()
+	}
+
+	if flags.users {
+		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s", flags.basedn)
+		//filter := fmt.Sprintf("(CN=%s)", ldap.EscapeFilter("(objectClass=*)"))
+		filter := "(objectClass=user)"
+		searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
+		result, err := l.Search(searchReq)
+		check(err)
+		result.Print()
+	}
 }
