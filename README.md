@@ -16,6 +16,9 @@ have an understanding of what bind methods are supported on the endpoint,and kno
 - [x] Prompt for user creds  
 - [ ] Store creds in environment variable  
 - [ ] Search and list specific types of objects  
+    - [x] computers  
+    - [x] users  
+    - [ ] user specified
 - [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
     - [x] anonymous  
     - [x] simple  
