@@ -13,20 +13,21 @@ have an understanding of what bind methods are supported on the endpoint,and kno
 
 
 ## Initial features:   
--[x] Prompt for user creds
--[ ] Store creds in environment variable
--[ ] Search and list specific types of objects
--[ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
-    - [x] anonymous
-    - [x] simple
-    - [x] ntlm
-    - [ ] GSSAPI
-    - [ ] SASL
--[ ] Support dumping the entire database
--[x] Support ldaps and ldap
+-[x] Prompt for user creds  
+-[ ] Store creds in environment variable  
+-[ ] Search and list specific types of objects  
+-[ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
+    - [x] anonymous  
+    - [x] simple  
+    - [x] ntlm  
+    - [x] ntlm with PTH  
+    - [ ] GSSAPI  
+    - [ ] SASL  
+-[ ] Support dumping the entire database  
+-[x] Support ldaps and ldap  
 
 
 ## Stretch goals
 
-- Allow for addition, deletion, and modification of existing LDAP entries
-- Potentially support BloodHound(Need to look into this more)
+- Allow for addition, deletion, and modification of existing LDAP entries  
+- Potentially support BloodHound(Need to look into this more)  
