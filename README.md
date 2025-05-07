@@ -13,11 +13,17 @@ have an understanding of what bind methods are supported on the endpoint,and kno
 
 
 ## Initial features:   
-- Prompt for user password rather than store in code and read in environment variable containing creds
-- Search and list specific types of objects
-- Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
-- Support dumping the entire database
-- Support ldaps and ldap
+-[x] Prompt for user creds
+-[ ] Store creds in environment variable
+-[ ] Search and list specific types of objects
+-[ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
+    - [x] anonymous
+    - [x] simple
+    - [x] ntlm
+    - [ ] GSSAPI
+    - [ ] SASL
+-[ ] Support dumping the entire database
+-[x] Support ldaps and ldap
 
 
 ## Stretch goals
