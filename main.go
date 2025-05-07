@@ -18,6 +18,7 @@ const (
 	bindAnonymous = iota
 	bindPassword
 	bindDomain
+	bindDomainPTH
 	bindSASL
 	bindGSSAPI
 )
@@ -33,6 +34,7 @@ var flags struct {
 	domain     string
 	ldapURL    string
 	password   bool
+	pth        string
 	skipVerify bool
 	username   string
 }
@@ -52,11 +54,13 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	// Parse cli flags
+	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
+	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
-	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
+
 	cli.Parse()
 
 	// Check for ldapURL, because wtf are we going to connect to without it
@@ -91,8 +95,15 @@ func init() {
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
-
 	}
+
+	if flags.pth != "" {
+		state.mode = bindDomainPTH
+		if flags.username == "" {
+			log.Fatal("[-] Username is empty, unable to continue")
+		}
+	}
+
 }
 
 func main() {
@@ -120,7 +131,12 @@ func main() {
 	case bindDomain:
 		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.ldapURL)
 		err = l.NTLMBind(flags.domain, flags.username, state.password)
+
+	case bindDomainPTH:
+		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.ldapURL)
+		err = l.NTLMBindWithHash(flags.domain, flags.username, flags.pth)
 	}
+
 	check(err)
 	fmt.Printf("[+] We have successfully connected to %s\n", flags.ldapURL)
 }
