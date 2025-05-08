@@ -240,7 +240,7 @@ func main() {
 	if flags.protectedusers {
 		fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(samaccountname=Protect*)(member=*))"
-		attributes := []string{"samaccountname"}
+		attributes := []string{"member"}
 		ldapsearch(l, filter, attributes)
 	}
 
