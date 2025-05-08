@@ -15,11 +15,11 @@ have an understanding of what bind methods are supported on the endpoint,and kno
 ## Initial features:   
 - [x] Prompt for user creds  
 - [ ] Store creds in environment variable  
-- [ ] Search and list specific types of objects  
+- [x] Search and list specific types of objects  
     - [x] computers  
     - [x] users  
     - [x] kerberoastable users
-    - [ ] user specified
+    - [x] user specified
 - [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
     - [x] anonymous  
     - [x] simple  

@@ -34,6 +34,7 @@ var flags struct {
 	basedn         string
 	computers      bool
 	domain         string
+	filter         string
 	kerberoastable bool
 	ldapURL        string
 	password       bool
@@ -61,6 +62,7 @@ func init() {
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
+	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
@@ -114,6 +116,14 @@ func init() {
 
 }
 
+// Eventually build this up to take all supported parameters, just an initial shell so far with support for filter.
+func ldapsearch(l *ldap.Conn, filter string) {
+	searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
+	result, err := l.Search(searchReq)
+	check(err)
+	result.Print()
+}
+
 func main() {
 	var l *ldap.Conn
 	var err error
@@ -148,32 +158,29 @@ func main() {
 	check(err)
 	fmt.Printf("[+] We have successfully connected to %s\n", flags.ldapURL)
 
+	// We have so much power here with the filters. Basically any filter that works in ldapsearch should work here.
+	// In order to simplify searching for varous objects, we will have a reasonable number of flags for things like:
+	// computers, users, kerberoastable users. We will also accommodate users who are comfy using their own filter.
 	if flags.computers {
 		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s", flags.basedn)
-		//filter := fmt.Sprintf("(CN=%s)", ldap.EscapeFilter("(objectClass=*)"))
 		filter := "(objectClass=computer)"
-		searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
-		result, err := l.Search(searchReq)
-		check(err)
-		result.Print()
+		ldapsearch(l, filter)
 	}
 
 	if flags.users {
 		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s", flags.basedn)
-		//filter := fmt.Sprintf("(CN=%s)", ldap.EscapeFilter("(objectClass=*)"))
 		filter := "(objectClass=user)"
-		searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
-		result, err := l.Search(searchReq)
-		check(err)
-		result.Print()
+		ldapsearch(l, filter)
 	}
 
 	if flags.kerberoastable {
 		fmt.Printf("[+] Searching for all kerberoastable users in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
-		searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
-		result, err := l.Search(searchReq)
-		check(err)
-		result.Print()
+		ldapsearch(l, filter)
+	}
+	if flags.filter != "" {
+		fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s", flags.filter, flags.basedn)
+		filter := flags.filter
+		ldapsearch(l, filter)
 	}
 }
