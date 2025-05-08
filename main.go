@@ -60,6 +60,7 @@ func check(err error) {
 		log.Fatal(err)
 	}
 }
+
 func init() {
 	var bytepw []byte
 	var err error
@@ -127,6 +128,7 @@ func init() {
 		}
 		state.password = string(bytepw)
 	}
+
 	if flags.domain != "" {
 		state.mode = bindDomain
 		if flags.username == "" {
