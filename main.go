@@ -134,6 +134,11 @@ func init() {
 		}
 	}
 
+	if flags.basedn == "" {
+		log.Fatal("[-] A basedn will be required for any action")
+
+	}
+
 }
 
 // Eventually build this up to take all supported parameters, just an initial shell so far with support for filter.
