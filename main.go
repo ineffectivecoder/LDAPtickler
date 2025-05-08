@@ -200,7 +200,7 @@ func main() {
 	}
 
 	if flags.shadowcredentials {
-		fmt.Printf("[+] Searching for all Shadow Crdentials in LDAP with baseDN %s", flags.basedn)
+		fmt.Printf("[+] Searching for all Shadow Credentials in LDAP with baseDN %s", flags.basedn)
 		filter := "(msDS-KeyCredentialLink=*)"
 		ldapsearch(l, filter)
 	}
