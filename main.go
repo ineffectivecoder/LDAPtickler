@@ -182,7 +182,7 @@ func main() {
 	}
 
 	if flags.constraineddelegation {
-		fmt.Printf("[+] Searching for all constrained delegation objects in LDAP with baseDN %s", flags.basedn)
+		fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
 		ldapsearch(l, filter)
 	}
@@ -194,7 +194,7 @@ func main() {
 	}
 
 	if flags.kerberoastable {
-		fmt.Printf("[+] Searching for all kerberoastable users in LDAP with baseDN %s", flags.basedn)
+		fmt.Printf("[+] Searching for all Kerberoastable users in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
 		ldapsearch(l, filter)
 	}
@@ -230,7 +230,7 @@ func main() {
 	}
 
 	if flags.unconstraineddelegation {
-		fmt.Printf("[+] Searching for all unconstrained delegation objects in LDAP with baseDN %s", flags.basedn)
+		fmt.Printf("[+] Searching for all Unconstrained Delegation objects in LDAP with baseDN %s", flags.basedn)
 		filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
 		ldapsearch(l, filter)
 	}
