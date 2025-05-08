@@ -26,6 +26,9 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [x] Protected Users Group
     - [x] Kerberos Pre-Authenticated Disabled
     - [x] Users who dont require a password
+    - [x] Users set to require password change at next login
+    - [x] Users set to have the password never expire
+
 - [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
     - [x] anonymous  
     - [x] simple  
