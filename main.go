@@ -242,7 +242,7 @@ func main() {
 
 	case flags.groupswithmembers:
 		fmt.Printf("[+] Searching for all groups and their members in LDAP with baseDN %s\n", flags.basedn)
-		filter := "(&(samaccountname=*)(member=*))"
+		filter := "(&(objectCategory=group)(samaccountname=*)(member=*))"
 		attributes := []string{"member"}
 		ldapsearch(l, filter, attributes)
 
