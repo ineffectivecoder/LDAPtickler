@@ -38,8 +38,11 @@ var flags struct {
 	filter                  string
 	kerberoastable          bool
 	ldapURL                 string
+	nopassword              bool
 	password                bool
+	preauthdisabled         bool
 	pth                     string
+	protectedusers          bool
 	rbcd                    bool
 	shadowcredentials       bool
 	skipVerify              bool
@@ -70,8 +73,11 @@ func init() {
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
+	cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
+	cli.Flag(&flags.protectedusers, "pu", false, "Search for users in Protected Users group")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
+	cli.Flag(&flags.preauthdisabled, "pad", false, "Search for users with Kerberos Pre-auth Disabled")
 	cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
@@ -190,6 +196,24 @@ func main() {
 	if flags.kerberoastable {
 		fmt.Printf("[+] Searching for all kerberoastable users in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.nopassword {
+		fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.protectedusers {
+		fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(samaccountname=Protect*)(member=*))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.preauthdisabled {
+		fmt.Printf("[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=4194304))"
 		ldapsearch(l, filter)
 	}
 
