@@ -137,11 +137,11 @@ func init() {
 }
 
 // Eventually build this up to take all supported parameters, just an initial shell so far with support for filter.
-func ldapsearch(l *ldap.Conn, filter string) {
-	searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
+func ldapsearch(l *ldap.Conn, filter string, attributes []string) {
+	searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, attributes, []ldap.Control{})
 	result, err := l.Search(searchReq)
 	check(err)
-	result.Print()
+	result.PrettyPrint(3)
 }
 
 func main() {
@@ -184,85 +184,99 @@ func main() {
 	if flags.computers {
 		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s", flags.basedn)
 		filter := "(objectClass=computer)"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.constraineddelegation {
 		fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname", "msDS-AllowedToDelegateTo"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.domaincontrollers {
 		fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectCategory=Computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.filter != "" {
 		fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s", flags.filter, flags.basedn)
 		filter := flags.filter
-		ldapsearch(l, filter)
+		attributes := []string{}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.kerberoastable {
 		fmt.Printf("[+] Searching for all Kerberoastable users in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname", "serviceprincipalname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.nopassword {
 		fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.passwordontexpire {
 		fmt.Printf("[+] Searching for all users all objects where the password doesnt expire in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=65536))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.passwordchangenextlogin {
 		fmt.Printf("[+] Searching for all users all objects where the password is set to change at next login in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(pwdLastSet=0)(!(useraccountcontrol:1.2.840.113556.1.4.803:=2)))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.protectedusers {
 		fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(samaccountname=Protect*)(member=*))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.preauthdisabled {
 		fmt.Printf("[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=4194304))"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.rbcd {
 		fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s", flags.basedn)
 		filter := "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.shadowcredentials {
 		fmt.Printf("[+] Searching for all Shadow Credentials in LDAP with baseDN %s", flags.basedn)
 		filter := "(msDS-KeyCredentialLink=*)"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.unconstraineddelegation {
 		fmt.Printf("[+] Searching for all Unconstrained Delegation objects in LDAP with baseDN %s", flags.basedn)
 		filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 	if flags.users {
 		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s", flags.basedn)
 		filter := "(objectClass=user)"
-		ldapsearch(l, filter)
+		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
 	}
 
 }
