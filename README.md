@@ -18,6 +18,7 @@ have an understanding of what bind methods are supported on the endpoint,and kno
 - [ ] Search and list specific types of objects  
     - [x] computers  
     - [x] users  
+    - [x] kerberoastable users
     - [ ] user specified
 - [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
     - [x] anonymous  
