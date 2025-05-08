@@ -31,17 +31,19 @@ var state struct {
 
 // Flags
 var flags struct {
-	basedn         string
-	computers      bool
-	domain         string
-	filter         string
-	kerberoastable bool
-	ldapURL        string
-	password       bool
-	pth            string
-	skipVerify     bool
-	username       string
-	users          bool
+	basedn                  string
+	computers               bool
+	constraineddelegation   bool
+	domain                  string
+	filter                  string
+	kerberoastable          bool
+	ldapURL                 string
+	password                bool
+	pth                     string
+	skipVerify              bool
+	username                string
+	unconstraineddelegation bool
+	users                   bool
 }
 
 func check(err error) {
@@ -61,6 +63,7 @@ func init() {
 	// Parse cli flags
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
+	cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
@@ -68,6 +71,7 @@ func init() {
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
+	cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
 	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
 	cli.Flag(&flags.users, "users", false, "Search for all User objects")
 
@@ -167,9 +171,15 @@ func main() {
 		ldapsearch(l, filter)
 	}
 
-	if flags.users {
-		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s", flags.basedn)
-		filter := "(objectClass=user)"
+	if flags.constraineddelegation {
+		fmt.Printf("[+] Searching for all constrained delegation objects in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.filter != "" {
+		fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s", flags.filter, flags.basedn)
+		filter := flags.filter
 		ldapsearch(l, filter)
 	}
 
@@ -178,9 +188,17 @@ func main() {
 		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
 		ldapsearch(l, filter)
 	}
-	if flags.filter != "" {
-		fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s", flags.filter, flags.basedn)
-		filter := flags.filter
+
+	if flags.unconstraineddelegation {
+		fmt.Printf("[+] Searching for all unconstrained delegation objects in LDAP with baseDN %s", flags.basedn)
+		filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
 		ldapsearch(l, filter)
 	}
+
+	if flags.users {
+		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s", flags.basedn)
+		filter := "(objectClass=user)"
+		ldapsearch(l, filter)
+	}
+
 }
