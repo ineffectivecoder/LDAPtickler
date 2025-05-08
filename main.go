@@ -163,7 +163,7 @@ func ldapsearch(l *ldap.Conn, filter string, attributes []string) {
 	searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, attributes, []ldap.Control{})
 	result, err := l.Search(searchReq)
 	check(err)
-	result.PrettyPrint(3)
+	result.PrettyPrint(2)
 }
 
 func main() {
