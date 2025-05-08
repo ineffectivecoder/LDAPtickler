@@ -41,6 +41,7 @@ var flags struct {
 	kerberoastable          bool
 	ldapURL                 string
 	nopassword              bool
+	objectquery             string
 	password                bool
 	passwordontexpire       bool
 	passwordchangenextlogin bool
@@ -81,6 +82,7 @@ func init() {
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
+	cli.Flag(&flags.objectquery, "oq", "objectquery", "", "Provide all attributes of specific user/computer object")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesnt expire")
 	cli.Flag(&flags.passwordchangenextlogin, "pcnl", false, "Search for objects where the password is required to be changed at next login")
@@ -106,9 +108,11 @@ func init() {
 		cli.Usage(1)
 	}
 
-	/* If a username is passed, assume they also want to use a password. Utilize term.ReadPassword to do this
-	without an echo. Passwords as a parameter is bad opsec. May use environment variables as an alternative
-	down the road*/
+	/* Various checks for flag combinations that don't make sense.
+	Allowing a username for anonymous binds since the spec for LDAP allows it for tracking purposes.
+	Reading password using term.ReadPassword to prevent echoing of the credential or needing it in plain text.
+
+	*/
 
 	if flags.password && flags.pth != "" {
 		log.Fatal("[-] Silly Goose detected, you cant PTH and provide a password")
@@ -236,6 +240,12 @@ func main() {
 		fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
 		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
+
+	case flags.objectquery != "":
+		fmt.Printf("[+] Searching for specific details of object %s in LDAP with baseDN %s", flags.objectquery, flags.basedn)
+		filter := "(&(objectClass=user)(samaccountname=" + flags.objectquery + "))"
+		attributes := []string{}
 		ldapsearch(l, filter, attributes)
 
 	case flags.passwordontexpire:
