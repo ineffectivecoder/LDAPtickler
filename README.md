@@ -20,6 +20,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [x] Domain Controllers
     - [x] computers  
     - [x] users  
+    - [x] groups
     - [x] kerberoastable users
     - [x] user specified
     - [x] Unconstrained ,Constrained Delegation and RBCD
