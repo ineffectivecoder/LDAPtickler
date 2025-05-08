@@ -32,6 +32,7 @@ var state struct {
 // Flags
 var flags struct {
 	basedn                  string
+	certpublishers          bool
 	computers               bool
 	constraineddelegation   bool
 	domain                  string
@@ -70,6 +71,7 @@ func init() {
 
 	// Parse cli flags
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
+	cli.Flag(&flags.certpublishers, "cp", false, "Search for all CAs in the environment")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
 	cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
@@ -106,6 +108,11 @@ func init() {
 	/* If a username is passed, assume they also want to use a password. Utilize term.ReadPassword to do this
 	without an echo. Passwords as a parameter is bad opsec. May use environment variables as an alternative
 	down the road*/
+
+	if flags.password && flags.pth != "" {
+		log.Fatal("[-] Silly Goose detected, you cant PTH and provide a password")
+	}
+
 	if flags.password {
 		state.mode = bindPassword
 		if flags.username == "" {
@@ -141,7 +148,7 @@ func init() {
 
 }
 
-// Eventually build this up to take all supported parameters, just an initial shell so far with support for filter.
+// Eventually build this up to take all supported parameters, just an initial shell so far with support for filter and attributes.
 func ldapsearch(l *ldap.Conn, filter string, attributes []string) {
 	searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, attributes, []ldap.Control{})
 	result, err := l.Search(searchReq)
@@ -187,6 +194,12 @@ func main() {
 	// In order to simplify searching for varous objects, we will have a reasonable number of flags for things like:
 	// computers, users, kerberoastable users. We will also accommodate users who are comfy using their own filter.
 	switch {
+	case flags.certpublishers:
+		fmt.Printf("[+] Searching for all Certificate Publishers in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(samaccountname=Cert Publishers)(member=*) "
+		attributes := []string{"member"}
+		ldapsearch(l, filter, attributes)
+
 	case flags.computers:
 		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s", flags.basedn)
 		filter := "(objectClass=computer)"
