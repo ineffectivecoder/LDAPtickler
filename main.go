@@ -82,7 +82,7 @@ func init() {
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
-	cli.Flag(&flags.objectquery, "oq", "objectquery", "", "Provide all attributes of specific user/computer object")
+	cli.Flag(&flags.objectquery, "oq", "", "Provide all attributes of specific user/computer object")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesnt expire")
 	cli.Flag(&flags.passwordchangenextlogin, "pcnl", false, "Search for objects where the password is required to be changed at next login")
@@ -262,7 +262,7 @@ func main() {
 
 	case flags.protectedusers:
 		fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s", flags.basedn)
-		filter := "(&(samaccountname=Protect*)(member=*))"
+		filter := "(&(samaccountname=Protected Users)(member=*))"
 		attributes := []string{"member"}
 		ldapsearch(l, filter, attributes)
 
