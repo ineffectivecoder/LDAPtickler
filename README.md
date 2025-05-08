@@ -21,7 +21,8 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [x] users  
     - [x] kerberoastable users
     - [x] user specified
-    - [x] Unconstrained and Constrained Delegation
+    - [x] Unconstrained ,Constrained Delegation and RBCD
+    - [x] Shadow Credentials
 - [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
     - [x] anonymous  
     - [x] simple  

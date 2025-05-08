@@ -40,6 +40,8 @@ var flags struct {
 	ldapURL                 string
 	password                bool
 	pth                     string
+	rbcd                    bool
+	shadowcredentials       bool
 	skipVerify              bool
 	username                string
 	unconstraineddelegation bool
@@ -70,7 +72,9 @@ func init() {
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
+	cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
+	cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
 	cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
 	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
 	cli.Flag(&flags.users, "users", false, "Search for all User objects")
@@ -186,6 +190,18 @@ func main() {
 	if flags.kerberoastable {
 		fmt.Printf("[+] Searching for all kerberoastable users in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.rbcd {
+		fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s", flags.basedn)
+		filter := "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)"
+		ldapsearch(l, filter)
+	}
+
+	if flags.shadowcredentials {
+		fmt.Printf("[+] Searching for all Shadow Crdentials in LDAP with baseDN %s", flags.basedn)
+		filter := "(msDS-KeyCredentialLink=*)"
 		ldapsearch(l, filter)
 	}
 
