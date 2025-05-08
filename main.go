@@ -35,6 +35,7 @@ var flags struct {
 	computers               bool
 	constraineddelegation   bool
 	domain                  string
+	domaincontrollers       bool
 	filter                  string
 	kerberoastable          bool
 	ldapURL                 string
@@ -71,6 +72,7 @@ func init() {
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
+	cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
@@ -188,6 +190,12 @@ func main() {
 	if flags.constraineddelegation {
 		fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.domaincontrollers {
+		fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(objectCategory=Computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
 		ldapsearch(l, filter)
 	}
 

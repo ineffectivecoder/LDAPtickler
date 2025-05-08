@@ -17,6 +17,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [ ] Expand ldapsearch function to take all supported parameters, currently just filter  
 - [ ] Store creds in environment variable  
 - [x] Search and list specific types of objects  
+    - [x] Domain Controllers
     - [x] computers  
     - [x] users  
     - [x] kerberoastable users
