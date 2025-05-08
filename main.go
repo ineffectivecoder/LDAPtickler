@@ -31,15 +31,16 @@ var state struct {
 
 // Flags
 var flags struct {
-	basedn     string
-	computers  bool
-	domain     string
-	ldapURL    string
-	password   bool
-	pth        string
-	skipVerify bool
-	username   string
-	users      bool
+	basedn         string
+	computers      bool
+	domain         string
+	kerberoastable bool
+	ldapURL        string
+	password       bool
+	pth            string
+	skipVerify     bool
+	username       string
+	users          bool
 }
 
 func check(err error) {
@@ -60,6 +61,7 @@ func init() {
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
+	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
@@ -160,6 +162,15 @@ func main() {
 		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s", flags.basedn)
 		//filter := fmt.Sprintf("(CN=%s)", ldap.EscapeFilter("(objectClass=*)"))
 		filter := "(objectClass=user)"
+		searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
+		result, err := l.Search(searchReq)
+		check(err)
+		result.Print()
+	}
+
+	if flags.kerberoastable {
+		fmt.Printf("[+] Searching for all kerberoastable users in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
 		searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, []string{}, []ldap.Control{})
 		result, err := l.Search(searchReq)
 		check(err)
