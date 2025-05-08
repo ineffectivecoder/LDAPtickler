@@ -40,6 +40,8 @@ var flags struct {
 	ldapURL                 string
 	nopassword              bool
 	password                bool
+	passwordontexpire       bool
+	passwordchangenextlogin bool
 	preauthdisabled         bool
 	pth                     string
 	protectedusers          bool
@@ -75,6 +77,8 @@ func init() {
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
+	cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesnt expire")
+	cli.Flag(&flags.passwordchangenextlogin, "pcnl", false, "Search for objects where the password is required to be changed at next login")
 	cli.Flag(&flags.protectedusers, "pu", false, "Search for users in Protected Users group")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
 	cli.Flag(&flags.preauthdisabled, "pad", false, "Search for users with Kerberos Pre-auth Disabled")
@@ -202,6 +206,18 @@ func main() {
 	if flags.nopassword {
 		fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.passwordontexpire {
+		fmt.Printf("[+] Searching for all users all objects where the password doesnt expire in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=65536))"
+		ldapsearch(l, filter)
+	}
+
+	if flags.passwordchangenextlogin {
+		fmt.Printf("[+] Searching for all users all objects where the password is set to change at next login in LDAP with baseDN %s", flags.basedn)
+		filter := "(&(objectCategory=person)(objectClass=user)(pwdLastSet=0)(!(useraccountcontrol:1.2.840.113556.1.4.803:=2)))"
 		ldapsearch(l, filter)
 	}
 
