@@ -24,6 +24,17 @@ const (
 	bindGSSAPI
 )
 
+/*
+const (
+	ScopeBaseObject   = 0
+	ScopeSingleLevel  = 1
+	ScopeWholeSubtree = 2
+	// ScopeChildren is an OpenLDAP extension that may not be supported by another directory server.
+	// See: https://github.com/openldap/openldap/blob/7c55484ee153047efd0e562fc1638c1a2525f320/include/ldap.h#L598
+	ScopeChildren = 3
+)
+*/
+
 // Global state
 var state struct {
 	mode     bindMode
@@ -44,6 +55,7 @@ var flags struct {
 	groupswithmembers       bool
 	kerberoastable          bool
 	ldapURL                 string
+	machineaccountquota     bool
 	nopassword              bool
 	objectquery             string
 	password                bool
@@ -54,6 +66,7 @@ var flags struct {
 	protectedusers          bool
 	querydescription        string
 	rbcd                    bool
+	searchscope             int
 	shadowcredentials       bool
 	skipVerify              bool
 	username                string
@@ -89,6 +102,7 @@ func init() {
 	cli.Flag(&flags.groupswithmembers, "groupmembers", false, "Search for all groups and their members")
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
+	cli.Flag(&flags.machineaccountquota, "maq", false, "Retrieve the attribute ms-DS-MachineAccount Quota to determine how many machine accounts a user may create")
 	cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
 	cli.Flag(&flags.objectquery, "oq", "", "Provide all attributes of specific user/computer object, machine accounts will need trailing $")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
@@ -99,6 +113,7 @@ func init() {
 	cli.Flag(&flags.preauthdisabled, "pad", false, "Search for users with Kerberos Pre-auth Disabled")
 	cli.Flag(&flags.querydescription, "qd", "", "Query all objects for a specific description, useful for finding data like creds in description fields")
 	cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
+	cli.Flag(&flags.searchscope, "scope", 0, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
 	cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
@@ -164,8 +179,8 @@ func init() {
 }
 
 // Eventually build this up to take all supported parameters, just an initial shell so far with support for filter and attributes.
-func ldapsearch(l *ldap.Conn, filter string, attributes []string) {
-	searchReq := ldap.NewSearchRequest(flags.basedn, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, attributes, []ldap.Control{})
+func ldapsearch(l *ldap.Conn, searchscope int, filter string, attributes []string) {
+	searchReq := ldap.NewSearchRequest(flags.basedn, searchscope, 0, 0, 0, false, filter, attributes, []ldap.Control{})
 	result, err := l.Search(searchReq)
 	check(err)
 	result.PrettyPrint(2)
@@ -213,7 +228,8 @@ func main() {
 		fmt.Printf("[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(samaccountname=Cert Publishers)(member=*) "
 		attributes := []string{"member"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.changepassword != "":
 		detailstopass := strings.Split(flags.changepassword, " ")
@@ -235,108 +251,131 @@ func main() {
 		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(objectClass=computer)"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.constraineddelegation:
 		fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
 		attributes := []string{"samaccountname", "msDS-AllowedToDelegateTo"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.domaincontrollers:
 		fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=Computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.filter != "":
 		fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", flags.filter, flags.basedn)
 		filter := flags.filter
 		attributes := []string{}
-		ldapsearch(l, filter, attributes)
+		ldapsearch(l, flags.searchscope, filter, attributes)
 
 	case flags.groups:
 		fmt.Printf("[+] Searching for all groups in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(objectCategory=group)"
 		attributes := []string{"sAMAccountName"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.groupswithmembers:
 		fmt.Printf("[+] Searching for all groups and their members in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=group)(samaccountname=*)(member=*))"
 		attributes := []string{"member"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.kerberoastable:
 		fmt.Printf("[+] Searching for all Kerberoastable users in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
 		attributes := []string{"samaccountname", "serviceprincipalname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
+
+	case flags.machineaccountquota:
+		fmt.Printf("[+] Searching for ms-DS-MachineAccountQuota in LDAP with baseDN %s\n", flags.basedn)
+		filter := "(objectClass=*)"
+		attributes := []string{"ms-DS-MachineAccountQuota"}
+		searchscope := 0
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.nopassword:
 		fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.objectquery != "":
 		fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", flags.objectquery, flags.basedn)
 		filter := "(&(objectClass=user)(samaccountname=" + flags.objectquery + "))"
 		attributes := []string{}
-		ldapsearch(l, filter, attributes)
+		ldapsearch(l, flags.searchscope, filter, attributes)
 
 	case flags.passwordontexpire:
 		fmt.Printf("[+] Searching for all users all objects where the password doesnt expire in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=65536))"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.passwordchangenextlogin:
 		fmt.Printf("[+] Searching for all users all objects where the password is set to change at next login in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(pwdLastSet=0)(!(useraccountcontrol:1.2.840.113556.1.4.803:=2)))"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.protectedusers:
 		fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(samaccountname=Protected Users)(member=*))"
 		attributes := []string{"member"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.preauthdisabled:
 		fmt.Printf("[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=4194304))"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.querydescription != "":
 		fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", flags.querydescription, flags.basedn)
 		filter := "(&(objectCategory=*)(description=" + flags.querydescription + "))"
 		attributes := []string{"samaccountname", "description"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.rbcd:
 		fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)"
 		attributes := []string{"samaccountname", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.shadowcredentials:
 		fmt.Printf("[+] Searching for all Shadow Credentials in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(msDS-KeyCredentialLink=*)"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.unconstraineddelegation:
 		fmt.Printf("[+] Searching for all Unconstrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 
 	case flags.users:
 		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user))"
 		attributes := []string{"samaccountname"}
-		ldapsearch(l, filter, attributes)
+		searchscope := 2
+		ldapsearch(l, searchscope, filter, attributes)
 	}
 }
