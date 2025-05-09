@@ -213,8 +213,6 @@ func main() {
 		attributes := []string{"member"}
 		ldapsearch(l, filter, attributes)
 
-	// Currently broken might need to encode credential
-	//https://github.com/go-ldap/ldap/issues/106
 	case flags.changepassword != "":
 		detailstopass := strings.Split(flags.changepassword, " ")
 		fmt.Printf("[+] Changing password for user %s with password supplied in LDAP with baseDN %s\n", detailstopass[0], flags.basedn)
