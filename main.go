@@ -52,6 +52,7 @@ var flags struct {
 	preauthdisabled         bool
 	pth                     string
 	protectedusers          bool
+	querydescription        string
 	rbcd                    bool
 	shadowcredentials       bool
 	skipVerify              bool
@@ -96,6 +97,7 @@ func init() {
 	cli.Flag(&flags.protectedusers, "pu", false, "Search for users in Protected Users group")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
 	cli.Flag(&flags.preauthdisabled, "pad", false, "Search for users with Kerberos Pre-auth Disabled")
+	cli.Flag(&flags.querydescription, "qd", "", "Query all objects for a specific description, useful for finding data like creds in description fields")
 	cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
@@ -305,6 +307,12 @@ func main() {
 		fmt.Printf("[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=4194304))"
 		attributes := []string{"samaccountname"}
+		ldapsearch(l, filter, attributes)
+
+	case flags.querydescription != "":
+		fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", flags.querydescription, flags.basedn)
+		filter := "(&(objectCategory=*)(description=" + flags.querydescription + "))"
+		attributes := []string{"samaccountname", "description"}
 		ldapsearch(l, filter, attributes)
 
 	case flags.rbcd:
