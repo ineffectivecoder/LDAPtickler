@@ -10,6 +10,7 @@ import (
 	"github.com/go-ldap/ldap/v3"
 	"github.com/mjwhitta/cli"
 	"golang.org/x/term"
+	"golang.org/x/text/encoding/unicode"
 )
 
 type bindMode int
@@ -33,6 +34,7 @@ var state struct {
 var flags struct {
 	basedn                  string
 	certpublishers          bool
+	changepassword          string
 	computers               bool
 	constraineddelegation   bool
 	domain                  string
@@ -75,7 +77,8 @@ func init() {
 
 	// Parse cli flags
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
-	cli.Flag(&flags.certpublishers, "cp", false, "Search for all CAs in the environment")
+	cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
+	cli.Flag(&flags.changepassword, "cp", "", "Change password for user, ex username oldpassword newpassword")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
 	cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
@@ -209,6 +212,21 @@ func main() {
 		filter := "(&(samaccountname=Cert Publishers)(member=*) "
 		attributes := []string{"member"}
 		ldapsearch(l, filter, attributes)
+
+	// Currently broken might need to encode credential
+	//https://github.com/go-ldap/ldap/issues/106
+	case flags.changepassword != "":
+		fmt.Printf("[+] Changing password for user with password supplied in LDAP with baseDN %s\n", flags.basedn)
+		//detailstopass := strings.Split(flags.changepassword, " ")
+		//log.Printf("%s", bobo)
+		//log.Printf(" %s  %s  %s", detailstopass[0], detailstopass[1], detailstopass[2])
+		utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+		prevpassencoded, _ := utf16.NewEncoder().String("wockawocka3!")
+		newpassencoded, _ := utf16.NewEncoder().String("Wockawocka123!")
+		passwdModReq := ldap.NewPasswordModifyRequest("cn=unprivdude,dc=ad,dc=sostup,dc=id", prevpassencoded, newpassencoded)
+		passwdModResp, err := l.PasswordModify(passwdModReq)
+		check(err)
+		log.Printf("Result of password change is %s", passwdModResp)
 
 	case flags.computers:
 		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s\n", flags.basedn)
