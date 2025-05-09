@@ -78,7 +78,7 @@ func init() {
 	// Parse cli flags
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
-	cli.Flag(&flags.changepassword, "cp", "", "Change password for user, you will need permissions so no funny business. ex \"username newpassword\"")
+	cli.Flag(&flags.changepassword, "cp", "", "Change password for user, you will need permissions so no funny business. ex username newpassword")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
 	cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
