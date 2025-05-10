@@ -260,7 +260,7 @@ func main() {
 		err = l.Modify(passwordSet)
 		check(err)
 		if err == nil {
-			fmt.Printf("[+] Password set successful for user %s\n", detailstopass[0])
+			fmt.Printf("[+] Password set successfully for user %s\n", detailstopass[0])
 		}
 		// You have to create the account disabled, then enable after setting a password... WTF, so intuitive
 		fmt.Printf("[+] Now enabling account for user %s\n",detailstopass[0])
