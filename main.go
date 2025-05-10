@@ -255,7 +255,7 @@ func main() {
 		addReq.Attribute("unicodePWD", []string{encodedPassword})
 		err = l.Add(addReq)
 		check(err)
-		fmt.Printf("[+] Added machine account %s successfully\n", detailstopass[0])
+		fmt.Printf("[+] Added machine account %s successfully with password %s\n", detailstopass[0], detailstopass[1])
 
 	case flags.adduser != "":
 		detailstopass := strings.Split(flags.adduser, " ")
