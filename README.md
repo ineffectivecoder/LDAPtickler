@@ -33,7 +33,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [x] Users who dont require a password
     - [x] Users set to require password change at next login
     - [x] Users set to have the password never expire
-    - [ ] Pull down schema
+    - [ ] Pull down schema - need to research this more, I can pull down the top level, beyond that is HUUUUUGE and am limited by LDAP itself
     - [x] Query description field of all objects
     - [x] Query ms-DS-MachineAccountQuota
 
