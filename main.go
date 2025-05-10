@@ -43,6 +43,7 @@ var state struct {
 
 // Flags
 var flags struct {
+	addmachine				string
 	adduser                 string
 	basedn                  string
 	certpublishers          bool
@@ -82,6 +83,17 @@ func check(err error) {
 	}
 }
 
+func encodePassword(password string) string {
+	quoted := fmt.Sprintf("\"%s\"", password)
+	encoded := ""
+	for _, r := range quoted {
+		encoded += fmt.Sprintf("%c%c", byte(r), 0)
+	}
+	return encoded
+}
+
+
+
 func init() {
 	var bytepw []byte
 	var err error
@@ -93,6 +105,7 @@ func init() {
 
 	// Parse cli flags
 	
+	cli.Flag(&flags.addmachine, "addmachine", "", "Add Machine account, ex computername$ password")
 	cli.Flag(&flags.adduser, "adduser", "" ,"Add a user, ex username username@domain password")
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
@@ -229,6 +242,21 @@ func main() {
 	// In order to simplify searching for varous objects, we will have a reasonable number of flags for things like:
 	// computers, users, kerberoastable users. We will also accommodate users who are comfy using their own filter.
 	switch {
+
+	case flags.addmachine != "":
+		detailstopass := strings.Split(flags.addmachine, " ")
+		fmt.Printf("[+] Added machine account %s with password %s\n", detailstopass[0], detailstopass[1])
+		addReq := ldap.NewAddRequest("CN="+detailstopass[0]+",CN=Computers,"+ flags.basedn, []ldap.Control{})
+		addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
+		addReq.Attribute("cn", []string{detailstopass[0]})
+		addReq.Attribute("sAMAccountName", []string{detailstopass[0]})
+		addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+		encodedPassword := encodePassword(detailstopass[1])
+		addReq.Attribute("unicodePWD", []string{encodedPassword})
+		err = l.Add(addReq)
+		check(err)
+		fmt.Printf("[+] Added machine account %s successfully\n", detailstopass[0])
+
 	case flags.adduser != "":
 		detailstopass := strings.Split(flags.adduser, " ")
 		fmt.Printf("[+] Adding username %s with serviceprincipal %s with password %s\n", detailstopass[0], detailstopass[1], detailstopass[2])
@@ -269,8 +297,6 @@ func main() {
 		err = l.Modify(enableReq)
 		check(err)
 		fmt.Printf("[+] Successfully added and enabled user account %s\n", detailstopass[0])
-
-
 
 	case flags.certpublishers:
 		fmt.Printf("[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n", flags.basedn)
