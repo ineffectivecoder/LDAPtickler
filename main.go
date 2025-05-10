@@ -43,6 +43,7 @@ var state struct {
 
 // Flags
 var flags struct {
+	adduser                 string
 	basedn                  string
 	certpublishers          bool
 	changepassword          string
@@ -91,6 +92,8 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	// Parse cli flags
+	
+	cli.Flag(&flags.adduser, "adduser", "" ,"Add a user, ex username username@domain password")
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
 	cli.Flag(&flags.changepassword, "cp", "", "Change password for user, must use LDAPS you will need permissions so no funny business. ex. username newpassword")
@@ -226,6 +229,49 @@ func main() {
 	// In order to simplify searching for varous objects, we will have a reasonable number of flags for things like:
 	// computers, users, kerberoastable users. We will also accommodate users who are comfy using their own filter.
 	switch {
+	case flags.adduser != "":
+		detailstopass := strings.Split(flags.adduser, " ")
+		fmt.Printf("[+] Adding username %s with serviceprincipal %s with password %s\n", detailstopass[0], detailstopass[1], detailstopass[2])
+		addReq := ldap.NewAddRequest("CN="+detailstopass[0]+",CN=Users,"+ flags.basedn , []ldap.Control{})
+		addReq.Attribute("accountExpires", []string{fmt.Sprintf("%d", 0x00000000)})
+		addReq.Attribute("cn", []string{detailstopass[0]})
+		addReq.Attribute("displayName", []string{detailstopass[0]})
+		addReq.Attribute("givenName", []string{detailstopass[0]})
+		addReq.Attribute("instanceType", []string{fmt.Sprintf("%d", 0x00000004)})
+		addReq.Attribute("name", []string{detailstopass[0]})
+		addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"})
+		addReq.Attribute("sAMAccountName", []string{detailstopass[0]})
+		addReq.Attribute("sn", []string{detailstopass[0]})
+		//Create the account disabled....
+		addReq.Attribute("userAccountControl", []string{"514"})
+		addReq.Attribute("userPrincipalName", []string{detailstopass[1]})
+		//addReq.Attributes = attrs
+		err = l.Add(addReq)
+		check(err)
+		fmt.Printf("[+] Successfully added user account %s\n", detailstopass[0])
+		fmt.Printf("[+] Now setting password...\n")
+		passwordSet:= ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+ flags.basedn, nil)
+		utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+		newpwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", detailstopass[2]))
+		check(err)
+		passwordSet.Replace("unicodePwd", []string{newpwdEncoded})
+		//debugging crap
+		//log.Printf("The stuff %s", *passwordModify)
+		err = l.Modify(passwordSet)
+		check(err)
+		if err == nil {
+			fmt.Printf("[+] Password set successful for user %s\n", detailstopass[0])
+		}
+		// You have to create the account disabled, then enable after setting a password... WTF, so intuitive
+		fmt.Printf("[+] Now enabling account for user %s\n",detailstopass[0])
+		enableReq := ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+ flags.basedn, []ldap.Control{})
+		enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
+		err = l.Modify(enableReq)
+		check(err)
+		fmt.Printf("[+] Successfully added and enabled user account %s\n", detailstopass[0])
+
+
+
 	case flags.certpublishers:
 		fmt.Printf("[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(samaccountname=Cert Publishers)(member=*) "
