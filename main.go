@@ -180,7 +180,7 @@ func init() {
 
 }
 
-// Eventually build this up to take all supported parameters, just an initial shell so far with support for filter and attributes.
+// Eventually build this up to take all supported parameters, just an initial shell so far with support for base, scope, filter and attributes.
 func ldapsearch(l *ldap.Conn, base string, searchscope int, filter string, attributes []string) {
 	searchReq := ldap.NewSearchRequest(base, searchscope, 0, 0, 0, false, filter, attributes, []ldap.Control{})
 	result, err := l.Search(searchReq)
