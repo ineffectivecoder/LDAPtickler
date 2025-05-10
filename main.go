@@ -245,7 +245,7 @@ func main() {
 
 	case flags.addmachine != "":
 		detailstopass := strings.Split(flags.addmachine, " ")
-		fmt.Printf("[+] Added machine account %s with password %s\n", detailstopass[0], detailstopass[1])
+		fmt.Printf("[+] Adding machine account %s with password %s\n", detailstopass[0], detailstopass[1])
 		addReq := ldap.NewAddRequest("CN="+detailstopass[0]+",CN=Computers,"+ flags.basedn, []ldap.Control{})
 		addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
 		addReq.Attribute("cn", []string{detailstopass[0]})
