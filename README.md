@@ -15,7 +15,8 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 ## Initial features:   
 - [x] Prompt for user creds  
 - [x] Changing a user's password   
-- [x] Creating user accounts
+- [x] Creation of user accounts
+- [x] Creation of machine accounts
 - [ ] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
 - [ ] Store creds in environment variable  
 - [x] Search and list specific types of objects  
