@@ -43,13 +43,14 @@ var state struct {
 
 // Flags
 var flags struct {
-	addmachine				string
+	addmachine              string
 	adduser                 string
 	basedn                  string
 	certpublishers          bool
 	changepassword          string
 	computers               bool
 	constraineddelegation   bool
+	deleteobject            string
 	domain                  string
 	domaincontrollers       bool
 	filter                  string
@@ -92,8 +93,6 @@ func encodePassword(password string) string {
 	return encoded
 }
 
-
-
 func init() {
 	var bytepw []byte
 	var err error
@@ -104,14 +103,15 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	// Parse cli flags
-	
+
 	cli.Flag(&flags.addmachine, "addmachine", "", "Add Machine account, ex computername$ password")
-	cli.Flag(&flags.adduser, "adduser", "" ,"Add a user, ex username username@domain password")
+	cli.Flag(&flags.adduser, "adduser", "", "Add a user, ex username username@domain password")
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
 	cli.Flag(&flags.changepassword, "cp", "", "Change password for user, must use LDAPS you will need permissions so no funny business. ex. username newpassword")
 	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
 	cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
+	cli.Flag(&flags.deleteobject, "do", "", "Delete an object in AD, initial support for machine accounts and users, ex. machine/user objectname")
 	cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
@@ -244,23 +244,23 @@ func main() {
 	switch {
 
 	case flags.addmachine != "":
-		detailstopass := strings.Split(flags.addmachine, " ")
-		fmt.Printf("[+] Adding machine account %s with password %s\n", detailstopass[0], detailstopass[1])
-		addReq := ldap.NewAddRequest("CN="+detailstopass[0]+",CN=Computers,"+ flags.basedn, []ldap.Control{})
+		machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
+		fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
+		addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
 		addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
-		addReq.Attribute("cn", []string{detailstopass[0]})
-		addReq.Attribute("sAMAccountName", []string{detailstopass[0]})
+		addReq.Attribute("cn", []string{machinename})
+		addReq.Attribute("sAMAccountName", []string{machinename})
 		addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
-		encodedPassword := encodePassword(detailstopass[1])
+		encodedPassword := encodePassword(machinepass)
 		addReq.Attribute("unicodePWD", []string{encodedPassword})
 		err = l.Add(addReq)
 		check(err)
-		fmt.Printf("[+] Added machine account %s successfully with password %s\n", detailstopass[0], detailstopass[1])
+		fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
 
 	case flags.adduser != "":
 		detailstopass := strings.Split(flags.adduser, " ")
 		fmt.Printf("[+] Adding username %s with serviceprincipal %s with password %s\n", detailstopass[0], detailstopass[1], detailstopass[2])
-		addReq := ldap.NewAddRequest("CN="+detailstopass[0]+",CN=Users,"+ flags.basedn , []ldap.Control{})
+		addReq := ldap.NewAddRequest("CN="+detailstopass[0]+",CN=Users,"+flags.basedn, []ldap.Control{})
 		addReq.Attribute("accountExpires", []string{fmt.Sprintf("%d", 0x00000000)})
 		addReq.Attribute("cn", []string{detailstopass[0]})
 		addReq.Attribute("displayName", []string{detailstopass[0]})
@@ -278,7 +278,7 @@ func main() {
 		check(err)
 		fmt.Printf("[+] Successfully added user account %s\n", detailstopass[0])
 		fmt.Printf("[+] Now setting password...\n")
-		passwordSet:= ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+ flags.basedn, nil)
+		passwordSet := ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+flags.basedn, nil)
 		utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 		newpwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", detailstopass[2]))
 		check(err)
@@ -291,8 +291,8 @@ func main() {
 			fmt.Printf("[+] Password set successfully for user %s\n", detailstopass[0])
 		}
 		// You have to create the account disabled, then enable after setting a password... WTF, so intuitive
-		fmt.Printf("[+] Now enabling account for user %s\n",detailstopass[0])
-		enableReq := ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+ flags.basedn, []ldap.Control{})
+		fmt.Printf("[+] Now enabling account for user %s\n", detailstopass[0])
+		enableReq := ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+flags.basedn, []ldap.Control{})
 		enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
 		err = l.Modify(enableReq)
 		check(err)
@@ -334,6 +334,24 @@ func main() {
 		attributes := []string{"samaccountname", "msDS-AllowedToDelegateTo"}
 		searchscope := 2
 		ldapsearch(l, flags.basedn, searchscope, filter, attributes)
+
+	case flags.deleteobject != "":
+		uorm, objectname, _ := strings.Cut(flags.deleteobject, " ")
+		if uorm == "machine" {
+			fmt.Printf("[+] Deleting machine account %s\n", uorm)
+			delReq := ldap.NewDelRequest("CN="+objectname+",CN=Computers,"+flags.basedn, []ldap.Control{})
+			err = l.Del(delReq)
+			check(err)
+			fmt.Printf("[+] Machine account %s deleted", uorm)
+		} else if uorm == "user" {
+			fmt.Printf("[+] Deleting user account %s\n", uorm)
+			delReq := ldap.NewDelRequest("CN="+objectname+",CN=Users,"+flags.basedn, []ldap.Control{})
+			err = l.Del(delReq)
+			check(err)
+			fmt.Printf("[+] User account %s deleted", uorm)
+		} else {
+			log.Fatal("[-] You have selected an invalid object type, exiting\n")
+		}
 
 	case flags.domaincontrollers:
 		fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
