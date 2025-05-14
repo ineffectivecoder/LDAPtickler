@@ -6,8 +6,9 @@ import (
 	"log"
 	"os"
 	"strings"
-
+	//"github.com/jcmturner/gokrb5/v8/client"
 	"github.com/go-ldap/ldap/v3"
+	//"github.com/go-ldap/ldap/v3/gssapi"
 	"github.com/mjwhitta/cli"
 	"golang.org/x/term"
 	"golang.org/x/text/encoding/unicode"
@@ -44,6 +45,7 @@ var state struct {
 // Flags
 var flags struct {
 	addmachine              string
+	addmachinelowpriv       string
 	adduser                 string
 	basedn                  string
 	certpublishers          bool
@@ -56,6 +58,7 @@ var flags struct {
 	filter                  string
 	groups                  bool
 	groupswithmembers       bool
+	gssapi					bool
 	kerberoastable          bool
 	ldapURL                 string
 	machineaccountquota     bool
@@ -105,6 +108,7 @@ func init() {
 	// Parse cli flags
 
 	cli.Flag(&flags.addmachine, "addmachine", "", "Add Machine account, ex computername$ password")
+	cli.Flag(&flags.addmachinelowpriv, "lpaddmachine", "", "Add machine account with low priv user. ex computername$ password")
 	cli.Flag(&flags.adduser, "adduser", "", "Add a user, ex username username@domain password")
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
@@ -117,6 +121,7 @@ func init() {
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 	cli.Flag(&flags.groups, "groups", false, "Search for all group objects")
 	cli.Flag(&flags.groupswithmembers, "groupmembers", false, "Search for all groups and their members")
+	cli.Flag(&flags.gssapi, "gssapi", false, "Enable GSSAPI and attempt to authenticate")
 	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
 	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
 	cli.Flag(&flags.machineaccountquota, "maq", false, "Retrieve the attribute ms-DS-MachineAccount Quota to determine how many machine accounts a user may create")
@@ -193,6 +198,18 @@ func init() {
 		log.Fatal("[-] A basedn will be required for any action")
 
 	}
+	
+	/*if flags.gssapi {
+		gssClient, err := gssapi.NewClientWithPassword(
+        flags.username,     // Kerberos principal name
+        flags.domain,    // Kerberos realm
+        state.password,     // Kerberos password
+        "/etc/krb5.conf",    // krb5 configuration file path
+        client.DisablePAFXFAST(true), // Optional: disable FAST if your realm needs it
+    )
+	check(err)
+	defer gssClient.Close()
+	}*/
 
 }
 
@@ -209,6 +226,7 @@ func main() {
 	var err error
 	fmt.Printf("[+] skipVerify currently set to %t\n", flags.skipVerify)
 	if strings.HasPrefix(flags.ldapURL, "ldaps:") {
+		//ServerName: "0.0.0.0", MaxVersion: tls.VersionTLS12
 		l, err = ldap.DialURL(flags.ldapURL, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: flags.skipVerify}))
 	} else {
 		l, err = ldap.DialURL(flags.ldapURL)
@@ -216,6 +234,7 @@ func main() {
 	check(err)
 	defer l.Close()
 
+	
 	// Attempt anonymous bind, check for flag
 	switch state.mode {
 	case bindAnonymous:
@@ -233,7 +252,14 @@ func main() {
 	case bindDomainPTH:
 		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.ldapURL)
 		err = l.NTLMBindWithHash(flags.domain, flags.username, flags.pth)
-	}
+
+	/*case bindGSSAPI:
+		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.ldapURL)
+		err = l.GSSAPIBindRequest(gssClient)
+		check(err)
+		fmt.Println("[+] GSSAPI bind successful")*/
+}
+	
 
 	check(err)
 	fmt.Printf("[+] Successfully connected to %s\n", flags.ldapURL)
@@ -249,13 +275,32 @@ func main() {
 		addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
 		addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
 		addReq.Attribute("cn", []string{machinename})
-		addReq.Attribute("sAMAccountName", []string{machinename})
+		addReq.Attribute("sAMAccountName", []string{machinename + "$"})
 		addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
 		encodedPassword := encodePassword(machinepass)
 		addReq.Attribute("unicodePWD", []string{encodedPassword})
 		err = l.Add(addReq)
 		check(err)
 		fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
+
+	case flags.addmachinelowpriv != "":
+		machinename, machinepass, _ := strings.Cut(flags.addmachinelowpriv, " ")
+		fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
+		//addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
+		//addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
+		//addReq.Attribute("sAMAccountName", []string{machinename + "$"})
+		//addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+		addReq := ldap.NewAddRequest("CN=TESTPC,CN=Computers,DC=ad,DC=sostup,DC=id", nil)
+		addReq.Attribute("objectClass", []string{"computer"})
+		addReq.Attribute("sAMAccountName", []string{"TESTPC$"})
+		addReq.Attribute("userAccountControl", []string{"4096"})
+		addReq.Attribute("dNSHostName", []string{"TESTPC.ad.sostup.id"})
+		//addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
+		//encodedPassword := encodePassword(machinepass)
+		//addReq.Attribute("unicodePWD", []string{encodedPassword})
+		err = l.Add(addReq)
+		check(err)
+		fmt.Printf("[+] Added machine account %s with a low priv account successfully with password %s\n", machinename, machinepass)
 
 	case flags.adduser != "":
 		detailstopass := strings.Split(flags.adduser, " ")
@@ -344,11 +389,11 @@ func main() {
 			check(err)
 			fmt.Printf("[+] Machine account %s deleted", uorm)
 		} else if uorm == "user" {
-			fmt.Printf("[+] Deleting user account %s\n", uorm)
+			fmt.Printf("[+] Deleting user account %s\n", objectname)
 			delReq := ldap.NewDelRequest("CN="+objectname+",CN=Users,"+flags.basedn, []ldap.Control{})
 			err = l.Del(delReq)
 			check(err)
-			fmt.Printf("[+] User account %s deleted", uorm)
+			fmt.Printf("[+] User account %s deleted", objectname)
 		} else {
 			log.Fatal("[-] You have selected an invalid object type, exiting\n")
 		}
