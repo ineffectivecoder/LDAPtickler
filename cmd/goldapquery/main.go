@@ -74,7 +74,7 @@ var flags struct {
 
 func check(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("[-] %s\n", err)
 	}
 }
 
@@ -215,27 +215,29 @@ func ldapsearch(l *ldap.Conn, base string, searchscope int, filter string, attri
 }
 
 func main() {
-	var l *ldap.Conn
+	var c *goldapquery.Conn
 	var err error
+	var l *ldap.Conn
 	goldapquery.SkipVerify = flags.skipVerify
+	goldapquery.BaseDN = flags.basedn
 
 	// Attempt anonymous bind, check for flag
 	switch state.mode {
 	case goldapquery.MethodBindAnonymous:
 		fmt.Printf("[+] Attempting anonymous bind to %s\n", flags.ldapURL)
-		l, err = goldapquery.BindAnonymous(flags.ldapURL, flags.username)
+		c, err = goldapquery.BindAnonymous(flags.ldapURL, flags.username)
 
 	case goldapquery.MethodBindPassword:
 		fmt.Printf("[+] Attempting bind with credentials to %s\n", flags.ldapURL)
-		l, err = goldapquery.BindPassword(flags.ldapURL, flags.username, state.password)
+		c, err = goldapquery.BindPassword(flags.ldapURL, flags.username, state.password)
 
 	case goldapquery.MethodBindDomain:
 		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.ldapURL)
-		l, err = goldapquery.BindDomain(flags.ldapURL, flags.domain, flags.username, state.password)
+		c, err = goldapquery.BindDomain(flags.ldapURL, flags.domain, flags.username, state.password)
 
 	case goldapquery.MethodBindDomainPTH:
 		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.ldapURL)
-		l, err = goldapquery.BindDomainPTH(flags.ldapURL, flags.domain, flags.username, flags.pth)
+		c, err = goldapquery.BindDomainPTH(flags.ldapURL, flags.domain, flags.username, flags.pth)
 
 		/*case bindGSSAPI:
 		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.ldapURL)
@@ -244,7 +246,7 @@ func main() {
 		fmt.Println("[+] GSSAPI bind successful")*/
 	}
 	check(err)
-	defer l.Close()
+	defer c.Close()
 	fmt.Printf("[+] Successfully connected to %s\n", flags.ldapURL)
 
 	// We have so much power here with the filters. Basically any filter that works in ldapsearch should work here.
@@ -331,7 +333,9 @@ func main() {
 		filter := "(&(samaccountname=Cert Publishers)(member=*) "
 		attributes := []string{"member"}
 		searchscope := 2
-		ldapsearch(l, flags.basedn, searchscope, filter, attributes)
+		result, err := c.LDAPSearch(searchscope, filter, attributes)
+		check(err)
+		result.PrettyPrint(2)
 
 	case flags.changepassword != "":
 		detailstopass := strings.Split(flags.changepassword, " ")
@@ -354,14 +358,20 @@ func main() {
 		filter := "(objectClass=computer)"
 		attributes := []string{"samaccountname"}
 		searchscope := 2
-		ldapsearch(l, flags.basedn, searchscope, filter, attributes)
+		// ldapsearch(l, flags.basedn, searchscope, filter, attributes)
+		result, err := c.LDAPSearch(searchscope, filter, attributes)
+		check(err)
+		result.PrettyPrint(2)
 
 	case flags.constraineddelegation:
 		fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
 		filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
 		attributes := []string{"samaccountname", "msDS-AllowedToDelegateTo"}
 		searchscope := 2
-		ldapsearch(l, flags.basedn, searchscope, filter, attributes)
+		// ldapsearch(l, flags.basedn, searchscope, filter, attributes)
+		result, err := c.LDAPSearch(searchscope, filter, attributes)
+		check(err)
+		result.PrettyPrint(2)
 
 	case flags.deleteobject != "":
 		uorm, objectname, _ := strings.Cut(flags.deleteobject, " ")
@@ -383,16 +393,17 @@ func main() {
 
 	case flags.domaincontrollers:
 		fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
-		filter := "(&(objectCategory=Computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
-		attributes := []string{"samaccountname"}
-		searchscope := 2
-		ldapsearch(l, flags.basedn, searchscope, filter, attributes)
+		err = c.ListDCs()
+		check(err)
 
 	case flags.filter != "":
 		fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", flags.filter, flags.basedn)
 		filter := flags.filter
 		attributes := []string{}
-		ldapsearch(l, flags.basedn, flags.searchscope, filter, attributes)
+		// ldapsearch(l, flags.basedn, flags.searchscope, filter, attributes)
+		result, err := c.LDAPSearch(flags.searchscope, filter, attributes)
+		check(err)
+		result.PrettyPrint(2)
 
 	case flags.groups:
 		fmt.Printf("[+] Searching for all groups in LDAP with baseDN %s\n", flags.basedn)
