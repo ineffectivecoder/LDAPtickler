@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
+	"golang.org/x/text/encoding/unicode"
 )
 
 // BindMethod TODO
@@ -52,6 +53,17 @@ func bindSetup(
 		return nil, err
 	}
 	return l, nil
+}
+
+func createUnicodePasswordRequest(username string, password string) (*ldap.ModifyRequest, error) {
+	passwordSet := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, nil)
+	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+	newunicodeEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", password))
+	if err != nil {
+		return nil, err
+	}
+	passwordSet.Replace("unicodePwd", []string{newunicodeEncoded})
+	return passwordSet, nil
 }
 
 func encodePassword(password string) string {
@@ -131,6 +143,24 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 	addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
 	encodedPassword := encodePassword(machinepass)
 	addReq.Attribute("unicodePWD", []string{encodedPassword})
+	return c.lconn.Add(addReq)
+}
+
+func (c *Conn) AddUserAccount(username string, principalname string) error {
+	addReq := ldap.NewAddRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
+	addReq.Attribute("accountExpires", []string{fmt.Sprintf("%d", 0x00000000)})
+	addReq.Attribute("cn", []string{username})
+	addReq.Attribute("displayName", []string{username})
+	addReq.Attribute("givenName", []string{username})
+	addReq.Attribute("instanceType", []string{fmt.Sprintf("%d", 0x00000004)})
+	addReq.Attribute("name", []string{username})
+	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"})
+	addReq.Attribute("sAMAccountName", []string{username})
+	addReq.Attribute("sn", []string{username})
+	// Create the account disabled....
+	addReq.Attribute("userAccountControl", []string{"514"})
+	addReq.Attribute("userPrincipalName", []string{principalname})
+	// addReq.Attributes = attrs
 	return c.lconn.Add(addReq)
 }
 
@@ -320,4 +350,18 @@ func (c *Conn) ListUsers() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
+func (c *Conn) SetEnableAccount(username string) error {
+	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
+	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
+	return c.lconn.Modify(enableReq)
+}
+
+func (c *Conn) SetUserPassword(username string, userpass string) error {
+	passwordReq, err := createUnicodePasswordRequest(username, userpass)
+	if err != nil {
+		return err
+	}
+	return c.lconn.Modify(passwordReq)
 }

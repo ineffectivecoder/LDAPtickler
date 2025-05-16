@@ -8,12 +8,10 @@ import (
 
 	//"github.com/jcmturner/gokrb5/v8/client"
 	"git.red.team/silversurfer/goldapquery"
-	"github.com/go-ldap/ldap/v3"
 
 	//"github.com/go-ldap/ldap/v3/gssapi"
 	"github.com/mjwhitta/cli"
 	"golang.org/x/term"
-	"golang.org/x/text/encoding/unicode"
 )
 
 /*
@@ -79,18 +77,10 @@ func check(err error) {
 	}
 }
 
-func encodePassword(password string) string {
-	quoted := fmt.Sprintf("\"%s\"", password)
-	encoded := ""
-	for _, r := range quoted {
-		encoded += fmt.Sprintf("%c%c", byte(r), 0)
-	}
-	return encoded
-}
-
 func init() {
 	var bytepw []byte
 	var err error
+	log.Default().SetFlags(0)
 	// Configure cli package
 	cli.Align = true // Defaults to false
 	cli.Authors = []string{"Chris Hodson r2d2@sostup.id"}
@@ -129,7 +119,7 @@ func init() {
 	cli.Flag(&flags.querydescription, "qd", "", "Query all objects for a specific description, useful for finding data like creds in description fields")
 	cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
 	cli.Flag(&flags.schema, "schema", false, "Dump the schema of the LDAP database")
-	cli.Flag(&flags.searchscope, "scope", 0, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
+	cli.Flag(&flags.searchscope, "scope", 2, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
 	cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
@@ -211,7 +201,6 @@ func init() {
 func main() {
 	var c *goldapquery.Conn
 	var err error
-	var l *ldap.Conn
 	goldapquery.SkipVerify = flags.skipVerify
 	goldapquery.BaseDN = flags.basedn
 
@@ -254,85 +243,60 @@ func main() {
 		check(err)
 		fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
 
-	case flags.addmachinelowpriv != "":
-		machinename, machinepass, _ := strings.Cut(flags.addmachinelowpriv, " ")
-		fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
-		// addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
-		// addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
-		// addReq.Attribute("sAMAccountName", []string{machinename + "$"})
-		// addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
-		addReq := ldap.NewAddRequest("CN=TESTPC,CN=Computers,DC=ad,DC=sostup,DC=id", nil)
-		addReq.Attribute("objectClass", []string{"computer"})
-		addReq.Attribute("sAMAccountName", []string{"TESTPC$"})
-		addReq.Attribute("userAccountControl", []string{"4096"})
-		addReq.Attribute("dNSHostName", []string{"TESTPC.ad.sostup.id"})
-		// addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
-		// encodedPassword := encodePassword(machinepass)
-		// addReq.Attribute("unicodePWD", []string{encodedPassword})
-		err = l.Add(addReq)
-		check(err)
-		fmt.Printf("[+] Added machine account %s with a low priv account successfully with password %s\n", machinename, machinepass)
+	//Completely broken pending research into GSSAPI, connection is not secure enough for low priv user to do this :(
+	/*case flags.addmachinelowpriv != "":
+	machinename, machinepass, _ := strings.Cut(flags.addmachinelowpriv, " ")
+	fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
+	// addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
+	// addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
+	// addReq.Attribute("sAMAccountName", []string{machinename + "$"})
+	// addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+	addReq := ldap.NewAddRequest("CN=TESTPC,CN=Computers,DC=ad,DC=sostup,DC=id", nil)
+	addReq.Attribute("objectClass", []string{"computer"})
+	addReq.Attribute("sAMAccountName", []string{"TESTPC$"})
+	addReq.Attribute("userAccountControl", []string{"4096"})
+	addReq.Attribute("dNSHostName", []string{"TESTPC.ad.sostup.id"})
+	// addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
+	// encodedPassword := encodePassword(machinepass)
+	// addReq.Attribute("unicodePWD", []string{encodedPassword})
+	err = l.Add(addReq)
+	check(err)
+	fmt.Printf("[+] Added machine account %s with a low priv account successfully with password %s\n", machinename, machinepass)*/
 
 	case flags.adduser != "":
-		detailstopass := strings.Split(flags.adduser, " ")
-		fmt.Printf("[+] Adding username %s with serviceprincipal %s with password %s\n", detailstopass[0], detailstopass[1], detailstopass[2])
-		addReq := ldap.NewAddRequest("CN="+detailstopass[0]+",CN=Users,"+flags.basedn, []ldap.Control{})
-		addReq.Attribute("accountExpires", []string{fmt.Sprintf("%d", 0x00000000)})
-		addReq.Attribute("cn", []string{detailstopass[0]})
-		addReq.Attribute("displayName", []string{detailstopass[0]})
-		addReq.Attribute("givenName", []string{detailstopass[0]})
-		addReq.Attribute("instanceType", []string{fmt.Sprintf("%d", 0x00000004)})
-		addReq.Attribute("name", []string{detailstopass[0]})
-		addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"})
-		addReq.Attribute("sAMAccountName", []string{detailstopass[0]})
-		addReq.Attribute("sn", []string{detailstopass[0]})
-		// Create the account disabled....
-		addReq.Attribute("userAccountControl", []string{"514"})
-		addReq.Attribute("userPrincipalName", []string{detailstopass[1]})
-		// addReq.Attributes = attrs
-		err = l.Add(addReq)
-		check(err)
-		fmt.Printf("[+] Successfully added user account %s\n", detailstopass[0])
-		fmt.Printf("[+] Now setting password...\n")
-		passwordSet := ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+flags.basedn, nil)
-		utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-		newpwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", detailstopass[2]))
-		check(err)
-		passwordSet.Replace("unicodePwd", []string{newpwdEncoded})
-		// debugging crap
-		// log.Printf("The stuff %s", *passwordModify)
-		err = l.Modify(passwordSet)
-		check(err)
-		if err == nil {
-			fmt.Printf("[+] Password set successfully for user %s\n", detailstopass[0])
+		stuff := strings.Split(flags.adduser, " ")
+		if len(stuff) != 3 {
+			log.Fatalf("[-] Expected username, principalname and password\n")
 		}
-		// You have to create the account disabled, then enable after setting a password... WTF, so intuitive
-		fmt.Printf("[+] Now enabling account for user %s\n", detailstopass[0])
-		enableReq := ldap.NewModifyRequest("CN="+detailstopass[0]+",CN=Users,"+flags.basedn, []ldap.Control{})
-		enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
-		err = l.Modify(enableReq)
+		username := stuff[0]
+		principalname := stuff[1]
+		userpasswd := stuff[2]
+		fmt.Printf("[+] Adding username %s with serviceprincipal %s with password %s\n", username, principalname, userpasswd)
+		err := c.AddUserAccount(username, principalname)
 		check(err)
-		fmt.Printf("[+] Successfully added and enabled user account %s\n", detailstopass[0])
+		fmt.Printf("[+] Successfully added user account %s\n", username)
+		fmt.Printf("[+] Now setting password...\n")
+		err = c.SetUserPassword(username, userpasswd)
+		check(err)
+		fmt.Printf("[+] Password set successfully for user %s\n", username)
+		fmt.Printf("[+] Now enabling account for user %s\n", username)
+		err = c.SetEnableAccount(username)
+		check(err)
+		fmt.Printf("[+] Successfully added and enabled user account %s\n", username)
 
 	case flags.certpublishers:
 		fmt.Printf("[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n", flags.basedn)
 		err = c.ListCAs()
 
 	case flags.changepassword != "":
-		detailstopass := strings.Split(flags.changepassword, " ")
-		fmt.Printf("[+] Changing password for user %s with password supplied in LDAP with baseDN %s\n", detailstopass[0], flags.basedn)
-		utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-		newpwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", detailstopass[1]))
-		check(err)
-		passwordModify := ldap.NewModifyRequest("cn="+detailstopass[0]+",cn=Users,"+flags.basedn, nil)
-		passwordModify.Replace("unicodePwd", []string{newpwdEncoded})
-		// debugging crap
-		// log.Printf("The stuff %s", *passwordModify)
-		err = l.Modify(passwordModify)
-		check(err)
-		if err == nil {
-			fmt.Printf("[+] Password change successful for user %s\n", detailstopass[0])
+		username, userpasswd, ok := strings.Cut(flags.changepassword, " ")
+		if !ok {
+			log.Fatalf("[-] Expected username and password\n")
 		}
+		fmt.Printf("[+] Changing password for user %s with password supplied in LDAP with baseDN %s\n", username, flags.basedn)
+		err = c.SetUserPassword(username, userpasswd)
+		check(err)
+		fmt.Printf("[+] Password change successful for user %s\n", username)
 
 	case flags.computers:
 		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s\n", flags.basedn)

@@ -21,8 +21,8 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [x] Deletion of User and Machine accounts
 - [ ] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
 - [ ] Store creds in environment variable  
-- [ ] Refactor
-    - [ ] Create Library
+- [x] Refactor
+    - [x] Create Library
     
 
 - [x] Search and list specific types of objects  
