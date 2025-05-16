@@ -116,13 +116,13 @@ func (c *Conn) Close() error {
 	return c.lconn.Close()
 }
 
-func (c *Conn) ldapSearch(searchscope int, filter string, attributes []string) (*ldap.SearchResult, error) {
+func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attributes []string) (*ldap.SearchResult, error) {
 	if c.lconn == nil {
 		return nil, fmt.Errorf("you must bind before searching")
 	}
 	var err error
 	var result *ldap.SearchResult
-	searchReq := ldap.NewSearchRequest(BaseDN, searchscope, 0, 0, 0, false, filter, attributes, []ldap.Control{})
+	searchReq := ldap.NewSearchRequest(basedn, searchscope, 0, 0, 0, false, filter, attributes, []ldap.Control{})
 	result, err = c.lconn.Search(searchReq)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (c *Conn) ldapSearch(searchscope int, filter string, attributes []string) (
 func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string) error {
 	var err error
 	var result *ldap.SearchResult
-	result, err = c.ldapSearch(searchscope, filter, attributes)
+	result, err = c.ldapSearch(BaseDN, searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,6 @@ func (c *Conn) ListCAs() error {
 	attributes := []string{"member"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListConstrainedDelegation() error {
@@ -162,7 +161,6 @@ func (c *Conn) ListDCs() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListComputers() error {
@@ -184,7 +182,6 @@ func (c *Conn) ListGroupswithMembers() error {
 	attributes := []string{"member"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListKerberoastable() error {
@@ -192,7 +189,6 @@ func (c *Conn) ListKerberoastable() error {
 	attributes := []string{"samaccountname", "serviceprincipalname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListMachineAccountQuota() error {
@@ -200,7 +196,6 @@ func (c *Conn) ListMachineAccountQuota() error {
 	attributes := []string{"ms-DS-MachineAccountQuota"}
 	searchscope := 0
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListNoPassword() error {
@@ -208,7 +203,6 @@ func (c *Conn) ListNoPassword() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListPasswordDontExpire() error {
@@ -216,7 +210,6 @@ func (c *Conn) ListPasswordDontExpire() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListPasswordChangeNextLogin() error {
@@ -224,7 +217,6 @@ func (c *Conn) ListPasswordChangeNextLogin() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListProtectedUsers() error {
@@ -232,7 +224,6 @@ func (c *Conn) ListProtectedUsers() error {
 	attributes := []string{"member"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListPreAuthDisabled() error {
@@ -240,7 +231,6 @@ func (c *Conn) ListPreAuthDisabled() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListRBCD() error {
@@ -248,7 +238,6 @@ func (c *Conn) ListRBCD() error {
 	attributes := []string{"samaccountname", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListShadowCredentials() error {
@@ -256,7 +245,6 @@ func (c *Conn) ListShadowCredentials() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListUnconstrainedDelegation() error {
@@ -264,7 +252,6 @@ func (c *Conn) ListUnconstrainedDelegation() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
 func (c *Conn) ListUsers() error {
@@ -272,12 +259,31 @@ func (c *Conn) ListUsers() error {
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-
 }
 
-func (c *Conn) ListUserAttributes(objectquery string, searchscope int) error {
+func (c *Conn) FindUserByName(objectquery string, searchscope int) error {
 	filter := "(&(objectClass=user)(samaccountname=" + objectquery + "))"
 	attributes := []string{"*"}
 	return c.LDAPSearch(searchscope, filter, attributes)
+}
 
+func (c *Conn) FindUserByDescription(querydescription string) error {
+	filter := "(&(objectCategory=*)(description=" + querydescription + "))"
+	attributes := []string{"samaccountname", "description"}
+	searchscope := 2
+	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
+func (c *Conn) ListSchema() error {
+	filter := "(objectClass=*)"
+	attributes := []string{}
+	searchscope := 0
+	var err error
+	var result *ldap.SearchResult
+	result, err = c.ldapSearch("cn=Schema,cn=Configuration,"+BaseDN, searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	result.PrettyPrint(2)
+	return nil
 }

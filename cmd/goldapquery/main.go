@@ -398,7 +398,7 @@ func main() {
 
 	case flags.objectquery != "":
 		fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", flags.objectquery, flags.basedn)
-		err = c.ListUserAttributes(flags.objectquery, flags.searchscope)
+		err = c.FindUserByName(flags.objectquery, flags.searchscope)
 
 	case flags.passwordontexpire:
 		fmt.Printf("[+] Searching for all users all objects where the password doesnt expire in LDAP with baseDN %s\n", flags.basedn)
@@ -418,22 +418,14 @@ func main() {
 
 	case flags.querydescription != "":
 		fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", flags.querydescription, flags.basedn)
-		filter := "(&(objectCategory=*)(description=" + flags.querydescription + "))"
-		attributes := []string{"samaccountname", "description"}
-		searchscope := 2
-		err = c.LDAPSearch(searchscope, filter, attributes)
-
+		err = c.FindUserByDescription(flags.querydescription)
 	case flags.rbcd:
 		fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
 		err = c.ListRBCD()
 
 	case flags.schema:
 		fmt.Printf("[+] Listing schema for LDAP database with baseDN %s\n", flags.basedn)
-		flags.basedn = "cn=Schema,cn=Configuration," + flags.basedn
-		filter := "(objectClass=*)"
-		attributes := []string{}
-		searchscope := 0
-		err = c.LDAPSearch(searchscope, filter, attributes)
+		err = c.ListSchema()
 
 	case flags.shadowcredentials:
 		fmt.Printf("[+] Searching for all Shadow Credentials in LDAP with baseDN %s\n", flags.basedn)
