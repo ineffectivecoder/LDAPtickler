@@ -184,7 +184,7 @@ func init() {
 	if flags.basedn == "" {
 		log.Fatal("[-] A basedn will be required for any action")
 	}
-
+	// Broken GSSAPI crap
 	/*if flags.gssapi {
 			gssClient, err := gssapi.NewClientWithPassword(
 	        flags.username,     // Kerberos principal name
@@ -370,6 +370,7 @@ func main() {
 	case flags.querydescription != "":
 		fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", flags.querydescription, flags.basedn)
 		err = c.FindUserByDescription(flags.querydescription)
+
 	case flags.rbcd:
 		fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
 		err = c.ListRBCD()
