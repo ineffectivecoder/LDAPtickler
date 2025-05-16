@@ -121,7 +121,7 @@ func init() {
 	cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
 	cli.Flag(&flags.objectquery, "oq", "", "Provide all attributes of specific user/computer object, machine accounts will need trailing $")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
-	cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesnt expire")
+	cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesn't expire")
 	cli.Flag(&flags.passwordchangenextlogin, "pcnl", false, "Search for objects where the password is required to be changed at next login")
 	cli.Flag(&flags.protectedusers, "pu", false, "Search for users in Protected Users group")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
@@ -143,7 +143,7 @@ func init() {
 		cli.Usage(1)
 	}
 
-	// Ensure we are passing no arguments. There shouldnt be any. Only parameters.
+	// Ensure we are passing no arguments. There shouldn't be any. Only parameters.
 	if cli.NArg() > 0 {
 		cli.Usage(1)
 	}
@@ -155,7 +155,7 @@ func init() {
 	*/
 
 	if flags.password && flags.pth != "" {
-		log.Fatal("[-] Silly Goose detected, you cant PTH and provide a password")
+		log.Fatal("[-] Silly Goose detected, you can't PTH and provide a password")
 	}
 
 	if flags.password {
@@ -244,21 +244,13 @@ func main() {
 	fmt.Printf("[+] Successfully connected to %s\n", flags.ldapURL)
 
 	// We have so much power here with the filters. Basically any filter that works in ldapsearch should work here.
-	// In order to simplify searching for varous objects, we will have a reasonable number of flags for things like:
+	// In order to simplify searching for various objects, we will have a reasonable number of flags for things like:
 	// computers, users, kerberoastable users. We will also accommodate users who are comfy using their own filter.
 	switch {
 
 	case flags.addmachine != "":
 		machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
-		fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
-		addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
-		addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
-		addReq.Attribute("cn", []string{machinename})
-		addReq.Attribute("sAMAccountName", []string{machinename + "$"})
-		addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
-		encodedPassword := encodePassword(machinepass)
-		addReq.Attribute("unicodePWD", []string{encodedPassword})
-		err = l.Add(addReq)
+		err = c.AddMachineAccount(machinename, machinepass)
 		check(err)
 		fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
 
@@ -351,21 +343,16 @@ func main() {
 		err = c.ListConstrainedDelegation()
 
 	case flags.deleteobject != "":
-		uorm, objectname, _ := strings.Cut(flags.deleteobject, " ")
-		if uorm == "machine" {
-			fmt.Printf("[+] Deleting machine account %s\n", uorm)
-			delReq := ldap.NewDelRequest("CN="+objectname+",CN=Computers,"+flags.basedn, []ldap.Control{})
-			err = l.Del(delReq)
+		if strings.HasSuffix(flags.deleteobject, "$") {
+			fmt.Printf("[+] Deleting machine account %s\n", flags.deleteobject)
+			err = c.DeleteObject(flags.deleteobject)
 			check(err)
-			fmt.Printf("[+] Machine account %s deleted", uorm)
-		} else if uorm == "user" {
-			fmt.Printf("[+] Deleting user account %s\n", objectname)
-			delReq := ldap.NewDelRequest("CN="+objectname+",CN=Users,"+flags.basedn, []ldap.Control{})
-			err = l.Del(delReq)
-			check(err)
-			fmt.Printf("[+] User account %s deleted", objectname)
+			fmt.Printf("[+] Machine account %s deleted\n", flags.deleteobject)
 		} else {
-			log.Fatal("[-] You have selected an invalid object type, exiting\n")
+			fmt.Printf("[+] Deleting user account %s\n", flags.deleteobject)
+			err = c.DeleteObject(flags.deleteobject)
+			check(err)
+			fmt.Printf("[+] User account %s deleted\n", flags.deleteobject)
 		}
 
 	case flags.domaincontrollers:
@@ -401,7 +388,7 @@ func main() {
 		err = c.FindUserByName(flags.objectquery, flags.searchscope)
 
 	case flags.passwordontexpire:
-		fmt.Printf("[+] Searching for all users all objects where the password doesnt expire in LDAP with baseDN %s\n", flags.basedn)
+		fmt.Printf("[+] Searching for all users all objects where the password doesn't expire in LDAP with baseDN %s\n", flags.basedn)
 		err = c.ListPasswordDontExpire()
 
 	case flags.passwordchangenextlogin:
