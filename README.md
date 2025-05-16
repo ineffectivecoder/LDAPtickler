@@ -48,7 +48,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [x] simple  
     - [x] ntlm  
     - [x] ntlm with PTH  
-    - [ ] GSSAPI  
+    - [ ] GSSAPI, support for this seems barely functional at best, need to research
     - [ ] SASL  
 - [ ] Support dumping the entire database  
 - [x] Support ldaps and ldap  
