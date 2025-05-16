@@ -208,14 +208,6 @@ func init() {
 		}*/
 }
 
-// Eventually build this up to take all supported parameters, just an initial shell so far with support for base, scope, filter and attributes.
-func ldapsearch(l *ldap.Conn, base string, searchscope int, filter string, attributes []string) {
-	searchReq := ldap.NewSearchRequest(base, searchscope, 0, 0, 0, false, filter, attributes, []ldap.Control{})
-	result, err := l.Search(searchReq)
-	check(err)
-	result.PrettyPrint(2)
-}
-
 func main() {
 	var c *goldapquery.Conn
 	var err error
@@ -406,8 +398,7 @@ func main() {
 
 	case flags.objectquery != "":
 		fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", flags.objectquery, flags.basedn)
-		filter := "(&(objectClass=user)(samaccountname=" + flags.objectquery + "))"
-		err = c.LDAPSearch(flags.searchscope, filter, []string{})
+		err = c.ListUserAttributes(flags.objectquery, flags.searchscope)
 
 	case flags.passwordontexpire:
 		fmt.Printf("[+] Searching for all users all objects where the password doesnt expire in LDAP with baseDN %s\n", flags.basedn)
