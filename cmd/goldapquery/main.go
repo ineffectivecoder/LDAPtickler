@@ -134,7 +134,7 @@ func init() {
 	cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
 	cli.Flag(&flags.users, "users", false, "Search for all User objects")
 */
-	cli.Flag(&flags.attributes, "attributes", "", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname")
+	cli.Flag(&flags.attributes, "a" ,"attributes", "", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 
 	cli.Parse()
