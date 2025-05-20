@@ -85,8 +85,17 @@ func init() {
 	cli.Align = true // Defaults to false
 	cli.Authors = []string{"Chris Hodson r2d2@sostup.id"}
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
-	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
+	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun",
+	)
 
+	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject",
+	)
+
+	cli.Section("Supported Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
+	"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
+	"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription",
+	"rbcd, schema, shadowcredentials, unconstraineddelegation, users",
+	)
 	// Parse cli flags
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
