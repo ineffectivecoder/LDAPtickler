@@ -107,6 +107,10 @@ func init() {
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
 	cli.Flag(&flags.gssapi, "gssapi", false, "Enable GSSAPI and attempt to authenticate")
 
+	cli.Flag(&flags.attributes, "a" ,"attributes", "", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname")
+	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
+
+
 	/*
 	cli.Flag(&flags.addmachine, "addmachine", "", "Add Machine account, ex computername$ password")
 	cli.Flag(&flags.addmachinelowpriv, "lpaddmachine", "", "Add machine account with low priv user. ex computername$ password")
@@ -134,8 +138,7 @@ func init() {
 	cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
 	cli.Flag(&flags.users, "users", false, "Search for all User objects")
 */
-	cli.Flag(&flags.attributes, "a" ,"attributes", "", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname")
-	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
+	
 
 	cli.Parse()
 
