@@ -91,7 +91,7 @@ func init() {
 	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject",
 	)
 
-	cli.Section("Supported Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
+	cli.Section("Supported LDAP Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
 	"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
 	"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
 	"rbcd, schema, shadowcredentials, unconstraineddelegation, users",
