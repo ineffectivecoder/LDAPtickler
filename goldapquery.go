@@ -202,6 +202,15 @@ func (c *Conn) FindUserByName(objectquery string, searchscope int) error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+// GetWhoAmI will query the LDAP server for who we currently are authenticated as
+func (c *Conn) GetWhoAmI()  (*ldap.WhoAmIResult, error) {
+	result, err := c.lconn.WhoAmI(nil)
+	if err != nil {
+		return nil, err
+	}
+	return result,err
+}
+
 func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attributes []string) (*ldap.SearchResult, error) {
 	if c.lconn == nil {
 		return nil, fmt.Errorf("you must bind before searching")
@@ -395,11 +404,4 @@ func (c *Conn) SetUserPassword(username string, userpass string) error {
 	return c.lconn.Modify(passwordReq)
 }
 
-// GetWhoAmI will query the LDAP server for who we currently are authenticated as
-func (c *Conn) GetWhoAmI()  (*ldap.WhoAmIResult, error) {
-	result, err := c.lconn.WhoAmI(nil)
-	if err != nil {
-		return nil, err
-	}
-	return result,err
-}
+
