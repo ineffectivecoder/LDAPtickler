@@ -88,7 +88,7 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject,",
-	 "disablemachine, disableuser, enablemachine, enableuser")
+		"disablemachine, disableuser, enablemachine, enableuser")
 
 	cli.Section("Supported LDAP Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
 		"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",

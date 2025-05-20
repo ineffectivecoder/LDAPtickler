@@ -388,14 +388,16 @@ func (c *Conn) ListUsers() error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+// SetDisableMachineAccount will modify userAccountControl to disable a machine account
 func (c *Conn) SetDisableMachineAccount(username string) error {
 	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+BaseDN, []ldap.Control{})
 	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0202)})
 	return c.lconn.Modify(disableReq)
 }
 
+// SetEnableMachineAccount will modify userAccountControl to enable a machine account
 func (c *Conn) SetEnableMachineAccount(username string) error {
-enableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+BaseDN, []ldap.Control{})
+	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+BaseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
 	return c.lconn.Modify(enableReq)
 }
