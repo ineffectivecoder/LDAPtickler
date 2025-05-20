@@ -349,8 +349,6 @@ func main() {
 		check(err)
 		fmt.Printf("[+] Machine account %s disabled\n", objectname)
 
-
-
 	case "disableuser":
 		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected username\n")
@@ -364,15 +362,6 @@ func main() {
 		fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
 		err = c.ListDCs()
 
-	case "enableuser":
-		if cli.NArg() != 2 {
-			log.Fatal("[-] Expected username\n")
-		}
-		objectname := cli.Arg(1)
-		err = c.SetEnableUserAccount(objectname)
-		check(err)
-		fmt.Printf("[+] User account %s enabled\n", objectname)
-
 	case "enablemachine":
 		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected machinename\n")
@@ -382,6 +371,14 @@ func main() {
 		check(err)
 		fmt.Printf("[+] Machine account %s enabled\n", objectname)
 
+	case "enableuser":
+		if cli.NArg() != 2 {
+			log.Fatal("[-] Expected username\n")
+		}
+		objectname := cli.Arg(1)
+		err = c.SetEnableUserAccount(objectname)
+		check(err)
+		fmt.Printf("[+] User account %s enabled\n", objectname)
 
 	case "filter":
 		if cli.NArg() != 2 {
