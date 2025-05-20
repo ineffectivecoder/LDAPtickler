@@ -203,12 +203,12 @@ func (c *Conn) FindUserByName(objectquery string, searchscope int) error {
 }
 
 // GetWhoAmI will query the LDAP server for who we currently are authenticated as
-func (c *Conn) GetWhoAmI()  (*ldap.WhoAmIResult, error) {
+func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 	result, err := c.lconn.WhoAmI(nil)
 	if err != nil {
 		return nil, err
 	}
-	return result,err
+	return result, err
 }
 
 func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attributes []string) (*ldap.SearchResult, error) {
@@ -388,14 +388,14 @@ func (c *Conn) ListUsers() error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+// SetDisableUserAccount will modify the userAccountControl attribute to disable a user account
 func (c *Conn) SetDisableUserAccount(username string) error {
 	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
 	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0202)})
 	return c.lconn.Modify(disableReq)
 }
 
-
-// SetEnableAccount will modify the userAccountControl attribute to enable a user account
+// SetEnableUserAccount will modify the userAccountControl attribute to enable a user account
 func (c *Conn) SetEnableUserAccount(username string) error {
 	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
@@ -410,5 +410,3 @@ func (c *Conn) SetUserPassword(username string, userpass string) error {
 	}
 	return c.lconn.Modify(passwordReq)
 }
-
-

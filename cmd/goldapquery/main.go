@@ -85,16 +85,14 @@ func init() {
 	cli.Align = true // Defaults to false
 	cli.Authors = []string{"Chris Hodson r2d2@sostup.id"}
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
-	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun",
-	)
+	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
-	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject, disableuser, enableuser",
-	)
+	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject, disableuser, enableuser")
 
 	cli.Section("Supported LDAP Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
-	"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
-	"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
-	"rbcd, schema, shadowcredentials, unconstraineddelegation, users, whoami",
+		"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
+		"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
+		"rbcd, schema, shadowcredentials, unconstraineddelegation, users, whoami",
 	)
 	// Parse cli flags
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
@@ -107,38 +105,36 @@ func init() {
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
 	cli.Flag(&flags.gssapi, "gssapi", false, "Enable GSSAPI and attempt to authenticate")
 
-	cli.Flag(&flags.attributes, "a" ,"attributes", "", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname")
+	cli.Flag(&flags.attributes, "a", "attributes", "", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 
-
 	/*
-	cli.Flag(&flags.addmachine, "addmachine", "", "Add Machine account, ex computername$ password")
-	cli.Flag(&flags.addmachinelowpriv, "lpaddmachine", "", "Add machine account with low priv user. ex computername$ password")
-	cli.Flag(&flags.adduser, "adduser", "", "Add a user, ex username username@domain password")
-	cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
-	cli.Flag(&flags.changepassword, "cp", "", "Change password for user, must use LDAPS you will need permissions so no funny business. ex. username newpassword")
-	cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
-	cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
-	cli.Flag(&flags.deleteobject, "do", "", "Delete an object in AD, initial support for machine accounts and users, ex. machine/user objectname")
-	cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
-	cli.Flag(&flags.groups, "groups", false, "Search for all group objects")
-	cli.Flag(&flags.groupswithmembers, "groupmembers", false, "Search for all groups and their members")
-	cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
-	cli.Flag(&flags.machineaccountquota, "maq", false, "Retrieve the attribute ms-DS-MachineAccount Quota to determine how many machine accounts a user may create")
-	cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
-	cli.Flag(&flags.objectquery, "oq", "", "Provide all attributes of specific user/computer object, machine accounts will need trailing $")
-	cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesn't expire")
-	cli.Flag(&flags.passwordchangenextlogin, "pcnl", false, "Search for objects where the password is required to be changed at next login")
-	cli.Flag(&flags.protectedusers, "pu", false, "Search for users in Protected Users group")
-	cli.Flag(&flags.preauthdisabled, "pad", false, "Search for users with Kerberos Pre-auth Disabled")
-	cli.Flag(&flags.querydescription, "qd", "", "Query all objects for a specific description, useful for finding data like creds in description fields")
-	cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
-	cli.Flag(&flags.schema, "schema", false, "Dump the schema of the LDAP database")
-	cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
-	cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
-	cli.Flag(&flags.users, "users", false, "Search for all User objects")
-*/
-	
+		cli.Flag(&flags.addmachine, "addmachine", "", "Add Machine account, ex computername$ password")
+		cli.Flag(&flags.addmachinelowpriv, "lpaddmachine", "", "Add machine account with low priv user. ex computername$ password")
+		cli.Flag(&flags.adduser, "adduser", "", "Add a user, ex username username@domain password")
+		cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
+		cli.Flag(&flags.changepassword, "cp", "", "Change password for user, must use LDAPS you will need permissions so no funny business. ex. username newpassword")
+		cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
+		cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
+		cli.Flag(&flags.deleteobject, "do", "", "Delete an object in AD, initial support for machine accounts and users, ex. machine/user objectname")
+		cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
+		cli.Flag(&flags.groups, "groups", false, "Search for all group objects")
+		cli.Flag(&flags.groupswithmembers, "groupmembers", false, "Search for all groups and their members")
+		cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
+		cli.Flag(&flags.machineaccountquota, "maq", false, "Retrieve the attribute ms-DS-MachineAccount Quota to determine how many machine accounts a user may create")
+		cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
+		cli.Flag(&flags.objectquery, "oq", "", "Provide all attributes of specific user/computer object, machine accounts will need trailing $")
+		cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesn't expire")
+		cli.Flag(&flags.passwordchangenextlogin, "pcnl", false, "Search for objects where the password is required to be changed at next login")
+		cli.Flag(&flags.protectedusers, "pu", false, "Search for users in Protected Users group")
+		cli.Flag(&flags.preauthdisabled, "pad", false, "Search for users with Kerberos Pre-auth Disabled")
+		cli.Flag(&flags.querydescription, "qd", "", "Query all objects for a specific description, useful for finding data like creds in description fields")
+		cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
+		cli.Flag(&flags.schema, "schema", false, "Dump the schema of the LDAP database")
+		cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
+		cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
+		cli.Flag(&flags.users, "users", false, "Search for all User objects")
+	*/
 
 	cli.Parse()
 
@@ -250,42 +246,42 @@ func main() {
 	// computers, users, kerberoastable users. We will also accommodate users who are comfy using their own filter.
 	switch strings.ToLower(cli.Arg(0)) {
 
-		case "addmachine":
+	case "addmachine":
 		if cli.NArg() != 3 {
 			log.Fatal("[-] Expected machinename, and password\n")
 		}
 		machinename := cli.Arg(1)
 		machinepass := cli.Arg(2)
-		//machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
+		// machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
 		err = c.AddMachineAccount(machinename, machinepass)
 		check(err)
 		fmt.Printf("[+] Added machine account %s successfully with password %s\n", cli.Arg(1), cli.Arg(2))
 
-		//Completely broken pending research into GSSAPI, connection is not secure enough for low priv user to do this :(
-		/*case flags.addmachinelowpriv != "":
-		machinename, machinepass, _ := strings.Cut(flags.addmachinelowpriv, " ")
-		fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
-		// addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
-		// addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
-		// addReq.Attribute("sAMAccountName", []string{machinename + "$"})
-		// addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
-		addReq := ldap.NewAddRequest("CN=TESTPC,CN=Computers,DC=ad,DC=sostup,DC=id", nil)
-		addReq.Attribute("objectClass", []string{"computer"})
-		addReq.Attribute("sAMAccountName", []string{"TESTPC$"})
-		addReq.Attribute("userAccountControl", []string{"4096"})
-		addReq.Attribute("dNSHostName", []string{"TESTPC.ad.sostup.id"})
-		// addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
-		// encodedPassword := encodePassword(machinepass)
-		// addReq.Attribute("unicodePWD", []string{encodedPassword})
-		err = l.Add(addReq)
-		check(err)
-		fmt.Printf("[+] Added machine account %s with a low priv account successfully with password %s\n", machinename, machinepass)*/
+	//Completely broken pending research into GSSAPI, connection is not secure enough for low priv user to do this :(
+	/*case flags.addmachinelowpriv != "":
+	machinename, machinepass, _ := strings.Cut(flags.addmachinelowpriv, " ")
+	fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
+	// addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
+	// addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
+	// addReq.Attribute("sAMAccountName", []string{machinename + "$"})
+	// addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+	addReq := ldap.NewAddRequest("CN=TESTPC,CN=Computers,DC=ad,DC=sostup,DC=id", nil)
+	addReq.Attribute("objectClass", []string{"computer"})
+	addReq.Attribute("sAMAccountName", []string{"TESTPC$"})
+	addReq.Attribute("userAccountControl", []string{"4096"})
+	addReq.Attribute("dNSHostName", []string{"TESTPC.ad.sostup.id"})
+	// addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
+	// encodedPassword := encodePassword(machinepass)
+	// addReq.Attribute("unicodePWD", []string{encodedPassword})
+	err = l.Add(addReq)
+	check(err)
+	fmt.Printf("[+] Added machine account %s with a low priv account successfully with password %s\n", machinename, machinepass)*/
 
-		case "adduser":
+	case "adduser":
 		if cli.NArg() != 4 {
 			log.Fatal("[-] Expected username, principalname and password\n")
 		}
-			
+
 		username := cli.Arg(1)
 		principalname := cli.Arg(2)
 		userpasswd := cli.Arg(3)
@@ -302,156 +298,156 @@ func main() {
 		check(err)
 		fmt.Printf("[+] Successfully added and enabled user account %s\n", username)
 
-		case "certpublishers":
+	case "certpublishers":
 		fmt.Printf("[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n", flags.basedn)
 		err = c.ListCAs()
 
-		case "changepassword":
-			if cli.NArg() != 3 {
+	case "changepassword":
+		if cli.NArg() != 3 {
 			log.Fatal("[-] Expected username and password\n")
 		}
-			username := cli.Arg(1)
-			userpasswd := cli.Arg(2)
-			
-			fmt.Printf("[+] Changing password for user %s with password supplied in LDAP with baseDN %s\n", username, flags.basedn)
-			err = c.SetUserPassword(username, userpasswd)
-			check(err)
-			fmt.Printf("[+] Password change successful for user %s\n", username)
+		username := cli.Arg(1)
+		userpasswd := cli.Arg(2)
 
-		case "computers":
-			fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListComputers()
+		fmt.Printf("[+] Changing password for user %s with password supplied in LDAP with baseDN %s\n", username, flags.basedn)
+		err = c.SetUserPassword(username, userpasswd)
+		check(err)
+		fmt.Printf("[+] Password change successful for user %s\n", username)
 
-		case "constraineddelegation":
-			fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListConstrainedDelegation()
+	case "computers":
+		fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListComputers()
 
-		case "deleteobject":
-			if cli.NArg() != 2 {
+	case "constraineddelegation":
+		fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListConstrainedDelegation()
+
+	case "deleteobject":
+		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected machinename or username\n")
 		}
-			objectname := cli.Arg(1)
-			if strings.HasSuffix(objectname, "$") {
-				fmt.Printf("[+] Deleting machine account %s\n", objectname)
-				err = c.DeleteObject(objectname)
-				check(err)
-				fmt.Printf("[+] Machine account %s deleted\n", objectname)
-			} else {
-				fmt.Printf("[+] Deleting user account %s\n", objectname)
-				err = c.DeleteObject(objectname)
-				check(err)
-				fmt.Printf("[+] User account %s deleted\n", objectname)
-			}
-		
-		case "disableuser":
-			if cli.NArg() != 2 {
+		objectname := cli.Arg(1)
+		if strings.HasSuffix(objectname, "$") {
+			fmt.Printf("[+] Deleting machine account %s\n", objectname)
+			err = c.DeleteObject(objectname)
+			check(err)
+			fmt.Printf("[+] Machine account %s deleted\n", objectname)
+		} else {
+			fmt.Printf("[+] Deleting user account %s\n", objectname)
+			err = c.DeleteObject(objectname)
+			check(err)
+			fmt.Printf("[+] User account %s deleted\n", objectname)
+		}
+
+	case "disableuser":
+		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected username\n")
-			}
-			objectname := cli.Arg(1)
-			err = c.SetDisableUserAccount(objectname)
-			check(err)
-			fmt.Printf("[+] User account %s disabled\n", objectname)
-			
-		case "domaincontrollers":
-			fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListDCs()
+		}
+		objectname := cli.Arg(1)
+		err = c.SetDisableUserAccount(objectname)
+		check(err)
+		fmt.Printf("[+] User account %s disabled\n", objectname)
 
-		case "enableuser":
-			if cli.NArg() != 2{
-				log.Fatal("[-] Expected username\n")
-			}
-			objectname := cli.Arg(1)
-			err = c.SetEnableUserAccount(objectname)
-			check(err)
-			fmt.Printf("[+] User account %s enabled\n", objectname)
+	case "domaincontrollers":
+		fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListDCs()
 
-		case "filter":
-			if cli.NArg() != 2 {
+	case "enableuser":
+		if cli.NArg() != 2 {
+			log.Fatal("[-] Expected username\n")
+		}
+		objectname := cli.Arg(1)
+		err = c.SetEnableUserAccount(objectname)
+		check(err)
+		fmt.Printf("[+] User account %s enabled\n", objectname)
+
+	case "filter":
+		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected filter for example (objectCategory=group). May also accept attributes and searchscope\n")
 		}
-			filter := cli.Arg(1)
-			fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
-			err = c.LDAPSearch(flags.searchscope, filter, strings.Split(flags.attributes, ","))
+		filter := cli.Arg(1)
+		fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
+		err = c.LDAPSearch(flags.searchscope, filter, strings.Split(flags.attributes, ","))
 
-		case "groups":
-			fmt.Printf("[+] Searching for all groups in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListGroups()
+	case "groups":
+		fmt.Printf("[+] Searching for all groups in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListGroups()
 
-		case "groupswithmembers":
-			fmt.Printf("[+] Searching for all groups and their members in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListGroupswithMembers()
+	case "groupswithmembers":
+		fmt.Printf("[+] Searching for all groups and their members in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListGroupswithMembers()
 
-		case "kerberoastable":
-			fmt.Printf("[+] Searching for all Kerberoastable users in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListKerberoastable()
+	case "kerberoastable":
+		fmt.Printf("[+] Searching for all Kerberoastable users in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListKerberoastable()
 
-		case "machineaccountquota":
-			fmt.Printf("[+] Searching for ms-DS-MachineAccountQuota in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListMachineAccountQuota()
+	case "machineaccountquota":
+		fmt.Printf("[+] Searching for ms-DS-MachineAccountQuota in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListMachineAccountQuota()
 
-		case "nopassword":
-			fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListNoPassword()
+	case "nopassword":
+		fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListNoPassword()
 
-		case "objectquery":
-			if cli.NArg() != 2 {
+	case "objectquery":
+		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected specific objectname\n")
 		}
-		    objectname := cli.Arg(1)
-			fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", objectname, flags.basedn)
-			err = c.FindUserByName(objectname, flags.searchscope)
+		objectname := cli.Arg(1)
+		fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", objectname, flags.basedn)
+		err = c.FindUserByName(objectname, flags.searchscope)
 
-		case "passworddontexpire":
-			fmt.Printf("[+] Searching for all users all objects where the password doesn't expire in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListPasswordDontExpire()
+	case "passworddontexpire":
+		fmt.Printf("[+] Searching for all users all objects where the password doesn't expire in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListPasswordDontExpire()
 
-		case "passwordchangenextlogin":
-			fmt.Printf("[+] Searching for all users all objects where the password is set to change at next login in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListPasswordChangeNextLogin()
+	case "passwordchangenextlogin":
+		fmt.Printf("[+] Searching for all users all objects where the password is set to change at next login in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListPasswordChangeNextLogin()
 
-		case "protectedusers":
-			fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListProtectedUsers()
+	case "protectedusers":
+		fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListProtectedUsers()
 
-		case "preauthdisabled":
-			fmt.Printf("[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListPreAuthDisabled()
+	case "preauthdisabled":
+		fmt.Printf("[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListPreAuthDisabled()
 
-		case "querydescription":
-			if cli.NArg() != 2 {
+	case "querydescription":
+		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected specific description to search for\n")
 		}
-		    querydescription := cli.Arg(1)
-			fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", querydescription, flags.basedn)
-			err = c.FindUserByDescription(querydescription)
+		querydescription := cli.Arg(1)
+		fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", querydescription, flags.basedn)
+		err = c.FindUserByDescription(querydescription)
 
-		case "rbcd":
-			fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListRBCD()
+	case "rbcd":
+		fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListRBCD()
 
-		case "schema":
-			fmt.Printf("[+] Listing schema for LDAP database with baseDN %s\n", flags.basedn)
-			err = c.ListSchema()
+	case "schema":
+		fmt.Printf("[+] Listing schema for LDAP database with baseDN %s\n", flags.basedn)
+		err = c.ListSchema()
 
-		case "shadowcredentials":
-			fmt.Printf("[+] Searching for all Shadow Credentials in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListShadowCredentials()
+	case "shadowcredentials":
+		fmt.Printf("[+] Searching for all Shadow Credentials in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListShadowCredentials()
 
-		case "unconstraineddelegation":
-			fmt.Printf("[+] Searching for all Unconstrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListUnconstrainedDelegation()
+	case "unconstraineddelegation":
+		fmt.Printf("[+] Searching for all Unconstrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListUnconstrainedDelegation()
 
-		case "users":
-			fmt.Printf("[+] Searching for all users in LDAP with baseDN %s\n", flags.basedn)
-			err = c.ListUsers()
-		
-		case "whoami":
-			fmt.Printf("[+] Querying the LDAP server for WhoAmI with baseDN %s\n", flags.basedn)
-			result, err := c.GetWhoAmI()
-			if err != nil {
-				log.Fatalf("[-] Error with WhoAmI %s", err)
-			}
-			log.Printf("%s", result)
+	case "users":
+		fmt.Printf("[+] Searching for all users in LDAP with baseDN %s\n", flags.basedn)
+		err = c.ListUsers()
+
+	case "whoami":
+		fmt.Printf("[+] Querying the LDAP server for WhoAmI with baseDN %s\n", flags.basedn)
+		result, err := c.GetWhoAmI()
+		if err != nil {
+			log.Fatalf("[-] Error with WhoAmI %s", err)
+		}
+		log.Printf("%s", result)
 	}
 	check(err)
 }
