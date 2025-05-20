@@ -93,7 +93,7 @@ func init() {
 
 	cli.Section("Supported Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
 	"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
-	"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription",
+	"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
 	"rbcd, schema, shadowcredentials, unconstraineddelegation, users",
 	)
 	// Parse cli flags
