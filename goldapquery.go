@@ -388,8 +388,15 @@ func (c *Conn) ListUsers() error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+func (c *Conn) SetDisableUserAccount(username string) error {
+	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
+	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0202)})
+	return c.lconn.Modify(disableReq)
+}
+
+
 // SetEnableAccount will modify the userAccountControl attribute to enable a user account
-func (c *Conn) SetEnableAccount(username string) error {
+func (c *Conn) SetEnableUserAccount(username string) error {
 	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
 	return c.lconn.Modify(enableReq)

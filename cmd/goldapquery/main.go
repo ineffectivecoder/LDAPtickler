@@ -88,7 +88,7 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun",
 	)
 
-	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject",
+	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject, disableuser, enableuser",
 	)
 
 	cli.Section("Supported LDAP Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
@@ -295,7 +295,7 @@ func main() {
 		check(err)
 		fmt.Printf("[+] Password set successfully for user %s\n", username)
 		fmt.Printf("[+] Now enabling account for user %s\n", username)
-		err = c.SetEnableAccount(username)
+		err = c.SetEnableUserAccount(username)
 		check(err)
 		fmt.Printf("[+] Successfully added and enabled user account %s\n", username)
 
@@ -339,10 +339,28 @@ func main() {
 				check(err)
 				fmt.Printf("[+] User account %s deleted\n", objectname)
 			}
-
+		
+		case "disableuser":
+			if cli.NArg() != 2 {
+			log.Fatal("[-] Expected username\n")
+			}
+			objectname := cli.Arg(1)
+			err = c.SetDisableUserAccount(objectname)
+			check(err)
+			fmt.Printf("[+] User account %s disabled\n", objectname)
+			
 		case "domaincontrollers":
 			fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
 			err = c.ListDCs()
+
+		case "enableuser":
+			if cli.NArg() != 2{
+				log.Fatal("[-] Expected username\n")
+			}
+			objectname := cli.Arg(1)
+			err = c.SetEnableUserAccount(objectname)
+			check(err)
+			fmt.Printf("[+] User account %s enabled\n", objectname)
 
 		case "filter":
 			if cli.NArg() != 2 {
