@@ -23,9 +23,9 @@ const (
 )
 
 var (
-	// SkipVerify will TODO
+	// SkipVerify will skip verification of the TLS certificate, handy for self signed certificate equipped domains
 	SkipVerify bool
-	// BaseDN will TODO
+	// BaseDN will store BaseDN value. It is used in all LDAP queries
 	BaseDN string
 )
 
@@ -179,6 +179,7 @@ func (c *Conn) Close() error {
 func (c *Conn) DeleteObject(objectname string) error {
 	var cn string = "Users"
 	if strings.HasSuffix(objectname, "$") {
+		// May need to rethink this, some objects actually have the $ in the CN name
 		objectname = strings.TrimSuffix(objectname, "$")
 		cn = "Computers"
 	}
