@@ -87,7 +87,8 @@ func init() {
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
-	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject, disableuser, enableuser")
+	cli.Section("Supported Utility Commands: addmachine, adduser, changepassword, deleteobject,",
+	 "disablemachine, disableuser, enablemachine, enableuser")
 
 	cli.Section("Supported LDAP Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
 		"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
@@ -339,6 +340,17 @@ func main() {
 			fmt.Printf("[+] User account %s deleted\n", objectname)
 		}
 
+	case "disablemachine":
+		if cli.NArg() != 2 {
+			log.Fatal("[-] Expected machinename\n")
+		}
+		objectname := cli.Arg(1)
+		err = c.SetDisableMachineAccount(objectname)
+		check(err)
+		fmt.Printf("[+] Machine account %s disabled\n", objectname)
+
+
+
 	case "disableuser":
 		if cli.NArg() != 2 {
 			log.Fatal("[-] Expected username\n")
@@ -360,6 +372,16 @@ func main() {
 		err = c.SetEnableUserAccount(objectname)
 		check(err)
 		fmt.Printf("[+] User account %s enabled\n", objectname)
+
+	case "enablemachine":
+		if cli.NArg() != 2 {
+			log.Fatal("[-] Expected machinename\n")
+		}
+		objectname := cli.Arg(1)
+		err = c.SetEnableMachineAccount(objectname)
+		check(err)
+		fmt.Printf("[+] Machine account %s enabled\n", objectname)
+
 
 	case "filter":
 		if cli.NArg() != 2 {
