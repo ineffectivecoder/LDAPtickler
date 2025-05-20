@@ -94,7 +94,7 @@ func init() {
 	cli.Section("Supported LDAP Queries: certpublishers, computers, constraineddelegation, domaincontrollers,",
 	"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
 	"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
-	"rbcd, schema, shadowcredentials, unconstraineddelegation, users",
+	"rbcd, schema, shadowcredentials, unconstraineddelegation, users, whoami",
 	)
 	// Parse cli flags
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
@@ -152,7 +152,6 @@ func init() {
 	/* Various checks for flag combinations that don't make sense.
 	Allowing a username for anonymous binds since the spec for LDAP allows it for tracking purposes.
 	Reading password using term.ReadPassword to prevent echoing of the credential or needing it in plain text.
-
 	*/
 
 	if flags.password && flags.pth != "" {
@@ -424,7 +423,14 @@ func main() {
 		case "users":
 			fmt.Printf("[+] Searching for all users in LDAP with baseDN %s\n", flags.basedn)
 			err = c.ListUsers()
-			
+		
+		case "whoami":
+			fmt.Printf("[+] Querying the LDAP server for WhoAmI with baseDN %s\n", flags.basedn)
+			result, err := c.GetWhoAmI()
+			if err != nil {
+				log.Fatalf("[-] Error with WhoAmI %s", err)
+			}
+			log.Printf("%s", result)
 	}
 	check(err)
 }

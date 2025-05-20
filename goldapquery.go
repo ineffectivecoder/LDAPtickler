@@ -394,3 +394,12 @@ func (c *Conn) SetUserPassword(username string, userpass string) error {
 	}
 	return c.lconn.Modify(passwordReq)
 }
+
+// GetWhoAmI will query the LDAP server for who we currently are authenticated as
+func (c *Conn) GetWhoAmI()  (*ldap.WhoAmIResult, error) {
+	result, err := c.lconn.WhoAmI(nil)
+	if err != nil {
+		return nil, err
+	}
+	return result,err
+}
