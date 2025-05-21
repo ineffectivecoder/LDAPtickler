@@ -466,7 +466,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("[-] Error with WhoAmI %s", err)
 		}
-		log.Printf("%s", result)
+		log.Printf("You are currently authenticated as %s", result)
 	}
 	check(err)
 }
