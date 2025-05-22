@@ -31,7 +31,18 @@ var (
 
 // Conn gives us a structure named lconn linked to *ldap.Conn
 type Conn struct {
-	lconn *ldap.Conn
+	lconn      *ldap.Conn
+	baseDN     string
+	skipVerify bool
+	url        string
+}
+
+func New(url string, basedn string, skipVerify ...bool) *Conn {
+	var connection *Conn = &Conn{url: url, baseDN: basedn}
+	if len(skipVerify) > 0 {
+		connection.skipVerify = skipVerify[0]
+	}
+	return connection
 }
 
 func bindSetup(
@@ -176,11 +187,10 @@ func (c *Conn) Close() error {
 }
 
 // DeleteObject will attempt to delete the object specified, currently supports users and computers
-func (c *Conn) DeleteObject(objectname string) error {
+func (c *Conn) DeleteObject(objectname string, objecttype string) error {
 	var cn string = "Users"
-	if strings.HasSuffix(objectname, "$") {
+	if objecttype == "m" {
 		// May need to rethink this, some objects actually have the $ in the CN name
-		objectname = strings.TrimSuffix(objectname, "$")
 		cn = "Computers"
 	}
 	delReq := ldap.NewDelRequest("CN="+objectname+",CN="+cn+","+BaseDN, []ldap.Control{})
