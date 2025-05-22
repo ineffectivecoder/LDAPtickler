@@ -461,7 +461,6 @@ func preauthdisabled(c *goldapquery.Conn, args ...string) error {
 }
 
 func querydescription(c *goldapquery.Conn, args ...string) error {
-
 	if len(args) != 1 {
 		log.Fatal("[-] Expected specific description to search for\n")
 	}
@@ -559,7 +558,6 @@ func main() {
 	if err == nil {
 		os.Exit(0)
 	}
-
 }
 
 //Completely broken pending research into GSSAPI, connection is not secure enough for low priv user to do this :(

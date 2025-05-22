@@ -37,6 +37,7 @@ type Conn struct {
 	url        string
 }
 
+// New TODO
 func New(url string, basedn string, skipVerify ...bool) *Conn {
 	var connection *Conn = &Conn{url: url, baseDN: basedn}
 	if len(skipVerify) > 0 {
