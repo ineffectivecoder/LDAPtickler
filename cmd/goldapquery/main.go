@@ -29,10 +29,12 @@ const (
 type action struct {
 	call    func(*goldapquery.Conn, ...string) error
 	numargs int
+	usage   string
 }
 
 var lookupTable map[string]action = map[string]action{
-	"addmachine":              {call: addmachine, numargs: 2},
+	// Todo add usages across the board
+	"addmachine":              {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
 	"adduser":                 {call: adduser, numargs: 3},
 	"certpublishers":          {call: certpublishers, numargs: 0},
 	"changepassword":          {call: changepassword, numargs: 2},
@@ -124,33 +126,6 @@ func init() {
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.searchscope, "scope", 2, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
-	/*
-		cli.Flag(&flags.addmachine, "addmachine", "", "Add Machine account, ex computername$ password")
-		cli.Flag(&flags.addmachinelowpriv, "lpaddmachine", "", "Add machine account with low priv user. ex computername$ password")
-		cli.Flag(&flags.adduser, "adduser", "", "Add a user, ex username username@domain password")
-		cli.Flag(&flags.certpublishers, "cert", false, "Search for all CAs in the environment")
-		cli.Flag(&flags.changepassword, "cp", "", "Change password for user, must use LDAPS you will need permissions so no funny business. ex. username newpassword")
-		cli.Flag(&flags.computers, "computers", false, "Search for all Computer objects")
-		cli.Flag(&flags.constraineddelegation, "cd", false, "Search for all objects configured for Constrained Delegation")
-		cli.Flag(&flags.deleteobject, "do", "", "Delete an object in AD, initial support for machine accounts and users, ex. machine/user objectname")
-		cli.Flag(&flags.domaincontrollers, "dc", false, "Search for all Domain Controllers")
-		cli.Flag(&flags.groups, "groups", false, "Search for all group objects")
-		cli.Flag(&flags.groupswithmembers, "groupmembers", false, "Search for all groups and their members")
-		cli.Flag(&flags.kerberoastable, "kerberoastable", false, "Search for kerberoastable users")
-		cli.Flag(&flags.machineaccountquota, "maq", false, "Retrieve the attribute ms-DS-MachineAccount Quota to determine how many machine accounts a user may create")
-		cli.Flag(&flags.nopassword, "np", false, "Search for users not required to have a password")
-		cli.Flag(&flags.objectquery, "oq", "", "Provide all attributes of specific user/computer object, machine accounts will need trailing $")
-		cli.Flag(&flags.passwordontexpire, "pde", false, "Search for objects where the password doesn't expire")
-		cli.Flag(&flags.passwordchangenextlogin, "pcnl", false, "Search for objects where the password is required to be changed at next login")
-		cli.Flag(&flags.protectedusers, "pu", false, "Search for users in Protected Users group")
-		cli.Flag(&flags.preauthdisabled, "pad", false, "Search for users with Kerberos Pre-auth Disabled")
-		cli.Flag(&flags.querydescription, "qd", "", "Query all objects for a specific description, useful for finding data like creds in description fields")
-		cli.Flag(&flags.rbcd, "rbcd", false, "Search for  all objects configured with Resource Based Constrained Delegation")
-		cli.Flag(&flags.schema, "schema", false, "Dump the schema of the LDAP database")
-		cli.Flag(&flags.shadowcredentials, "sc", false, "Search for all objects with Shadow Credentials")
-		cli.Flag(&flags.unconstraineddelegation, "ud", false, "Search for all objects configured for Unconstrained Delegation")
-		cli.Flag(&flags.users, "users", false, "Search for all User objects")
-	*/
 
 	cli.Parse()
 
@@ -168,7 +143,7 @@ func init() {
 		log.Fatal("[-] Invalid command")
 	} else {
 		if act.numargs != cli.NArg()-1 {
-			log.Fatalf("received %d args, expected %d\n", cli.NArg()-1, act.numargs)
+			log.Fatalf("Usage: goldapquery %s %s", cli.Arg(0), act.usage)
 		}
 	}
 
@@ -231,10 +206,45 @@ func init() {
 		}*/
 }
 
-func addmachine(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("expected machinename, and password")
+func main() {
+	var c *goldapquery.Conn = goldapquery.New(flags.ldapURL, flags.basedn, flags.skipVerify)
+	var err error
+
+	// Attempt anonymous bind, check for flag
+	switch state.mode {
+	case goldapquery.MethodBindAnonymous:
+		fmt.Printf("[+] Attempting anonymous bind to %s\n", flags.ldapURL)
+		err = c.BindAnonymous(flags.username)
+
+	case goldapquery.MethodBindDomain:
+		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.ldapURL)
+		err = c.BindDomain(flags.domain, flags.username, state.password)
+
+	case goldapquery.MethodBindDomainPTH:
+		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.ldapURL)
+		err = c.BindDomainPTH(flags.domain, flags.username, flags.pth)
+
+	case goldapquery.MethodBindPassword:
+		fmt.Printf("[+] Attempting bind with credentials to %s\n", flags.ldapURL)
+		err = c.BindPassword(flags.username, state.password)
+
+		/*case bindGSSAPI:
+		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.ldapURL)
+		err = l.GSSAPIBindRequest(gssClient)
+		check(err)
+		fmt.Println("[+] GSSAPI bind successful")*/
 	}
+	check(err)
+	defer c.Close()
+	fmt.Printf("[+] Successfully connected to %s\n", flags.ldapURL)
+	err = lookupTable[strings.ToLower(cli.Arg(0))].call(c, cli.Args()[1:]...)
+	check(err)
+	if err == nil {
+		os.Exit(0)
+	}
+}
+
+func addmachine(c *goldapquery.Conn, args ...string) error {
 	machinename := args[0]
 	machinepass := args[1]
 	// machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
@@ -310,6 +320,7 @@ func deleteobject(c *goldapquery.Conn, args ...string) error {
 	}
 	objectname := cli.Arg(1)
 	objecttype := cli.Arg(2)
+
 	if objecttype == "m" {
 		fmt.Printf("[+] Deleting machine account %s\n", objectname)
 		err := c.DeleteObject(objectname, objecttype)
@@ -510,54 +521,8 @@ func whoami(c *goldapquery.Conn, args ...string) error {
 	fmt.Printf("[+] Querying the LDAP server for WhoAmI with baseDN %s\n", flags.basedn)
 	result, err := c.GetWhoAmI()
 	check(err)
-	fmt.Printf("[+] You are currently authenticated as %s", result)
+	fmt.Printf("[+] You are currently authenticated as %+v\n", *result)
 	return nil
-}
-
-func main() {
-	var c *goldapquery.Conn
-	var err error
-	goldapquery.SkipVerify = flags.skipVerify
-	goldapquery.BaseDN = flags.basedn
-
-	// Attempt anonymous bind, check for flag
-	switch state.mode {
-	case goldapquery.MethodBindAnonymous:
-		fmt.Printf("[+] Attempting anonymous bind to %s\n", flags.ldapURL)
-		c, err = goldapquery.BindAnonymous(flags.ldapURL, flags.username)
-
-	case goldapquery.MethodBindPassword:
-		fmt.Printf("[+] Attempting bind with credentials to %s\n", flags.ldapURL)
-		c, err = goldapquery.BindPassword(flags.ldapURL, flags.username, state.password)
-
-	case goldapquery.MethodBindDomain:
-		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.ldapURL)
-		c, err = goldapquery.BindDomain(flags.ldapURL, flags.domain, flags.username, state.password)
-
-	case goldapquery.MethodBindDomainPTH:
-		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.ldapURL)
-		c, err = goldapquery.BindDomainPTH(flags.ldapURL, flags.domain, flags.username, flags.pth)
-
-		/*case bindGSSAPI:
-		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.ldapURL)
-		err = l.GSSAPIBindRequest(gssClient)
-		check(err)
-		fmt.Println("[+] GSSAPI bind successful")*/
-	}
-	check(err)
-	defer c.Close()
-	fmt.Printf("[+] Successfully connected to %s\n", flags.ldapURL)
-
-	// We have so much power here with the filters. Basically any filter that works in ldapsearch should work here.
-	// In order to simplify searching for various objects, we will have a reasonable number of flags for things like:
-	// computers, users, kerberoastable users. We will also accommodate users who are comfy using their own filter.
-	// f = function pointer
-
-	err = lookupTable[strings.ToLower(cli.Arg(0))].call(c, cli.Args()[1:]...)
-	check(err)
-	if err == nil {
-		os.Exit(0)
-	}
 }
 
 //Completely broken pending research into GSSAPI, connection is not secure enough for low priv user to do this :(

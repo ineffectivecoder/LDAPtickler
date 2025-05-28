@@ -22,13 +22,6 @@ const (
 	MethodBindGSSAPI
 )
 
-var (
-	// SkipVerify will skip verification of the TLS certificate, handy for self signed certificate equipped domains
-	SkipVerify bool
-	// BaseDN will store BaseDN value. It is used in all LDAP queries
-	BaseDN string
-)
-
 // Conn gives us a structure named lconn linked to *ldap.Conn
 type Conn struct {
 	lconn      *ldap.Conn
@@ -46,29 +39,26 @@ func New(url string, basedn string, skipVerify ...bool) *Conn {
 	return connection
 }
 
-func bindSetup(
-	url string,
-) (*ldap.Conn, error) {
-	var l *ldap.Conn
+func (c *Conn) bindSetup() error {
 	var err error
 	// fmt.Printf("[+] skipVerify currently set to %t\n", skipVerify)
-	if strings.HasPrefix(url, "ldaps:") {
+	if strings.HasPrefix(c.url, "ldaps:") {
 		// ServerName: "0.0.0.0", MaxVersion: tls.VersionTLS12
-		l, err = ldap.DialURL(url, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: SkipVerify}))
+		c.lconn, err = ldap.DialURL(c.url, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: c.skipVerify}))
 	} else {
-		if !strings.HasPrefix(url, "ldap:") {
-			url = "ldap://" + url
+		if !strings.HasPrefix(c.url, "ldap:") {
+			c.url = "ldap://" + c.url
 		}
-		l, err = ldap.DialURL(url)
+		c.lconn, err = ldap.DialURL(c.url)
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return l, nil
+	return nil
 }
 
-func createUnicodePasswordRequest(username string, password string) (*ldap.ModifyRequest, error) {
-	passwordSet := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, nil)
+func (c *Conn) createUnicodePasswordRequest(username string, password string) (*ldap.ModifyRequest, error) {
+	passwordSet := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, nil)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	newunicodeEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", password))
 	if err != nil {
@@ -88,68 +78,65 @@ func encodePassword(password string) string {
 }
 
 // BindAnonymous will attempt to bind to the specified URL with an optional username.
-func BindAnonymous(url string, username string) (*Conn, error) {
-	var l *ldap.Conn
+func (c *Conn) BindAnonymous(username string) error {
 	var err error
-	l, err = bindSetup(url)
+	err = c.bindSetup()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = l.UnauthenticatedBind(username)
+	err = c.lconn.UnauthenticatedBind(username)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &Conn{lconn: l}, nil
+	return nil
 }
 
 // BindDomain will attempt to bind to the specified URL with a username, password and domain.
-func BindDomain(url string, domain string, username string, password string) (*Conn, error) {
-	var l *ldap.Conn
+func (c *Conn) BindDomain(domain string, username string, password string) error {
 	var err error
-	l, err = bindSetup(url)
+	err = c.bindSetup()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = l.NTLMBind(domain, username, password)
+	err = c.lconn.NTLMBind(domain, username, password)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &Conn{lconn: l}, nil
+	return nil
 }
 
 // BindDomainPTH will attempt to bind to the specified URL with a username, password hash and domain.
-func BindDomainPTH(url string, domain string, username string, hash string) (*Conn, error) {
-	var l *ldap.Conn
+func (c *Conn) BindDomainPTH(domain string, username string, hash string) error {
 	var err error
-	l, err = bindSetup(url)
+	err = c.bindSetup()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = l.NTLMBindWithHash(domain, username, hash)
+	err = c.lconn.NTLMBindWithHash(domain, username, hash)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &Conn{lconn: l}, nil
+	return nil
 }
 
 // BindPassword will attempt a simple bind to the specified  URL with supplied username and password
-func BindPassword(url string, username string, password string) (*Conn, error) {
-	var l *ldap.Conn
+func (c *Conn) BindPassword(username string, password string) error {
+
 	var err error
-	l, err = bindSetup(url)
+	err = c.bindSetup()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = l.Bind(username, password)
+	err = c.lconn.Bind(username, password)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &Conn{lconn: l}, nil
+	return nil
 }
 
 // AddMachineAccount will attempt to add a machine account for the supplied machinename and machinepass
 func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
-	addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+BaseDN, []ldap.Control{})
+	addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+c.baseDN, []ldap.Control{})
 	addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
 	addReq.Attribute("cn", []string{machinename})
 	addReq.Attribute("sAMAccountName", []string{machinename + "$"})
@@ -162,7 +149,7 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
 // SetEnableAccount to function
 func (c *Conn) AddUserAccount(username string, principalname string) error {
-	addReq := ldap.NewAddRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
+	addReq := ldap.NewAddRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
 	addReq.Attribute("accountExpires", []string{fmt.Sprintf("%d", 0x00000000)})
 	addReq.Attribute("cn", []string{username})
 	addReq.Attribute("displayName", []string{username})
@@ -194,7 +181,7 @@ func (c *Conn) DeleteObject(objectname string, objecttype string) error {
 		// May need to rethink this, some objects actually have the $ in the CN name
 		cn = "Computers"
 	}
-	delReq := ldap.NewDelRequest("CN="+objectname+",CN="+cn+","+BaseDN, []ldap.Control{})
+	delReq := ldap.NewDelRequest("CN="+objectname+",CN="+cn+","+c.baseDN, []ldap.Control{})
 	return c.lconn.Del(delReq)
 }
 
@@ -240,7 +227,7 @@ func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attribu
 func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string) error {
 	var err error
 	var result *ldap.SearchResult
-	result, err = c.ldapSearch(BaseDN, searchscope, filter, attributes)
+	result, err = c.ldapSearch(c.baseDN, searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
@@ -367,7 +354,7 @@ func (c *Conn) ListSchema() error {
 	searchscope := 0
 	var err error
 	var result *ldap.SearchResult
-	result, err = c.ldapSearch("cn=Schema,cn=Configuration,"+BaseDN, searchscope, filter, attributes)
+	result, err = c.ldapSearch("cn=Schema,cn=Configuration,"+c.baseDN, searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
@@ -401,35 +388,35 @@ func (c *Conn) ListUsers() error {
 
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account
 func (c *Conn) SetDisableMachineAccount(username string) error {
-	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+BaseDN, []ldap.Control{})
+	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+c.baseDN, []ldap.Control{})
 	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0202)})
 	return c.lconn.Modify(disableReq)
 }
 
 // SetEnableMachineAccount will modify the userAccountControl attribute to enable a machine account
 func (c *Conn) SetEnableMachineAccount(username string) error {
-	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+BaseDN, []ldap.Control{})
+	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+c.baseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
 	return c.lconn.Modify(enableReq)
 }
 
 // SetDisableUserAccount will modify the userAccountControl attribute to disable a user account
 func (c *Conn) SetDisableUserAccount(username string) error {
-	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
+	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
 	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0202)})
 	return c.lconn.Modify(disableReq)
 }
 
 // SetEnableUserAccount will modify the userAccountControl attribute to enable a user account
 func (c *Conn) SetEnableUserAccount(username string) error {
-	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+BaseDN, []ldap.Control{})
+	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
 	return c.lconn.Modify(enableReq)
 }
 
 // SetUserPassword will set a user account's password
 func (c *Conn) SetUserPassword(username string, userpass string) error {
-	passwordReq, err := createUnicodePasswordRequest(username, userpass)
+	passwordReq, err := c.createUnicodePasswordRequest(username, userpass)
 	if err != nil {
 		return err
 	}

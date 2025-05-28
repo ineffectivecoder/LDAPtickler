@@ -19,7 +19,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [x] Creation of machine accounts
     - Research why only my DA can do this
 - [x] Deletion of User and Machine accounts
-- [ ] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
+- [x] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
 - [ ] Store creds in environment variable  
 - [x] Refactor
     - [x] Create Library
