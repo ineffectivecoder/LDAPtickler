@@ -23,7 +23,10 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [ ] Store creds in environment variable  
 - [x] Refactor
     - [x] Create Library
-    
+- [ ] Support Adding and removing of all delegation attributes  
+    - [ ] Unconstrained  
+    - [ ] Constrained  
+    - [ ] Resource Based Constrained Delegation    
 
 - [x] Search and list specific types of objects  
     - [x] Domain Controllers
