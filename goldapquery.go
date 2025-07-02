@@ -175,6 +175,7 @@ func (c *Conn) Close() error {
 }
 
 // DeleteObject will attempt to delete the object specified, currently supports users and computers
+// REDO THIS, change to deletemachine and deleteuser, deletegpo?
 func (c *Conn) DeleteObject(objectname string, objecttype string) error {
 	var cn string = "Users"
 	if objecttype == "m" {
