@@ -379,10 +379,13 @@ func (c *Conn) ListUnconstrainedDelegation() error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
-// ListUsers will identify all user objects
-func (c *Conn) ListUsers() error {
+// ListUsers will identify all user objects. This may be overridden with multiple attributes changing the functionality.
+func (c *Conn) ListUsers(attributes ...string) error {
 	filter := "(&(objectCategory=person)(objectClass=user))"
-	attributes := []string{"samaccountname"}
+	if len(attributes) == 0 {
+		attributes = []string{"samaccountname"}
+	}
+
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
 }

@@ -46,7 +46,7 @@ var lookupTable map[string]action = map[string]action{
 	"domaincontrollers":       {call: domaincontrollers, numargs: 0},
 	"enablemachine":           {call: enablemachine, numargs: 1, usage: "<machinename>"},
 	"enableuser":              {call: enableuser, numargs: 1, usage: "<username>"},
-	"filter":                  {call: filter, numargs: 1, usage: "example (objectCategory=group)"},
+	"filter":                  {call: filter, numargs: 1, usage: "<filter>"},
 	"groups":                  {call: groups, numargs: 0},
 	"groupswithmembers":       {call: groupswithmembers, numargs: 0},
 	"kerberoastable":          {call: kerberoastable, numargs: 0},
@@ -74,7 +74,7 @@ var state struct {
 
 // Flags
 var flags struct {
-	attributes        string
+	attributes        cli.StringList
 	basedn            string
 	domain            string
 	domaincontrollers bool
@@ -115,7 +115,7 @@ func init() {
 		"rbcd, schema, shadowcredentials, unconstraineddelegation, users, whoami",
 	)
 	// Parse cli flags
-	cli.Flag(&flags.attributes, "a", "attributes", "", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname")
+	cli.Flag(&flags.attributes, "a", "attributes", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname. Usage of this may break things")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 	cli.Flag(&flags.gssapi, "gssapi", false, "Enable GSSAPI and attempt to authenticate")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
@@ -386,13 +386,21 @@ func enableuser(c *goldapquery.Conn, args ...string) error {
 	return nil
 }
 
+func expandlist(in []string) []string {
+	var out []string
+	for _, s := range in {
+		out = append(out, strings.Split(s, ",")...)
+	}
+	return out
+}
+
 func filter(c *goldapquery.Conn, args ...string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("expected filter for example (objectCategory=group). May also accept attributes and searchscope")
 	}
 	filter := cli.Arg(1)
 	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
-	err := c.LDAPSearch(flags.searchscope, filter, strings.Split(flags.attributes, ","))
+	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
 	check(err)
 	return nil
 }
@@ -512,7 +520,7 @@ func unconstraineddelegation(c *goldapquery.Conn, args ...string) error {
 
 func users(c *goldapquery.Conn, args ...string) error {
 	fmt.Printf("[+] Searching for all users in LDAP with baseDN %s\n", flags.basedn)
-	err := c.ListUsers()
+	err := c.ListUsers(expandlist(flags.attributes)...)
 	check(err)
 	return nil
 }
