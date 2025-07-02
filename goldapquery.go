@@ -3,6 +3,7 @@ package goldapquery
 import (
 	"crypto/tls"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
@@ -134,6 +135,10 @@ func (c *Conn) BindPassword(username string, password string) error {
 	return nil
 }
 
+func (c *Conn) AddUnconstrainedDelegation() error {
+	return nil
+}
+
 // AddMachineAccount will attempt to add a machine account for the supplied machinename and machinepass
 func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 	addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+c.baseDN, []ldap.Control{})
@@ -199,6 +204,24 @@ func (c *Conn) FindUserByName(objectquery string, searchscope int) error {
 	filter := "(&(objectClass=user)(samaccountname=" + objectquery + "))"
 	attributes := []string{"*"}
 	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
+func (c *Conn) getFirstResult(searchscope int, filter string, attributes []string) (string, error) {
+	result, err := c.ldapSearch(c.baseDN, searchscope, filter, attributes)
+	if err != nil {
+		return "", err
+	}
+	if len(result.Entries) == 0 {
+		return "", fmt.Errorf("no entries found") //custom error result not found
+	}
+	if len(result.Entries[0].Attributes) == 0 {
+		return "", fmt.Errorf("entry has no attributes") //custom error attribute missing
+	}
+	if len(result.Entries[0].Attributes[0].Values) == 0 {
+		return "", fmt.Errorf("entry has no values")
+
+	}
+	return result.Entries[0].Attributes[0].Values[0], nil
 }
 
 // GetWhoAmI will query the LDAP server for who we currently are authenticated as
@@ -373,8 +396,9 @@ func (c *Conn) ListShadowCredentials() error {
 
 // ListUnconstrainedDelegation will identify any accounts configured for Unconstrained Delegation
 func (c *Conn) ListUnconstrainedDelegation() error {
+	//It is doing the bitmasking for us, must use decimal value. Bitmask is 80000
 	filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
-	attributes := []string{"samaccountname"}
+	attributes := []string{"samaccountname", "useraccountcontrol"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
@@ -392,15 +416,44 @@ func (c *Conn) ListUsers(attributes ...string) error {
 
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account
 func (c *Conn) SetDisableMachineAccount(username string) error {
-	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+c.baseDN, []ldap.Control{})
-	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0202)})
+	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
+	attributes := []string{"useraccountcontrol"}
+	searchscope := 2
+
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := strconv.Atoi(uacstr)
+	if err != nil {
+		return err
+	}
+	// Apply bitmask to disable
+	uac = uac | 0x2
+	// Get value for UAC, and then apply value to bitmask
+	disableReq := ldap.NewModifyRequest("CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN, []ldap.Control{})
+	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(disableReq)
 }
 
 // SetEnableMachineAccount will modify the userAccountControl attribute to enable a machine account
 func (c *Conn) SetEnableMachineAccount(username string) error {
-	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Computers,"+c.baseDN, []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
+	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
+	attributes := []string{"useraccountcontrol"}
+	searchscope := 2
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := strconv.Atoi(uacstr)
+	if err != nil {
+		return err
+	}
+	// Apply bitmask to disable
+	uac = uac & ^0x2
+	// Get value for UAC, and then apply value to bitmask
+	enableReq := ldap.NewModifyRequest("CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN, []ldap.Control{})
+	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(enableReq)
 }
 
