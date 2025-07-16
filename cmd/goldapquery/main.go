@@ -107,7 +107,7 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	cli.Section("Supported Utility Commands", "addmachine, adduser, changepassword, deleteobject,",
-		"disablemachine, disableuser, enablemachine, enableuser")
+		"disablemachine,disableunconstraineddelegation, disableuser, enablemachine, enableunconstraineddelegation enableuser")
 
 	// cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain") //TODO ADD THE REST
 
