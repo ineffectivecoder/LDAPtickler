@@ -177,8 +177,7 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("cn=%s\n", dn)
-	fmt.Printf("cn=%08x\n", uac)
+	//fmt.Printf("cn=%08x\n", uac)
 	// Get value for UAC, and then apply value to bitmask
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
