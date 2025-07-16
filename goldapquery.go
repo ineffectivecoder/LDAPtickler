@@ -449,7 +449,7 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	// Apply bitmask to disable
+
 	uac = uac & ^0x2
 	// Get value for UAC, and then apply value to bitmask
 	enableReq := ldap.NewModifyRequest("CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN, []ldap.Control{})
@@ -459,15 +459,43 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 
 // SetDisableUserAccount will modify the userAccountControl attribute to disable a user account
 func (c *Conn) SetDisableUserAccount(username string) error {
+	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
+	attributes := []string{"useraccountcontrol"}
+	searchscope := 2
+
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := strconv.Atoi(uacstr)
+	if err != nil {
+		return err
+	}
+	// Apply bitmask to disable
+	//uac = uac | 0x2
+	uac = uac | 0x0202
 	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
-	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0202)})
+	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(disableReq)
 }
 
 // SetEnableUserAccount will modify the userAccountControl attribute to enable a user account
 func (c *Conn) SetEnableUserAccount(username string) error {
+	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
+	attributes := []string{"useraccountcontrol"}
+	searchscope := 2
+
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := strconv.Atoi(uacstr)
+	if err != nil {
+		return err
+	}
+	uac = uac & ^0x2
 	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", 0x0200)})
+	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(enableReq)
 }
 
