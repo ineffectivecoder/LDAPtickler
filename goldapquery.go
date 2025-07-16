@@ -23,6 +23,31 @@ const (
 	MethodBindGSSAPI
 )
 
+const (
+	UACScript                       = 0x1
+	UACAccountDisable               = 0x2
+	UACHomeDirRequired              = 0x8
+	UACLockout                      = 0x10
+	UACPasswdNotRequired            = 0x20
+	UACPasswordCantChange           = 0x40
+	UACEncryptedTextPasswordAllowed = 0x80
+	UACTempDuplicateAccount         = 0x100
+	UACNormalAccount                = 0x200
+	UACInterdomainTrustAccount      = 0x800
+	UACWorkstationTrustAccount      = 0x1000
+	UACServerTrustAccount           = 0x2000
+	UACDontExpirePassword           = 0x10000
+	UACMNSLogonAccount              = 0x20000
+	UACSmartCardRequired            = 0x40000
+	UACTrustedForDelegation         = 0x80000
+	UACNotDelegated                 = 0x100000
+	UACDesKeyOnly                   = 0x200000
+	UACDontReqPreAuth               = 0x400000
+	UACPasswordRequired             = 0x800000
+	UACTrustedToAuthForDelegation   = 0x1000000
+	UACPartialSecretsAccount        = 0x4000000
+)
+
 // Conn gives us a structure named lconn linked to *ldap.Conn
 type Conn struct {
 	lconn      *ldap.Conn
@@ -135,8 +160,54 @@ func (c *Conn) BindPassword(username string, password string) error {
 	return nil
 }
 
-func (c *Conn) AddUnconstrainedDelegation() error {
-	return nil
+func (c *Conn) AddUnconstrainedDelegation(username string) error {
+	filter := "(samaccountname=" + username + ")"
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	attributes = []string{"useraccountcontrol"}
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := flagset(uacstr, UACTrustedForDelegation)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("cn=%s\n", dn)
+	fmt.Printf("cn=%08x\n", uac)
+	// Get value for UAC, and then apply value to bitmask
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	return c.lconn.Modify(enableReq)
+}
+
+func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
+	filter := "(samaccountname=" + username + ")"
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	attributes = []string{"useraccountcontrol"}
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := flagunset(uacstr, UACTrustedForDelegation)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("cn=%s\n", dn)
+	fmt.Printf("cn=%08x\n", uac)
+	// Get value for UAC, and then apply value to bitmask
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	return c.lconn.Modify(enableReq)
 }
 
 // AddMachineAccount will attempt to add a machine account for the supplied machinename and machinepass
@@ -446,7 +517,7 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := flagset(uacstr, 0x2)
+	uac, err := flagset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
 	}
@@ -465,7 +536,7 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := flagunset(uacstr, 0x2)
+	uac, err := flagunset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
 	}
@@ -485,7 +556,7 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := flagset(uacstr, 0x2)
+	uac, err := flagset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
 	}
@@ -504,7 +575,7 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := flagunset(uacstr, 0x2)
+	uac, err := flagunset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
 	}

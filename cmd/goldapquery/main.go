@@ -34,36 +34,38 @@ type action struct {
 
 var lookupTable map[string]action = map[string]action{
 	// Todo add usages across the board
-	"addmachine":              {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
-	"adduser":                 {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
-	"certpublishers":          {call: certpublishers, numargs: 0},
-	"changepassword":          {call: changepassword, numargs: 2, usage: "<username> <password>"},
-	"computers":               {call: computers, numargs: 0},
-	"constraineddelegation":   {call: constraineddelegation, numargs: 0},
-	"deleteobject":            {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
-	"disablemachine":          {call: disablemachine, numargs: 1, usage: "<machinename>"},
-	"disableuser":             {call: disableuser, numargs: 1, usage: "<username>"},
-	"domaincontrollers":       {call: domaincontrollers, numargs: 0},
-	"enablemachine":           {call: enablemachine, numargs: 1, usage: "<machinename>"},
-	"enableuser":              {call: enableuser, numargs: 1, usage: "<username>"},
-	"filter":                  {call: filter, numargs: 1, usage: "<filter>"},
-	"groups":                  {call: groups, numargs: 0},
-	"groupswithmembers":       {call: groupswithmembers, numargs: 0},
-	"kerberoastable":          {call: kerberoastable, numargs: 0},
-	"machineaccountquota":     {call: machineaccountquota, numargs: 0},
-	"nopassword":              {call: nopassword, numargs: 0},
-	"objectquery":             {call: objectquery, numargs: 1, usage: "<objectname>"},
-	"passworddontexpire":      {call: passworddontexpire, numargs: 0},
-	"passwordchangenextlogin": {call: passwordchangenextlogin, numargs: 0},
-	"protectedusers":          {call: protectedusers, numargs: 0},
-	"preauthdisabled":         {call: preauthdisabled, numargs: 0},
-	"querydescription":        {call: querydescription, numargs: 1, usage: "<description>"},
-	"rbcd":                    {call: rbcd, numargs: 0},
-	"schema":                  {call: schema, numargs: 0},
-	"shadowcredentials":       {call: shadowcredentials, numargs: 0},
-	"unconstraineddelegation": {call: unconstraineddelegation, numargs: 0},
-	"users":                   {call: users, numargs: 0},
-	"whoami":                  {call: whoami, numargs: 0},
+	"addmachine":                     {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
+	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
+	"certpublishers":                 {call: certpublishers, numargs: 0},
+	"changepassword":                 {call: changepassword, numargs: 2, usage: "<username> <password>"},
+	"computers":                      {call: computers, numargs: 0},
+	"constraineddelegation":          {call: constraineddelegation, numargs: 0},
+	"deleteobject":                   {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
+	"disablemachine":                 {call: disablemachine, numargs: 1, usage: "<machinename>"},
+	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
+	"disableunconstraineddelegation": {call: disableud, numargs: 1, usage: "<samaccountname>"},
+	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
+	"enablemachine":                  {call: enablemachine, numargs: 1, usage: "<machinename>"},
+	"enableuser":                     {call: enableuser, numargs: 1, usage: "<username>"},
+	"enableunconstraineddelegation":  {call: enableud, numargs: 1, usage: "<samaccountname>"},
+	"filter":                         {call: filter, numargs: 1, usage: "<filter>"},
+	"groups":                         {call: groups, numargs: 0},
+	"groupswithmembers":              {call: groupswithmembers, numargs: 0},
+	"kerberoastable":                 {call: kerberoastable, numargs: 0},
+	"machineaccountquota":            {call: machineaccountquota, numargs: 0},
+	"nopassword":                     {call: nopassword, numargs: 0},
+	"objectquery":                    {call: objectquery, numargs: 1, usage: "<objectname>"},
+	"passworddontexpire":             {call: passworddontexpire, numargs: 0},
+	"passwordchangenextlogin":        {call: passwordchangenextlogin, numargs: 0},
+	"protectedusers":                 {call: protectedusers, numargs: 0},
+	"preauthdisabled":                {call: preauthdisabled, numargs: 0},
+	"querydescription":               {call: querydescription, numargs: 1, usage: "<description>"},
+	"rbcd":                           {call: rbcd, numargs: 0},
+	"schema":                         {call: schema, numargs: 0},
+	"shadowcredentials":              {call: shadowcredentials, numargs: 0},
+	"unconstraineddelegation":        {call: unconstraineddelegation, numargs: 0},
+	"users":                          {call: users, numargs: 0},
+	"whoami":                         {call: whoami, numargs: 0},
 }
 
 // Global state
@@ -257,10 +259,6 @@ func addmachine(c *goldapquery.Conn, args ...string) error {
 }
 
 func adduser(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 3 {
-		return fmt.Errorf("expected username, serviceprincipal and password")
-	}
-
 	username := args[0]
 	principalname := args[1]
 	userpasswd := args[2]
@@ -287,9 +285,7 @@ func certpublishers(c *goldapquery.Conn, args ...string) error {
 }
 
 func changepassword(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("expected username, password")
-	}
+
 	username := args[0]
 	userpasswd := args[1]
 
@@ -315,9 +311,6 @@ func constraineddelegation(c *goldapquery.Conn, args ...string) error {
 }
 
 func deleteobject(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("expected objectname and type m or u for machine or user")
-	}
 	objectname := cli.Arg(1)
 	objecttype := cli.Arg(2)
 
@@ -336,9 +329,7 @@ func deleteobject(c *goldapquery.Conn, args ...string) error {
 }
 
 func disablemachine(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected machinename")
-	}
+
 	objectname := cli.Arg(1)
 	err := c.SetDisableMachineAccount(objectname)
 	check(err)
@@ -346,10 +337,16 @@ func disablemachine(c *goldapquery.Conn, args ...string) error {
 	return nil
 }
 
+func disableud(c *goldapquery.Conn, args ...string) error {
+	samaccountname := args[0]
+	fmt.Printf("[+] Removing unconstrained delegation from %s\n", samaccountname)
+	err := c.RemoveUnconstrainedDelegation(samaccountname)
+	check(err)
+	return nil
+}
+
 func disableuser(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected username")
-	}
+
 	objectname := cli.Arg(1)
 	err := c.SetDisableUserAccount(objectname)
 	check(err)
@@ -365,20 +362,23 @@ func domaincontrollers(c *goldapquery.Conn, args ...string) error {
 }
 
 func enablemachine(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected machinename")
-	}
+
 	objectname := cli.Arg(1)
 	err := c.SetEnableMachineAccount(objectname)
 	check(err)
 	fmt.Printf("[+] Machine account %s enabled\n", objectname)
 	return nil
 }
+func enableud(c *goldapquery.Conn, args ...string) error {
+	samaccountname := args[0]
+	fmt.Printf("[+] Adding unconstrained delegation to %s\n", samaccountname)
+	err := c.AddUnconstrainedDelegation(samaccountname)
+	check(err)
+	return nil
+}
 
 func enableuser(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected username")
-	}
+
 	objectname := cli.Arg(1)
 	err := c.SetEnableUserAccount(objectname)
 	check(err)
@@ -395,9 +395,7 @@ func expandlist(in []string) []string {
 }
 
 func filter(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected filter for example (objectCategory=group). May also accept attributes and searchscope")
-	}
+
 	filter := cli.Arg(1)
 	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
 	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
@@ -441,9 +439,7 @@ func nopassword(c *goldapquery.Conn, args ...string) error {
 }
 
 func objectquery(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected objectname)")
-	}
+
 	objectname := cli.Arg(1)
 	fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", objectname, flags.basedn)
 	err := c.FindUserByName(objectname, flags.searchscope)
@@ -480,9 +476,7 @@ func preauthdisabled(c *goldapquery.Conn, args ...string) error {
 }
 
 func querydescription(c *goldapquery.Conn, args ...string) error {
-	if len(args) != 1 {
-		log.Fatal("[-] Expected specific description to search for\n")
-	}
+
 	querydescription := cli.Arg(1)
 	fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", querydescription, flags.basedn)
 	err := c.FindUserByDescription(querydescription)
