@@ -24,7 +24,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [x] Refactor
     - [x] Create Library
 - [ ] Support Adding and removing of all delegation attributes  
-    - [ ] Unconstrained  
+    - [x] Unconstrained  
     - [ ] Constrained  
     - [ ] Resource Based Constrained Delegation    
 
