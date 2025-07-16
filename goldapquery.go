@@ -206,6 +206,28 @@ func (c *Conn) FindUserByName(objectquery string, searchscope int) error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+func flagset(data string, flag int) (int, error) {
+
+	i, err := strconv.Atoi(data)
+	if err != nil {
+		return 0, err
+	}
+	// Apply bitmask to disable
+	i = i | flag //0x2
+	return i, nil
+}
+
+func flagunset(data string, flag int) (int, error) {
+
+	i, err := strconv.Atoi(data)
+	if err != nil {
+		return 0, err
+	}
+	// Apply bitmask to enable
+	i = i & ^flag //0x2
+	return i, nil
+}
+
 func (c *Conn) getFirstResult(searchscope int, filter string, attributes []string) (string, error) {
 	result, err := c.ldapSearch(c.baseDN, searchscope, filter, attributes)
 	if err != nil {
@@ -424,12 +446,10 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := strconv.Atoi(uacstr)
+	uac, err := flagset(uacstr, 0x2)
 	if err != nil {
 		return err
 	}
-	// Apply bitmask to disable
-	uac = uac | 0x2
 	// Get value for UAC, and then apply value to bitmask
 	disableReq := ldap.NewModifyRequest("CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN, []ldap.Control{})
 	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
@@ -445,12 +465,10 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := strconv.Atoi(uacstr)
+	uac, err := flagunset(uacstr, 0x2)
 	if err != nil {
 		return err
 	}
-
-	uac = uac & ^0x2
 	// Get value for UAC, and then apply value to bitmask
 	enableReq := ldap.NewModifyRequest("CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
@@ -467,13 +485,10 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := strconv.Atoi(uacstr)
+	uac, err := flagset(uacstr, 0x2)
 	if err != nil {
 		return err
 	}
-	// Apply bitmask to disable
-	//uac = uac | 0x2
-	uac = uac | 0x0202
 	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
 	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(disableReq)
@@ -489,11 +504,10 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	uac, err := strconv.Atoi(uacstr)
+	uac, err := flagunset(uacstr, 0x2)
 	if err != nil {
 		return err
 	}
-	uac = uac & ^0x2
 	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(enableReq)
