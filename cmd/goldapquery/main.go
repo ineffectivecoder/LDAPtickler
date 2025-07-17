@@ -285,7 +285,6 @@ func certpublishers(c *goldapquery.Conn, args ...string) error {
 }
 
 func changepassword(c *goldapquery.Conn, args ...string) error {
-
 	username := args[0]
 	userpasswd := args[1]
 
@@ -329,7 +328,6 @@ func deleteobject(c *goldapquery.Conn, args ...string) error {
 }
 
 func disablemachine(c *goldapquery.Conn, args ...string) error {
-
 	objectname := cli.Arg(1)
 	err := c.SetDisableMachineAccount(objectname)
 	check(err)
@@ -346,7 +344,6 @@ func disableud(c *goldapquery.Conn, args ...string) error {
 }
 
 func disableuser(c *goldapquery.Conn, args ...string) error {
-
 	objectname := cli.Arg(1)
 	err := c.SetDisableUserAccount(objectname)
 	check(err)
@@ -362,13 +359,13 @@ func domaincontrollers(c *goldapquery.Conn, args ...string) error {
 }
 
 func enablemachine(c *goldapquery.Conn, args ...string) error {
-
 	objectname := cli.Arg(1)
 	err := c.SetEnableMachineAccount(objectname)
 	check(err)
 	fmt.Printf("[+] Machine account %s enabled\n", objectname)
 	return nil
 }
+
 func enableud(c *goldapquery.Conn, args ...string) error {
 	samaccountname := args[0]
 	fmt.Printf("[+] Adding unconstrained delegation to %s\n", samaccountname)
@@ -378,7 +375,6 @@ func enableud(c *goldapquery.Conn, args ...string) error {
 }
 
 func enableuser(c *goldapquery.Conn, args ...string) error {
-
 	objectname := cli.Arg(1)
 	err := c.SetEnableUserAccount(objectname)
 	check(err)
@@ -395,7 +391,6 @@ func expandlist(in []string) []string {
 }
 
 func filter(c *goldapquery.Conn, args ...string) error {
-
 	filter := cli.Arg(1)
 	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
 	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
@@ -439,7 +434,6 @@ func nopassword(c *goldapquery.Conn, args ...string) error {
 }
 
 func objectquery(c *goldapquery.Conn, args ...string) error {
-
 	objectname := cli.Arg(1)
 	fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", objectname, flags.basedn)
 	err := c.FindUserByName(objectname, flags.searchscope)
@@ -476,7 +470,6 @@ func preauthdisabled(c *goldapquery.Conn, args ...string) error {
 }
 
 func querydescription(c *goldapquery.Conn, args ...string) error {
-
 	querydescription := cli.Arg(1)
 	fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", querydescription, flags.basedn)
 	err := c.FindUserByDescription(querydescription)

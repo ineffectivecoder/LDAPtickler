@@ -23,6 +23,7 @@ const (
 	MethodBindGSSAPI
 )
 
+// Enums for modification of useraccountcontrol field
 const (
 	UACScript                       = 0x1
 	UACAccountDisable               = 0x2
@@ -147,7 +148,6 @@ func (c *Conn) BindDomainPTH(domain string, username string, hash string) error 
 
 // BindPassword will attempt a simple bind to the specified  URL with supplied username and password
 func (c *Conn) BindPassword(username string, password string) error {
-
 	var err error
 	err = c.bindSetup()
 	if err != nil {
@@ -160,6 +160,7 @@ func (c *Conn) BindPassword(username string, password string) error {
 	return nil
 }
 
+// AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
 func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"distinguishedName"}
@@ -177,13 +178,14 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	if err != nil {
 		return err
 	}
-	//fmt.Printf("cn=%08x\n", uac)
+	// fmt.Printf("cn=%08x\n", uac)
 	// Get value for UAC, and then apply value to bitmask
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(enableReq)
 }
 
+// RemoveUnconstrainedDelegation will modify the useraccountcontrol field to disable unconstrained delegation
 func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"distinguishedName"}
@@ -201,8 +203,6 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("cn=%s\n", dn)
-	fmt.Printf("cn=%08x\n", uac)
 	// Get value for UAC, and then apply value to bitmask
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
@@ -277,24 +277,22 @@ func (c *Conn) FindUserByName(objectquery string, searchscope int) error {
 }
 
 func flagset(data string, flag int) (int, error) {
-
 	i, err := strconv.Atoi(data)
 	if err != nil {
 		return 0, err
 	}
 	// Apply bitmask to disable
-	i = i | flag //0x2
+	i = i | flag // 0x2
 	return i, nil
 }
 
 func flagunset(data string, flag int) (int, error) {
-
 	i, err := strconv.Atoi(data)
 	if err != nil {
 		return 0, err
 	}
 	// Apply bitmask to enable
-	i = i & ^flag //0x2
+	i = i & ^flag // 0x2
 	return i, nil
 }
 
@@ -304,14 +302,13 @@ func (c *Conn) getFirstResult(searchscope int, filter string, attributes []strin
 		return "", err
 	}
 	if len(result.Entries) == 0 {
-		return "", fmt.Errorf("no entries found") //custom error result not found
+		return "", fmt.Errorf("no entries found") // custom error result not found
 	}
 	if len(result.Entries[0].Attributes) == 0 {
-		return "", fmt.Errorf("entry has no attributes") //custom error attribute missing
+		return "", fmt.Errorf("entry has no attributes") // custom error attribute missing
 	}
 	if len(result.Entries[0].Attributes[0].Values) == 0 {
 		return "", fmt.Errorf("entry has no values")
-
 	}
 	return result.Entries[0].Attributes[0].Values[0], nil
 }
@@ -488,7 +485,7 @@ func (c *Conn) ListShadowCredentials() error {
 
 // ListUnconstrainedDelegation will identify any accounts configured for Unconstrained Delegation
 func (c *Conn) ListUnconstrainedDelegation() error {
-	//It is doing the bitmasking for us, must use decimal value. Bitmask is 80000
+	// It is doing the bitmasking for us, must use decimal value. Bitmask is 80000
 	filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
 	attributes := []string{"samaccountname", "useraccountcontrol"}
 	searchscope := 2
