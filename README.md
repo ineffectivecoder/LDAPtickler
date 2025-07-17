@@ -29,7 +29,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [ ] Resource Based Constrained Delegation    
 - [ ] Support modification of msds-keycredentiallink for shadow credentials  
     - [ ] Create self signed cert  
-    - [ ] Prepare blob for placement in msds-keycredentiallinkfield  
+    - [ ] Prepare blob for placement in msds-keycredentiallink field  
     - [ ] Modify msds-keycredentiallink field   
 
 - [x] Search and list specific types of objects  
