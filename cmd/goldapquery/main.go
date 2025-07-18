@@ -46,6 +46,7 @@ var lookupTable map[string]action = map[string]action{
 	"disableunconstraineddelegation": {call: disableud, numargs: 1, usage: "<samaccountname>"},
 	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
 	"enablemachine":                  {call: enablemachine, numargs: 1, usage: "<machinename>"},
+	"enableconstraineddelegation":    {call: enablecd, numargs: 2, usage: "<samaccountname> <spn>"},
 	"enableuser":                     {call: enableuser, numargs: 1, usage: "<username>"},
 	"enableunconstraineddelegation":  {call: enableud, numargs: 1, usage: "<samaccountname>"},
 	"filter":                         {call: filter, numargs: 1, usage: "<filter>"},
@@ -363,6 +364,15 @@ func enablemachine(c *goldapquery.Conn, args ...string) error {
 	err := c.SetEnableMachineAccount(objectname)
 	check(err)
 	fmt.Printf("[+] Machine account %s enabled\n", objectname)
+	return nil
+}
+
+func enablecd(c *goldapquery.Conn, args ...string) error {
+	samaccountname := args[0]
+	spn := args[1]
+	fmt.Printf("[+] Adding constrained delegation to %s\n", samaccountname)
+	err := c.AddConstrainedDelegation(samaccountname, spn)
+	check(err)
 	return nil
 }
 
