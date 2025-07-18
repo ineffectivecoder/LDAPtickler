@@ -187,55 +187,6 @@ func (c *Conn) AddConstrainedDelegation(username string, spn string) error {
 	return c.lconn.Modify(enableReq)
 }
 
-// AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
-func (c *Conn) AddUnconstrainedDelegation(username string) error {
-	filter := "(samaccountname=" + username + ")"
-	attributes := []string{"distinguishedName"}
-	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
-	}
-	attributes = []string{"useraccountcontrol"}
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
-	}
-	uac, err := flagset(uacstr, UACTrustedForDelegation)
-	if err != nil {
-		return err
-	}
-	// fmt.Printf("cn=%08x\n", uac)
-	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
-	return c.lconn.Modify(enableReq)
-}
-
-// RemoveUnconstrainedDelegation will modify the useraccountcontrol field to disable unconstrained delegation
-func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
-	filter := "(samaccountname=" + username + ")"
-	attributes := []string{"distinguishedName"}
-	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
-	}
-	attributes = []string{"useraccountcontrol"}
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
-	}
-	uac, err := flagunset(uacstr, UACTrustedForDelegation)
-	if err != nil {
-		return err
-	}
-	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
-	return c.lconn.Modify(enableReq)
-}
-
 // AddMachineAccount will attempt to add a machine account for the supplied machinename and machinepass
 func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 	addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+c.baseDN, []ldap.Control{})
@@ -266,6 +217,31 @@ func (c *Conn) AddUserAccount(username string, principalname string) error {
 	addReq.Attribute("userPrincipalName", []string{principalname})
 	// addReq.Attributes = attrs
 	return c.lconn.Add(addReq)
+}
+
+// AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
+func (c *Conn) AddUnconstrainedDelegation(username string) error {
+	filter := "(samaccountname=" + username + ")"
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	attributes = []string{"useraccountcontrol"}
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := flagset(uacstr, UACTrustedForDelegation)
+	if err != nil {
+		return err
+	}
+	// fmt.Printf("cn=%08x\n", uac)
+	// Get value for UAC, and then apply value to bitmask
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	return c.lconn.Modify(enableReq)
 }
 
 // Close closes the LDAP connection
@@ -528,6 +504,70 @@ func (c *Conn) ListUsers(attributes ...string) error {
 
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
+// RemoveConstrainedDelegation modifies msds-allowedtodelegateto to remove configuration of specific spns or all of them
+func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
+	filter := "(samaccountname=" + username + ")"
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	attributes = []string{"msDS-AllowedToDelegateTo"}
+	delegationresstr, err := c.getFirstResult(searchscope, filter, attributes)
+	var spns []string
+	if err != nil {
+		if !strings.Contains(err.Error(), "no attributes") {
+			return err
+		}
+		spns = []string{}
+	} else {
+		spns = strings.Fields(delegationresstr)
+	}
+	var updatedSPNs []string
+	if strings.EqualFold(spn, "all") {
+		updatedSPNs = []string{}
+	} else {
+		for _, h := range spns {
+			if !strings.EqualFold(h, spn) {
+				updatedSPNs = append(updatedSPNs, h)
+			}
+		}
+	}
+	fmt.Printf("%s\n", delegationresstr)
+	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
+	if err != nil {
+		return err
+	}*/
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
+	return c.lconn.Modify(enableReq)
+}
+
+// RemoveUnconstrainedDelegation will modify the useraccountcontrol field to disable unconstrained delegation
+func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
+	filter := "(samaccountname=" + username + ")"
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	attributes = []string{"useraccountcontrol"}
+	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	uac, err := flagunset(uacstr, UACTrustedForDelegation)
+	if err != nil {
+		return err
+	}
+	// Get value for UAC, and then apply value to bitmask
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	return c.lconn.Modify(enableReq)
 }
 
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account

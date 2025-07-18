@@ -40,6 +40,7 @@ var lookupTable map[string]action = map[string]action{
 	"changepassword":                 {call: changepassword, numargs: 2, usage: "<username> <password>"},
 	"computers":                      {call: computers, numargs: 0},
 	"constraineddelegation":          {call: constraineddelegation, numargs: 0},
+	"disableconstraineddelegation":   {call: disablecd, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
 	"deleteobject":                   {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
 	"disablemachine":                 {call: disablemachine, numargs: 1, usage: "<machinename>"},
 	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
@@ -108,7 +109,7 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	cli.Section("Supported Utility Commands", "addmachine, adduser, changepassword, deleteobject,",
-		"disablemachine,disableunconstraineddelegation, disableuser, enablemachine, enableunconstraineddelegation enableuser")
+		"disablemachine,disableconstraineddelegation, disableunconstraineddelegation, disableuser, enableconstraineddelegation, enablemachine, enableunconstraineddelegation enableuser")
 
 	// cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain") //TODO ADD THE REST
 
@@ -333,6 +334,15 @@ func disablemachine(c *goldapquery.Conn, args ...string) error {
 	err := c.SetDisableMachineAccount(objectname)
 	check(err)
 	fmt.Printf("[+] Machine account %s disabled\n", objectname)
+	return nil
+}
+
+func disablecd(c *goldapquery.Conn, args ...string) error {
+	samaccountname := args[0]
+	spn := args[1]
+	fmt.Printf("[+] Removing constrained delegation from %s\n", samaccountname)
+	err := c.RemoveConstrainedDelegation(samaccountname, spn)
+	check(err)
 	return nil
 }
 
