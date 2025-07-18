@@ -536,7 +536,7 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 			}
 		}
 	}
-	//fmt.Printf("%s\n", delegationresstr)
+	// fmt.Printf("%s\n", delegationresstr)
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
 	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
 	return c.lconn.Modify(enableReq)
