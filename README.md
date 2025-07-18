@@ -25,7 +25,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [x] Create Library
 - [ ] Support Adding and removing of all delegation attributes  
     - [x] Unconstrained  
-    - [ ] Constrained  
+    - [x] Constrained  
     - [ ] Resource Based Constrained Delegation    
 - [ ] Support modification of msds-keycredentiallink for shadow credentials  
     - [ ] Create self signed cert  
