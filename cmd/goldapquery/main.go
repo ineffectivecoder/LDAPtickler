@@ -340,7 +340,7 @@ func disablemachine(c *goldapquery.Conn, args ...string) error {
 func disablecd(c *goldapquery.Conn, args ...string) error {
 	samaccountname := args[0]
 	spn := args[1]
-	fmt.Printf("[+] Removing constrained delegation from %s\n", samaccountname)
+	fmt.Printf("[+] Removing constrained delegation spn %s from %s \n", spn, samaccountname)
 	err := c.RemoveConstrainedDelegation(samaccountname, spn)
 	check(err)
 	return nil
@@ -380,7 +380,7 @@ func enablemachine(c *goldapquery.Conn, args ...string) error {
 func enablecd(c *goldapquery.Conn, args ...string) error {
 	samaccountname := args[0]
 	spn := args[1]
-	fmt.Printf("[+] Adding constrained delegation to %s\n", samaccountname)
+	fmt.Printf("[+] Adding constrained delegation spn %s to %s\n", spn, samaccountname)
 	err := c.AddConstrainedDelegation(samaccountname, spn)
 	check(err)
 	return nil
