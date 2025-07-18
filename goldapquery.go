@@ -160,6 +160,33 @@ func (c *Conn) BindPassword(username string, password string) error {
 	return nil
 }
 
+// AddConstrainedDelegation modifies msds-allowedtodelegateto to configured constrained delegation for specified spn
+func (c *Conn) AddConstrainedDelegation(username string, spn string) error {
+	filter := "(samaccountname=" + username + ")"
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	attributes = []string{"msDS-AllowedToDelegateTo"}
+	delegationres, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		if !strings.Contains(err.Error(), "no attributes") {
+			return err
+		}
+	}
+	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, spn))
+	fmt.Printf("%s\n", delegationres)
+	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
+	if err != nil {
+		return err
+	}*/
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("msDS-AllowedToDelegateTo", []string{delegationres})
+	return c.lconn.Modify(enableReq)
+}
+
 // AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
 func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	filter := "(samaccountname=" + username + ")"
@@ -501,33 +528,6 @@ func (c *Conn) ListUsers(attributes ...string) error {
 
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
-}
-
-// Modifies msds-allowedtodelegateto to configured constrained delegation for specified spn
-func (c *Conn) AddConstrainedDelegation(username string, spn string) error {
-	filter := "(samaccountname=" + username + ")"
-	attributes := []string{"distinguishedName"}
-	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
-	}
-	attributes = []string{"msDS-AllowedToDelegateTo"}
-	delegationres, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		if !strings.Contains(err.Error(), "no attributes") {
-			return err
-		}
-	}
-	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, spn))
-	fmt.Printf("%s\n", delegationres)
-	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
-	if err != nil {
-		return err
-	}*/
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	enableReq.Replace("msDS-AllowedToDelegateTo", []string{delegationres})
-	return c.lconn.Modify(enableReq)
 }
 
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account
