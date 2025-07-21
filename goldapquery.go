@@ -299,6 +299,7 @@ func flagunset(data string, flag int) (int, error) {
 	return i, nil
 }
 
+// change to return array of string
 func (c *Conn) getFirstResult(searchscope int, filter string, attributes []string) (string, error) {
 	result, err := c.ldapSearch(c.baseDN, searchscope, filter, attributes)
 	if err != nil {
@@ -517,21 +518,18 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 	}
 	attributes = []string{"msDS-AllowedToDelegateTo"}
 	delegationresstr, err := c.getFirstResult(searchscope, filter, attributes)
-	var spns []string
+
 	if err != nil {
-		if !strings.Contains(err.Error(), "no attributes") {
-			return err
-		}
-		spns = []string{}
-	} else {
-		spns = strings.Fields(delegationresstr)
+		return err
 	}
+	spns := strings.Fields(delegationresstr)
 	var updatedSPNs []string
-	if strings.EqualFold(spn, "all") {
+	if strings.ToLower(spn) == "all" {
 		updatedSPNs = []string{}
 	} else {
 		for _, h := range spns {
 			if !strings.EqualFold(h, spn) {
+				//if strings.ToLower(h) != strings.ToLower(spn) { Linter says dont do this.
 				updatedSPNs = append(updatedSPNs, h)
 			}
 		}
