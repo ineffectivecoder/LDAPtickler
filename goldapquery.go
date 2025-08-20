@@ -7,9 +7,11 @@ import (
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
+	winsddlconverter "github.com/jc-lab/win-sddl-converter"
 	"golang.org/x/text/encoding/unicode"
 )
 
+// TODO Everywhere using lower ldapsearch followed by pretty results, switch to capitalized LDAPSearch
 // BindMethod TODO
 type BindMethod int
 
@@ -57,7 +59,7 @@ type Conn struct {
 	url        string
 }
 
-// New TODO
+// New TODO great note Chris
 func New(url string, basedn string, skipVerify ...bool) *Conn {
 	var connection *Conn = &Conn{url: url, baseDN: basedn}
 	if len(skipVerify) > 0 {
@@ -199,6 +201,44 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 	return c.lconn.Add(addReq)
 }
 
+func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer string) error {
+	filter := "(samaccountname=" + targetmachinename + ")"
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(strings.ToLower(dn), "cn=computers") {
+		return err
+	}
+	// Getting SIDS
+	filter = "(samaccountname=" + delegatingComputer + ")"
+	attributes = []string{"objectSid"}
+	delegatingComputerSID, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	_ = delegatingComputerSID
+	attributes = []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
+	delegationres, err := c.getFirstResult(searchscope, filter, attributes)
+	if err != nil {
+		if !strings.Contains(err.Error(), "no attributes") {
+			return err
+		}
+	}
+	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, "TODO!THISMEANSYOU"))
+
+	fmt.Printf("%s\n", delegationres)
+	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
+	if err != nil {
+		return err
+	}*/
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("msDS-AllowedToActOnBehalfOfOtherIdentity", []string{delegationres})
+	return c.lconn.Modify(enableReq)
+}
+
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
 // SetEnableAccount to function
 func (c *Conn) AddUserAccount(username string, principalname string) error {
@@ -299,6 +339,35 @@ func flagunset(data string, flag int) (int, error) {
 	return i, nil
 }
 
+func (c *Conn) getAllResults(searchscope int, filter string, attributes []string) (map[string][]string, error) {
+	var results map[string][]string = map[string][]string{}
+	result, err := c.ldapSearch(c.baseDN, searchscope, filter, attributes)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range result.Entries {
+		results["DN"] = []string{entry.DN}
+		for _, attribute := range entry.Attributes {
+			switch attribute.Name {
+			case "msDS-AllowedToActOnBehalfOfOtherIdentity":
+				values := []string{}
+				for _, v := range attribute.ByteValues {
+					sddl, err := winsddlconverter.ParseBinary(v)
+					if err != nil {
+						return nil, err
+					}
+					values = append(values, sddl.ToSddl())
+				}
+				results[attribute.Name] = values
+
+			default:
+				results[attribute.Name] = attribute.Values
+			}
+		}
+	}
+	return results, nil
+}
+
 // change to return array of string
 func (c *Conn) getFirstResult(searchscope int, filter string, attributes []string) (string, error) {
 	result, err := c.ldapSearch(c.baseDN, searchscope, filter, attributes)
@@ -343,13 +412,31 @@ func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attribu
 // LDAPSearch will search the directory by a supplied searchscope, filter and attributes
 func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string) error {
 	var err error
-	var result *ldap.SearchResult
-	result, err = c.ldapSearch(c.baseDN, searchscope, filter, attributes)
+	var results map[string][]string
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
-	result.PrettyPrint(2)
+	fmt.Printf("  DN: %s\n", results["DN"][0])
+	for key, values := range results {
+		if key == "DN" {
+			continue // Skip DN key as it is already printed
+		}
+		if len(values) == 0 {
+			fmt.Printf("    %s: No values found\n", key)
+			continue
+		}
+		fmt.Printf("    %s: %v\n", key, values)
+
+	}
 	return nil
+	//var result *ldap.SearchResult
+	//result, err = c.ldapSearch(c.baseDN, searchscope, filter, attributes)
+	//if err != nil {
+	//		return err
+	//	}
+	//	result.PrettyPrint(2)
+	//	return nil
 }
 
 // ListCAs will search the directory for all Cert Publishers or CAs in the domain
@@ -458,10 +545,17 @@ func (c *Conn) ListProtectedUsers() error {
 
 // ListRBCD will identify all objects configured for RBCD
 func (c *Conn) ListRBCD() error {
+	var err error
+
 	filter := "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)"
 	attributes := []string{"samaccountname", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
 	searchscope := 2
-	return c.LDAPSearch(searchscope, filter, attributes)
+	err = c.LDAPSearch(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ListSchema will list the schema of the directory
