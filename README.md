@@ -71,3 +71,8 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
 It was determined this was silly. Now grabbing the previous UAC setting and doing bit math to add the desired setting.  
 This paves the way to do the same for user accounts.    
+
+
+## TODO
+Get rid of getfirstresult everywhere this means you!  
+GetAllResults is better.

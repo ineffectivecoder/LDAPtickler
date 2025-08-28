@@ -164,27 +164,23 @@ func (c *Conn) BindPassword(username string, password string) error {
 
 // AddConstrainedDelegation modifies msds-allowedtodelegateto to configured constrained delegation for specified spn
 func (c *Conn) AddConstrainedDelegation(username string, spn string) error {
+	var delegationres string
 	filter := "(samaccountname=" + username + ")"
-	attributes := []string{"distinguishedName"}
+	attributes := []string{"msDS-AllowedToDelegateTo"}
 	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
-	}
-	attributes = []string{"msDS-AllowedToDelegateTo"}
-	delegationres, err := c.getFirstResult(searchscope, filter, attributes)
+	var err error
+	var results map[string][]string
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		if !strings.Contains(err.Error(), "no attributes") {
 			return err
 		}
 	}
+	if len(results["msDS-AllowedToDelegateTo"]) > 0 {
+		delegationres = results["msDS-AllowedToDelegateTo"][0]
+	}
 	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, spn))
-	fmt.Printf("%s\n", delegationres)
-	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
-	if err != nil {
-		return err
-	}*/
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq := ldap.NewModifyRequest(results["DN"][0], []ldap.Control{})
 	enableReq.Replace("msDS-AllowedToDelegateTo", []string{delegationres})
 	return c.lconn.Modify(enableReq)
 }
@@ -339,11 +335,19 @@ func flagunset(data string, flag int) (int, error) {
 	return i, nil
 }
 
-func (c *Conn) getAllResults(searchscope int, filter string, attributes []string) (map[string][]string, error) {
+func (c *Conn) getAllResults(
+	searchscope int, filter string, attributes []string, baseDN ...string,
+) (map[string][]string, error) {
 	var results map[string][]string = map[string][]string{}
-	result, err := c.ldapSearch(c.baseDN, searchscope, filter, attributes)
+	if len(baseDN) == 0 {
+		baseDN = []string{c.baseDN}
+	}
+	result, err := c.ldapSearch(baseDN[0], searchscope, filter, attributes)
 	if err != nil {
 		return nil, err
+	}
+	if len(result.Entries) == 0 {
+		return nil, fmt.Errorf("no entries found") // custom error result not found
 	}
 	for _, entry := range result.Entries {
 		results["DN"] = []string{entry.DN}
@@ -410,10 +414,10 @@ func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attribu
 }
 
 // LDAPSearch will search the directory by a supplied searchscope, filter and attributes
-func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string) error {
+func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string, baseDN ...string) error {
 	var err error
 	var results map[string][]string
-	results, err = c.getAllResults(searchscope, filter, attributes)
+	results, err = c.getAllResults(searchscope, filter, attributes, baseDN...)
 	if err != nil {
 		return err
 	}
@@ -430,13 +434,6 @@ func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string) e
 
 	}
 	return nil
-	//var result *ldap.SearchResult
-	//result, err = c.ldapSearch(c.baseDN, searchscope, filter, attributes)
-	//if err != nil {
-	//		return err
-	//	}
-	//	result.PrettyPrint(2)
-	//	return nil
 }
 
 // ListCAs will search the directory for all Cert Publishers or CAs in the domain
@@ -563,13 +560,10 @@ func (c *Conn) ListSchema() error {
 	filter := "(objectClass=*)"
 	attributes := []string{}
 	searchscope := 0
-	var err error
-	var result *ldap.SearchResult
-	result, err = c.ldapSearch("cn=Schema,cn=Configuration,"+c.baseDN, searchscope, filter, attributes)
+	var err error = c.LDAPSearch(searchscope, filter, attributes, "cn=Schema,cn=Configuration,"+c.baseDN)
 	if err != nil {
 		return err
 	}
-	result.PrettyPrint(2)
 	return nil
 }
 
@@ -603,20 +597,20 @@ func (c *Conn) ListUsers(attributes ...string) error {
 
 // RemoveConstrainedDelegation modifies msds-allowedtodelegateto to remove configuration of specific spns or all of them
 func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
+	var delegationres string
 	filter := "(samaccountname=" + username + ")"
-	attributes := []string{"distinguishedName"}
+	attributes := []string{"msDS-AllowedToDelegateTo"}
 	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	var err error
+	var results map[string][]string
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
-	attributes = []string{"msDS-AllowedToDelegateTo"}
-	delegationresstr, err := c.getFirstResult(searchscope, filter, attributes)
-
-	if err != nil {
-		return err
+	if len(results["msDS-AllowedToDelegateTo"]) > 0 {
+		delegationres = results["msDS-AllowedToDelegateTo"][0]
 	}
-	spns := strings.Fields(delegationresstr)
+	spns := strings.Fields(delegationres)
 	var updatedSPNs []string
 	if strings.ToLower(spn) == "all" {
 		updatedSPNs = []string{}
@@ -629,7 +623,7 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 		}
 	}
 	// fmt.Printf("%s\n", delegationresstr)
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq := ldap.NewModifyRequest(results["DN"][0], []ldap.Control{})
 	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
 	return c.lconn.Modify(enableReq)
 }
