@@ -3,6 +3,7 @@ package goldapquery
 import (
 	"crypto/tls"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -169,18 +170,18 @@ func (c *Conn) AddConstrainedDelegation(username string, spn string) error {
 	attributes := []string{"msDS-AllowedToDelegateTo"}
 	searchscope := 2
 	var err error
-	var results map[string][]string
+	var results []map[string][]string
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		if !strings.Contains(err.Error(), "no attributes") {
 			return err
 		}
 	}
-	if len(results["msDS-AllowedToDelegateTo"]) > 0 {
-		delegationres = results["msDS-AllowedToDelegateTo"][0]
+	if len(results[0]["msDS-AllowedToDelegateTo"]) > 0 {
+		delegationres = results[0]["msDS-AllowedToDelegateTo"][0]
 	}
 	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, spn))
-	enableReq := ldap.NewModifyRequest(results["DN"][0], []ldap.Control{})
+	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
 	enableReq.Replace("msDS-AllowedToDelegateTo", []string{delegationres})
 	return c.lconn.Modify(enableReq)
 }
@@ -337,8 +338,8 @@ func flagunset(data string, flag int) (int, error) {
 
 func (c *Conn) getAllResults(
 	searchscope int, filter string, attributes []string, baseDN ...string,
-) (map[string][]string, error) {
-	var results map[string][]string = map[string][]string{}
+) ([]map[string][]string, error) {
+	var results []map[string][]string
 	if len(baseDN) == 0 {
 		baseDN = []string{c.baseDN}
 	}
@@ -349,8 +350,9 @@ func (c *Conn) getAllResults(
 	if len(result.Entries) == 0 {
 		return nil, fmt.Errorf("no entries found") // custom error result not found
 	}
-	for _, entry := range result.Entries {
-		results["DN"] = []string{entry.DN}
+	for i, entry := range result.Entries {
+		results = append(results, map[string][]string{})
+		results[i]["DN"] = []string{entry.DN}
 		for _, attribute := range entry.Attributes {
 			switch attribute.Name {
 			case "msDS-AllowedToActOnBehalfOfOtherIdentity":
@@ -362,10 +364,10 @@ func (c *Conn) getAllResults(
 					}
 					values = append(values, sddl.ToSddl())
 				}
-				results[attribute.Name] = values
+				results[i][attribute.Name] = values
 
 			default:
-				results[attribute.Name] = attribute.Values
+				results[i][attribute.Name] = attribute.Values
 			}
 		}
 	}
@@ -415,23 +417,31 @@ func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attribu
 
 // LDAPSearch will search the directory by a supplied searchscope, filter and attributes
 func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string, baseDN ...string) error {
+	var keys []string
 	var err error
-	var results map[string][]string
+	var results []map[string][]string
 	results, err = c.getAllResults(searchscope, filter, attributes, baseDN...)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("  DN: %s\n", results["DN"][0])
-	for key, values := range results {
-		if key == "DN" {
-			continue // Skip DN key as it is already printed
+	for _, result := range results {
+		fmt.Printf("  DN: %s\n", result["DN"][0])
+		keys = []string{}
+		for key := range result {
+			keys = append(keys, key)
 		}
-		if len(values) == 0 {
-			fmt.Printf("    %s: No values found\n", key)
-			continue
+		slices.Sort(keys)
+		for _, key := range keys {
+			values := result[key]
+			if key == "DN" {
+				continue // Skip DN key as it is already printed
+			}
+			if len(values) == 0 {
+				fmt.Printf("    %s: No values found\n", key)
+				continue
+			}
+			fmt.Printf("    %s: %v\n", key, values)
 		}
-		fmt.Printf("    %s: %v\n", key, values)
-
 	}
 	return nil
 }
@@ -602,13 +612,13 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 	attributes := []string{"msDS-AllowedToDelegateTo"}
 	searchscope := 2
 	var err error
-	var results map[string][]string
+	var results []map[string][]string
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
-	if len(results["msDS-AllowedToDelegateTo"]) > 0 {
-		delegationres = results["msDS-AllowedToDelegateTo"][0]
+	if len(results[0]["msDS-AllowedToDelegateTo"]) > 0 {
+		delegationres = results[0]["msDS-AllowedToDelegateTo"][0]
 	}
 	spns := strings.Fields(delegationres)
 	var updatedSPNs []string
@@ -623,7 +633,7 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 		}
 	}
 	// fmt.Printf("%s\n", delegationresstr)
-	enableReq := ldap.NewModifyRequest(results["DN"][0], []ldap.Control{})
+	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
 	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
 	return c.lconn.Modify(enableReq)
 }
