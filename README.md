@@ -63,7 +63,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 
 ## Stretch goals
 
-- Allow for deletion, and modification of existing LDAP entries  
+- [x] Allow for deletion, and modification of existing LDAP entries  
 - Potentially support BloodHound(Need to look into this more)  
 
 
