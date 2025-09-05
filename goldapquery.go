@@ -12,8 +12,7 @@ import (
 	"golang.org/x/text/encoding/unicode"
 )
 
-// TODO Everywhere using lower ldapsearch followed by pretty results, switch to capitalized LDAPSearch
-// BindMethod TODO
+// BindMethod TODO WHAT IS THIS?!
 type BindMethod int
 
 // These enums are bind methods for the bind function
@@ -386,24 +385,6 @@ func (c *Conn) getAllResults(
 		}
 	}
 	return results, nil
-}
-
-// change to return array of string
-func (c *Conn) getFirstResult(searchscope int, filter string, attributes []string) (string, error) {
-	result, err := c.ldapSearch(c.baseDN, searchscope, filter, attributes)
-	if err != nil {
-		return "", err
-	}
-	if len(result.Entries) == 0 {
-		return "", fmt.Errorf("no entries found") // custom error result not found
-	}
-	if len(result.Entries[0].Attributes) == 0 {
-		return "", fmt.Errorf("entry has no attributes") // custom error attribute missing
-	}
-	if len(result.Entries[0].Attributes[0].Values) == 0 {
-		return "", fmt.Errorf("entry has no values")
-	}
-	return result.Entries[0].Attributes[0].Values[0], nil
 }
 
 // GetWhoAmI will query the LDAP server for who we currently are authenticated as
