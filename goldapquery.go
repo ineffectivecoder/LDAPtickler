@@ -199,41 +199,50 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 }
 
 func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer string) error {
-	filter := "(samaccountname=" + targetmachinename + ")"
-	attributes := []string{"distinguishedName"}
+	//TODO This is epically broken. We need to build the SACL to build the msDS-AllowedToActOnBehalfOfOtherIdentity setting
+	// Research can you have more than 1 RBCD setting per identity. Also this is valid for user accounts too, not just computers.
+	filter := "(samaccountname=" + delegatingComputer + ")"
+	attributes := []string{"objectSid", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
 	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	var err error
+	var results []map[string][]string
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
+	dn := results[0]["DN"][0]
 	if !strings.Contains(strings.ToLower(dn), "cn=computers") {
-		return err
+		return fmt.Errorf("this object is not a computer, go away")
 	}
-	// Getting SIDS
-	filter = "(samaccountname=" + delegatingComputer + ")"
-	attributes = []string{"objectSid"}
-	delegatingComputerSID, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
+
+	// Getting object sid
+	if len(results[0]["objectSid"]) == 0 {
+		return fmt.Errorf("no objectSid found for %s", delegatingComputer)
+
 	}
-	_ = delegatingComputerSID
-	attributes = []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
-	delegationres, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		if !strings.Contains(err.Error(), "no attributes") {
-			return err
-		}
+	delegatingComputerSID := results[0]["objectSid"][0]
+
+	// Getting msDS-AllowedToActOnBehalfOfOtherIdentity
+	if len(results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"]) == 0 {
+		return fmt.Errorf("no msDS-AllowedToActOnBehalfOfOtherIdentity found for %s", delegatingComputer)
+
 	}
+	// RBCD setting
+	delegationres := results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"][0]
+
 	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, "TODO!THISMEANSYOU"))
 
 	fmt.Printf("%s\n", delegationres)
+	_ = delegatingComputerSID
+	return nil
 	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
 	if err != nil {
 		return err
 	}*/
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	enableReq.Replace("msDS-AllowedToActOnBehalfOfOtherIdentity", []string{delegationres})
-	return c.lconn.Modify(enableReq)
+	//enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	//enableReq.Replace("msDS-AllowedToActOnBehalfOfOtherIdentity", []string{delegationres})
+	//return c.lconn.Modify(enableReq)
 }
 
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
@@ -258,25 +267,30 @@ func (c *Conn) AddUserAccount(username string, principalname string) error {
 
 // AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
 func (c *Conn) AddUnconstrainedDelegation(username string) error {
+	// THIS WORKS AGAIN!
+	//Machine accounts require $ you dummy.
+	//UAC output is a bit mask which can be deciphered here: https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/useraccountcontrol-manipulate-account-properties
+	var err error
+	var results []map[string][]string
+	var uacstr string
 	filter := "(samaccountname=" + username + ")"
-	attributes := []string{"distinguishedName"}
+	attributes := []string{"userAccountControl"}
 	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
-	attributes = []string{"useraccountcontrol"}
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
+	if len(results[0]["userAccountControl"]) > 0 {
+		uacstr = results[0]["userAccountControl"][0]
 	}
+
 	uac, err := flagset(uacstr, UACTrustedForDelegation)
 	if err != nil {
 		return err
 	}
-	// fmt.Printf("cn=%08x\n", uac)
+
 	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(enableReq)
 }
@@ -640,24 +654,27 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 
 // RemoveUnconstrainedDelegation will modify the useraccountcontrol field to disable unconstrained delegation
 func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
+	// Working again.
+	var err error
+	var results []map[string][]string
+	var uacstr string
 	filter := "(samaccountname=" + username + ")"
-	attributes := []string{"distinguishedName"}
+	attributes := []string{"userAccountControl"}
 	searchscope := 2
-	dn, err := c.getFirstResult(searchscope, filter, attributes)
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
-	attributes = []string{"useraccountcontrol"}
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
-	if err != nil {
-		return err
+	if len(results[0]["userAccountControl"]) > 0 {
+		uacstr = results[0]["userAccountControl"][0]
 	}
+
 	uac, err := flagunset(uacstr, UACTrustedForDelegation)
 	if err != nil {
 		return err
 	}
 	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(enableReq)
 }
