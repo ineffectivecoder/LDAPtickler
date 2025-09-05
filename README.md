@@ -74,5 +74,4 @@ This paves the way to do the same for user accounts.
 
 
 ## TODO
-Get rid of getfirstresult everywhere this means you!  
-GetAllResults is better.
+RBCD
