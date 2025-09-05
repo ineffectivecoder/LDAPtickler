@@ -681,14 +681,20 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account
 func (c *Conn) SetDisableMachineAccount(username string) error {
+	var err error
+	var results []map[string][]string
+	var uacstr string
 	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
-
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+	if len(results[0]["userAccountControl"]) > 0 {
+		uacstr = results[0]["userAccountControl"][0]
+	}
+
 	uac, err := flagset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
@@ -701,12 +707,18 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 
 // SetEnableMachineAccount will modify the userAccountControl attribute to enable a machine account
 func (c *Conn) SetEnableMachineAccount(username string) error {
+	var err error
+	var results []map[string][]string
+	var uacstr string
 	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
+	}
+	if len(results[0]["userAccountControl"]) > 0 {
+		uacstr = results[0]["userAccountControl"][0]
 	}
 	uac, err := flagunset(uacstr, UACAccountDisable)
 	if err != nil {
