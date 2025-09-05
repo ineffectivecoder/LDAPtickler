@@ -732,14 +732,20 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 
 // SetDisableUserAccount will modify the userAccountControl attribute to disable a user account
 func (c *Conn) SetDisableUserAccount(username string) error {
+	var err error
+	var results []map[string][]string
+	var uacstr string
 	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
-
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+	if len(results[0]["userAccountControl"]) > 0 {
+		uacstr = results[0]["userAccountControl"][0]
+	}
+
 	uac, err := flagset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
@@ -751,14 +757,20 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 
 // SetEnableUserAccount will modify the userAccountControl attribute to enable a user account
 func (c *Conn) SetEnableUserAccount(username string) error {
+	var err error
+	var results []map[string][]string
+	var uacstr string
 	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
-
-	uacstr, err := c.getFirstResult(searchscope, filter, attributes)
+	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+	if len(results[0]["userAccountControl"]) > 0 {
+		uacstr = results[0]["userAccountControl"][0]
+	}
+
 	uac, err := flagunset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
