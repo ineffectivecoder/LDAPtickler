@@ -48,6 +48,7 @@ var lookupTable map[string]action = map[string]action{
 	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
 	"enablemachine":                  {call: enablemachine, numargs: 1, usage: "<machinename>"},
 	"enableconstraineddelegation":    {call: enablecd, numargs: 2, usage: "<samaccountname> <spn>"},
+	"enablerbcd":                     {call: enablerbcd, numargs: 2, usage: "<samaccountname> <delegatingcomputer>"},
 	"enableuser":                     {call: enableuser, numargs: 1, usage: "<username>"},
 	"enableunconstraineddelegation":  {call: enableud, numargs: 1, usage: "<samaccountname>"},
 	"filter":                         {call: filter, numargs: 1, usage: "<filter>"},
@@ -390,6 +391,15 @@ func enableud(c *goldapquery.Conn, args ...string) error {
 	samaccountname := args[0]
 	fmt.Printf("[+] Adding unconstrained delegation to %s\n", samaccountname)
 	err := c.AddUnconstrainedDelegation(samaccountname)
+	check(err)
+	return nil
+}
+
+func enablerbcd(c *goldapquery.Conn, args ...string) error {
+	samaccountname := args[0]
+	delegatingcomputer := args[1]
+	fmt.Printf("[+] Adding RBCD to %s setting delegation for %s\n", samaccountname, delegatingcomputer)
+	err := c.AddResourceBasedConstrainedDelegation(samaccountname, delegatingcomputer)
 	check(err)
 	return nil
 }

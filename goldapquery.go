@@ -2,13 +2,14 @@ package goldapquery
 
 import (
 	"crypto/tls"
+	"encoding/binary"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
-	winsddlconverter "github.com/jc-lab/win-sddl-converter"
+	winsddlconverter "github.com/ineffectivecoder/win-sddl-converter"
 	"golang.org/x/text/encoding/unicode"
 )
 
@@ -201,7 +202,8 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 	//TODO This is epically broken. We need to build the SACL to build the msDS-AllowedToActOnBehalfOfOtherIdentity setting
 	// Research can you have more than 1 RBCD setting per identity. Also this is valid for user accounts too, not just computers.
 	filter := "(samaccountname=" + delegatingComputer + ")"
-	attributes := []string{"objectSid", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
+	//TODO WHY THE SHIT IS THE SID STORED IN BINARY
+	attributes := []string{"ObjectSid", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
 	searchscope := 2
 	var err error
 	var results []map[string][]string
@@ -221,19 +223,43 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 
 	}
 	delegatingComputerSID := results[0]["objectSid"][0]
+	decodedSid, err := decodeSID([]byte(delegatingComputerSID))
+	if err != nil {
+		return err
+	}
+	fmt.Printf("SID %s\n", decodedSid)
+	var allowed string
 
 	// Getting msDS-AllowedToActOnBehalfOfOtherIdentity
-	if len(results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"]) == 0 {
-		return fmt.Errorf("no msDS-AllowedToActOnBehalfOfOtherIdentity found for %s", delegatingComputer)
+	if len(results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"]) > 0 {
+		allowed = results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"][0]
 
 	}
 	// RBCD setting
-	delegationres := results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"][0]
+	sddl, err := winsddlconverter.ParseSDDL(allowed)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Current SDDL: %s\n", sddl.ToSddl())
+	if sddl.DiscretionaryAcl != nil {
+		// TODO Mask detail
+		fmt.Printf("Rev: %d\n", sddl.DiscretionaryAcl.AclRevision)
+		for _, ace := range sddl.DiscretionaryAcl.Aces {
+			fmt.Printf("ACE Type: %x, Flags: %v, SID: %s\n",
+				ace.AceType, ace.AceFlags, ace.Sid)
+			fmt.Printf("ACE Mask: %d, Known Flags: %v, HasUnknown: %v\n", ace.AccessMask.Mask, ace.AccessMask.Flags, ace.AccessMask.HasUnknown)
 
-	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, "TODO!THISMEANSYOU"))
+		}
+		bobo := winsddlconverter.Ace{
+			AceType: winsddlconverter.ACCESS_ALLOWED_ACE_TYPE, Sid: decodedSid,
+		}
+		fmt.Printf("ACE Type: %x, Flags: %v, SID: %s\n",
+			bobo.AceType, bobo.AceFlags, bobo.Sid)
 
-	fmt.Printf("%s\n", delegationres)
+	}
+
 	_ = delegatingComputerSID
+	_ = allowed
 	return nil
 	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
 	if err != nil {
@@ -300,6 +326,38 @@ func (c *Conn) Close() error {
 		return nil
 	}
 	return c.lconn.Close()
+}
+
+func decodeSID(sidBytes []byte) (string, error) {
+	// 0 = revision, 1 = sub-authority count, 2-7 identifier authority, each sub authority is 4 bytes
+	// Check # of bytes to ensure proper SID
+	if len(sidBytes) < 8 {
+		return "", fmt.Errorf("invalid SID length")
+	}
+	revision := sidBytes[0]
+	subAuthCount := int(sidBytes[1])
+	identifierAuthority := uint64(sidBytes[2])<<40 |
+		uint64(sidBytes[3])<<32 |
+		uint64(sidBytes[4])<<24 |
+		uint64(sidBytes[5])<<16 |
+		uint64(sidBytes[6])<<8 |
+		uint64(sidBytes[7])
+
+	if len(sidBytes) < 8+subAuthCount*4 {
+		return "", fmt.Errorf("invalid SID length for sub-authorities")
+	}
+	subAuthorities := make([]uint32, subAuthCount)
+	for i := 0; i < subAuthCount; i++ {
+		start := 8 + i*4
+		subAuthorities[i] = binary.LittleEndian.Uint32(sidBytes[start : start+4])
+	}
+
+	sidStr := fmt.Sprintf("S-%d-%d", revision, identifierAuthority)
+	for _, sa := range subAuthorities {
+		sidStr += fmt.Sprintf("-%d", sa)
+	}
+	return sidStr, nil
+
 }
 
 // DeleteObject will attempt to delete the object specified, currently supports users and computers
@@ -372,6 +430,7 @@ func (c *Conn) getAllResults(
 				values := []string{}
 				for _, v := range attribute.ByteValues {
 					sddl, err := winsddlconverter.ParseBinary(v)
+
 					if err != nil {
 						return nil, err
 					}

@@ -4,6 +4,7 @@ go 1.24.1
 
 require (
 	github.com/go-ldap/ldap/v3 v3.4.11
+	github.com/ineffectivecoder/win-sddl-converter v1.0.0
 	//github.com/jcmturner/gokrb5/v8 v8.4.4
 	github.com/mjwhitta/cli v1.12.9
 	golang.org/x/term v0.30.0
@@ -26,5 +27,3 @@ require (
 	//	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 )
-
-require github.com/jc-lab/win-sddl-converter v0.0.0-20241129010202-8158bf59132c
