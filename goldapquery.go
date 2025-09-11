@@ -198,15 +198,33 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 	return c.lconn.Add(addReq)
 }
 
-func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer string) error {
+func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer ...string) error {
 	//TODO This is epically broken. We need to build the SACL to build the msDS-AllowedToActOnBehalfOfOtherIdentity setting
 	// Research can you have more than 1 RBCD setting per identity. Also this is valid for user accounts too, not just computers.
-	filter := "(samaccountname=" + delegatingComputer + ")"
-	//TODO WHY THE SHIT IS THE SID STORED IN BINARY
-	attributes := []string{"ObjectSid", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
+	filter := "(samaccountname=" + delegatingComputer[0] + ")"
+
+	attributes := []string{"ObjectSid"}
 	searchscope := 2
 	var err error
 	var results []map[string][]string
+	results, err = c.getAllResults(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+
+	// Getting object sid
+	if len(results[0]["objectSid"]) == 0 {
+		return fmt.Errorf("no objectSid found for %s", delegatingComputer[0])
+
+	}
+	delegatingComputerSID := results[0]["objectSid"][0]
+	decodedSid, err := decodeSID([]byte(delegatingComputerSID))
+	if err != nil {
+		return err
+	}
+
+	filter = "(samaccountname=" + targetmachinename + ")"
+	attributes = []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
@@ -217,57 +235,45 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 		return fmt.Errorf("this object is not a computer, go away")
 	}
 
-	// Getting object sid
-	if len(results[0]["objectSid"]) == 0 {
-		return fmt.Errorf("no objectSid found for %s", delegatingComputer)
-
-	}
-	delegatingComputerSID := results[0]["objectSid"][0]
-	decodedSid, err := decodeSID([]byte(delegatingComputerSID))
-	if err != nil {
-		return err
-	}
-	fmt.Printf("SID %s\n", decodedSid)
 	var allowed string
 
 	// Getting msDS-AllowedToActOnBehalfOfOtherIdentity
 	if len(results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"]) > 0 {
 		allowed = results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"][0]
-
 	}
 	// RBCD setting
 	sddl, err := winsddlconverter.ParseSDDL(allowed)
+
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Current SDDL: %s\n", sddl.ToSddl())
-	if sddl.DiscretionaryAcl != nil {
-		// TODO Mask detail
-		fmt.Printf("Rev: %d\n", sddl.DiscretionaryAcl.AclRevision)
-		for _, ace := range sddl.DiscretionaryAcl.Aces {
-			fmt.Printf("ACE Type: %x, Flags: %v, SID: %s\n",
-				ace.AceType, ace.AceFlags, ace.Sid)
-			fmt.Printf("ACE Mask: %d, Known Flags: %v, HasUnknown: %v\n", ace.AccessMask.Mask, ace.AccessMask.Flags, ace.AccessMask.HasUnknown)
-
+	if sddl.Owner == "" {
+		sddl.Owner = "BA"
+	}
+	if sddl.Group == "" {
+		sddl.Group = "BA"
+	}
+	if sddl.DiscretionaryAcl == nil {
+		sddl.DiscretionaryAcl = &winsddlconverter.Acl{AclRevision: 2, Aces: []winsddlconverter.Ace{}}
+	}
+	for _, ace := range sddl.DiscretionaryAcl.Aces {
+		if decodedSid == ace.Sid {
+			return fmt.Errorf("delegating computer already has RBCD permissions on target computer")
 		}
-		bobo := winsddlconverter.Ace{
-			AceType: winsddlconverter.ACCESS_ALLOWED_ACE_TYPE, Sid: decodedSid,
-		}
-		fmt.Printf("ACE Type: %x, Flags: %v, SID: %s\n",
-			bobo.AceType, bobo.AceFlags, bobo.Sid)
-
+	}
+	ace := winsddlconverter.Ace{
+		AceType: winsddlconverter.ACCESS_ALLOWED_ACE_TYPE, Sid: decodedSid,
+		AccessMask: winsddlconverter.AccessMaskDetail{Mask: 0xF01FF, Flags: []string{"SD", "RC", "WD", "WO"}, HasUnknown: true},
+	}
+	sddl.DiscretionaryAcl.Aces = append(sddl.DiscretionaryAcl.Aces, ace)
+	var b []byte
+	if b, err = sddl.ToBinary(); err != nil {
+		return err
 	}
 
-	_ = delegatingComputerSID
-	_ = allowed
-	return nil
-	/*uac, err := flagset(uacstr, UACTrustedForDelegation)
-	if err != nil {
-		return err
-	}*/
-	//enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	//enableReq.Replace("msDS-AllowedToActOnBehalfOfOtherIdentity", []string{delegationres})
-	//return c.lconn.Modify(enableReq)
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Replace("msDS-AllowedToActOnBehalfOfOtherIdentity", []string{string(b)})
+	return c.lconn.Modify(enableReq)
 }
 
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
