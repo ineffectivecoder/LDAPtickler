@@ -199,10 +199,7 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 }
 
 func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer ...string) error {
-	//TODO This is epically broken. We need to build the SACL to build the msDS-AllowedToActOnBehalfOfOtherIdentity setting
-	// Research can you have more than 1 RBCD setting per identity. Also this is valid for user accounts too, not just computers.
 	filter := "(samaccountname=" + delegatingComputer[0] + ")"
-
 	attributes := []string{"ObjectSid"}
 	searchscope := 2
 	var err error
@@ -695,6 +692,21 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 	// fmt.Printf("%s\n", delegationresstr)
 	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
 	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
+	return c.lconn.Modify(enableReq)
+}
+
+func (c *Conn) RemoveResourceBasedConstrainedDelegation(targetmachinename string) error {
+	filter := "(samaccountname=" + targetmachinename + ")"
+	attributes := []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
+	searchscope := 2
+	results, err := c.getAllResults(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+
+	dn := results[0]["DN"][0]
+	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
+	enableReq.Delete("msDS-AllowedToActOnBehalfOfOtherIdentity", nil)
 	return c.lconn.Modify(enableReq)
 }
 

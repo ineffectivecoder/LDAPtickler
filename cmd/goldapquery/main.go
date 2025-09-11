@@ -43,6 +43,7 @@ var lookupTable map[string]action = map[string]action{
 	"deleteobject":                   {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
 	"disableconstraineddelegation":   {call: disablecd, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
 	"disablemachine":                 {call: disablemachine, numargs: 1, usage: "<machinename>"},
+	"disablerbcd":                    {call: disablerbcd, numargs: 1, usage: "<samaccountname>"},
 	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
 	"disableunconstraineddelegation": {call: disableud, numargs: 1, usage: "<samaccountname>"},
 	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
@@ -343,6 +344,14 @@ func disablecd(c *goldapquery.Conn, args ...string) error {
 	spn := args[1]
 	fmt.Printf("[+] Removing constrained delegation spn %s from %s \n", spn, samaccountname)
 	err := c.RemoveConstrainedDelegation(samaccountname, spn)
+	check(err)
+	return nil
+}
+
+func disablerbcd(c *goldapquery.Conn, args ...string) error {
+	samaccountname := args[0]
+	fmt.Printf("[+] Removing RBCD from %s\n", samaccountname)
+	err := c.RemoveResourceBasedConstrainedDelegation(samaccountname)
 	check(err)
 	return nil
 }
