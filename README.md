@@ -26,7 +26,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [ ] Support Adding and removing of all delegation attributes  
     - [x] Unconstrained - Refactored
     - [x] Constrained  - Refactored
-    - [ ] Resource Based Constrained Delegation    
+    - [x] Resource Based Constrained Delegation, support has been added for validation, adding and removing. Remove only supports all for now. Need to fix.   
 - [ ] Support modification of msds-keycredentiallink for shadow credentials  
     - [ ] Create self signed cert  
     - [ ] Prepare blob for placement in msds-keycredentiallink field  
