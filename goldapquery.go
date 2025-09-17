@@ -273,6 +273,38 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 	return c.lconn.Modify(enableReq)
 }
 
+func (c *Conn) AddServicePrincipalName(username string, spn string) error {
+	// Escape username for LDAP filter
+	filter := fmt.Sprintf("(samaccountname=%s)", ldap.EscapeFilter(username))
+	attributes := []string{"servicePrincipalName", "distinguishedName"}
+
+	// Search for the user
+	results, err := c.getAllResults(2, filter, attributes)
+	if err != nil {
+		return err
+	}
+	if len(results) == 0 {
+		return fmt.Errorf("user %s not found", username)
+	}
+
+	userDN := results[0]["distinguishedName"][0]
+	existingSPNs := results[0]["servicePrincipalName"]
+
+	// Check if SPN already exists
+	for _, val := range existingSPNs {
+		if val == spn {
+			return nil // SPN already present
+		}
+	}
+
+	// Prepare LDAP modify request to add SPN
+	modReq := ldap.NewModifyRequest(userDN, nil)
+	modReq.Add("servicePrincipalName", []string{spn})
+
+	// Execute modification
+	return c.lconn.Modify(modReq)
+}
+
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
 // SetEnableAccount to function
 func (c *Conn) AddUserAccount(username string, principalname string) error {
@@ -708,6 +740,43 @@ func (c *Conn) RemoveResourceBasedConstrainedDelegation(targetmachinename string
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
 	enableReq.Delete("msDS-AllowedToActOnBehalfOfOtherIdentity", nil)
 	return c.lconn.Modify(enableReq)
+}
+
+func (c *Conn) RemoveSPNs(username string, spn string) error {
+	var spnValues string
+	filter := "(samaccountname=" + username + ")"
+	attributes := []string{"servicePrincipalName"}
+	searchscope := 2
+
+	results, err := c.getAllResults(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+	if len(results) == 0 {
+		return fmt.Errorf("user %s not found", username)
+	}
+
+	if len(results[0]["servicePrincipalName"]) > 0 {
+		spnValues = results[0]["servicePrincipalName"][0]
+	}
+
+	spns := strings.Fields(spnValues)
+	var updatedSPNs []string
+
+	if strings.ToLower(spn) == "all" {
+		updatedSPNs = []string{}
+	} else {
+		for _, val := range spns {
+			if !strings.EqualFold(val, spn) {
+				updatedSPNs = append(updatedSPNs, val)
+			}
+		}
+	}
+
+	modReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
+	modReq.Replace("servicePrincipalName", updatedSPNs)
+
+	return c.lconn.Modify(modReq)
 }
 
 // RemoveUnconstrainedDelegation will modify the useraccountcontrol field to disable unconstrained delegation

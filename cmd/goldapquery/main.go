@@ -35,6 +35,7 @@ type action struct {
 var lookupTable map[string]action = map[string]action{
 	// Todo add usages across the board
 	"addmachine":                     {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
+	"addspn":                         {call: addspn, numargs: 2, usage: "<machinename> <spn>"},
 	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
 	"certpublishers":                 {call: certpublishers, numargs: 0},
 	"changepassword":                 {call: changepassword, numargs: 2, usage: "<username> <password>"},
@@ -44,6 +45,7 @@ var lookupTable map[string]action = map[string]action{
 	"disableconstraineddelegation":   {call: disablecd, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
 	"disablemachine":                 {call: disablemachine, numargs: 1, usage: "<machinename>"},
 	"disablerbcd":                    {call: disablerbcd, numargs: 1, usage: "<samaccountname>"},
+	"disablespn":                     {call: disablespn, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
 	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
 	"disableunconstraineddelegation": {call: disableud, numargs: 1, usage: "<samaccountname>"},
 	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
@@ -110,7 +112,7 @@ func init() {
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
-	cli.Section("Supported Utility Commands", "addmachine, adduser, changepassword, deleteobject,",
+	cli.Section("Supported Utility Commands", "addmachine, addspn, adduser, changepassword, deleteobject,",
 		"disablemachine,disableconstraineddelegation, disableunconstraineddelegation, disableuser, enableconstraineddelegation, enablemachine, enableunconstraineddelegation enableuser")
 
 	// cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain") //TODO ADD THE REST
@@ -262,6 +264,16 @@ func addmachine(c *goldapquery.Conn, args ...string) error {
 	return nil
 }
 
+func addspn(c *goldapquery.Conn, args ...string) error {
+	machinename := args[0]
+	spn := args[1]
+	fmt.Printf("[+] Adding spn %s to machine account %s\n", spn, machinename)
+	err := c.AddServicePrincipalName(machinename, spn)
+	check(err)
+	fmt.Printf("[+] Successfully added spn %s to machine account %s\n", spn, machinename)
+	return nil
+}
+
 func adduser(c *goldapquery.Conn, args ...string) error {
 	username := args[0]
 	principalname := args[1]
@@ -361,6 +373,21 @@ func disableud(c *goldapquery.Conn, args ...string) error {
 	fmt.Printf("[+] Removing unconstrained delegation from %s\n", samaccountname)
 	err := c.RemoveUnconstrainedDelegation(samaccountname)
 	check(err)
+	return nil
+}
+
+func disablespn(c *goldapquery.Conn, args ...string) error {
+	samaccountname := args[0]
+	spn := args[1]
+	if strings.ToLower(spn) == "all" {
+		fmt.Printf("[+] Removing all service principal names from %s\n", samaccountname)
+		err := c.RemoveSPNs(samaccountname, spn)
+		check(err)
+	} else {
+		fmt.Printf("[+] Removing service principal name %s from %s\n", spn, samaccountname)
+		err := c.RemoveSPNs(samaccountname, spn)
+		check(err)
+	}
 	return nil
 }
 
