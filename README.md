@@ -16,6 +16,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [x] Prompt for user creds  
 - [x] Changing a user's password   
 - [x] Creation of user accounts
+- [ ] Modification of Service Principal Names
 - [x] Creation of machine accounts
     - Research why only my DA can do this
 - [x] Deletion of User and Machine accounts
