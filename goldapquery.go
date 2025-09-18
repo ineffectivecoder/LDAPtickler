@@ -273,10 +273,11 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 	return c.lconn.Modify(enableReq)
 }
 
+// TODO Add filter elsewhere
 func (c *Conn) AddServicePrincipalName(username string, spn string) error {
 	// Escape username for LDAP filter
 	filter := fmt.Sprintf("(samaccountname=%s)", ldap.EscapeFilter(username))
-	attributes := []string{"servicePrincipalName", "distinguishedName"}
+	attributes := []string{"servicePrincipalName"}
 
 	// Search for the user
 	results, err := c.getAllResults(2, filter, attributes)
@@ -287,19 +288,20 @@ func (c *Conn) AddServicePrincipalName(username string, spn string) error {
 		return fmt.Errorf("user %s not found", username)
 	}
 
-	userDN := results[0]["distinguishedName"][0]
+	userDN := results[0]["DN"][0]
+
 	existingSPNs := results[0]["servicePrincipalName"]
 
 	// Check if SPN already exists
-	for _, val := range existingSPNs {
-		if val == spn {
-			return nil // SPN already present
-		}
+	for _, s := range strings.Fields(spn) {
+		//if !slices.Contains(existingSPNs, s) {
+		existingSPNs = append(existingSPNs, s)
+		//}
 	}
 
 	// Prepare LDAP modify request to add SPN
-	modReq := ldap.NewModifyRequest(userDN, nil)
-	modReq.Add("servicePrincipalName", []string{spn})
+	modReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
+	modReq.Replace("servicePrincipalName", existingSPNs)
 
 	// Execute modification
 	return c.lconn.Modify(modReq)
@@ -760,14 +762,15 @@ func (c *Conn) RemoveSPNs(username string, spn string) error {
 		spnValues = results[0]["servicePrincipalName"][0]
 	}
 
-	spns := strings.Fields(spnValues)
+	existingSPNs := strings.Fields(strings.ToLower(spnValues))
+	deleteSPNs := strings.Fields(strings.ToLower(spn))
 	var updatedSPNs []string
 
 	if strings.ToLower(spn) == "all" {
 		updatedSPNs = []string{}
 	} else {
-		for _, val := range spns {
-			if !strings.EqualFold(val, spn) {
+		for _, val := range existingSPNs {
+			if !slices.Contains(deleteSPNs, val) {
 				updatedSPNs = append(updatedSPNs, val)
 			}
 		}
