@@ -569,6 +569,14 @@ func (c *Conn) ListDCs() error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+// ListDNS will search the directory for all DNS records
+func (c *Conn) ListDNS() error {
+	filter := "(&(objectClass=dnsNode)(dnsRecord=*))"
+	attributes := []string{"dnsRecord"}
+	searchscope := 2
+	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
 // ListGroups will search the directory for all Groups
 func (c *Conn) ListGroups() error {
 	filter := "(objectCategory=group)"
