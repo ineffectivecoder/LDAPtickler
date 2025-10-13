@@ -48,6 +48,7 @@ var lookupTable map[string]action = map[string]action{
 	"disablespn":                     {call: disablespn, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
 	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
 	"disableunconstraineddelegation": {call: disableud, numargs: 1, usage: "<samaccountname>"},
+	"dnsrecords":                     {call: dnsrecords, numargs: 0},
 	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
 	"enablemachine":                  {call: enablemachine, numargs: 1, usage: "<machinename>"},
 	"enableconstraineddelegation":    {call: enablecd, numargs: 2, usage: "<samaccountname> <spn>"},
@@ -117,7 +118,7 @@ func init() {
 
 	// cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain") //TODO ADD THE REST
 
-	cli.Section("Supported LDAP Queries", "certpublishers, computers, constraineddelegation, domaincontrollers,",
+	cli.Section("Supported LDAP Queries", "certpublishers, computers, constraineddelegation, dnsrecords, domaincontrollers,",
 		"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
 		"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
 		"rbcd, schema, shadowcredentials, unconstraineddelegation, users, whoami",
@@ -396,6 +397,13 @@ func disableuser(c *goldapquery.Conn, args ...string) error {
 	err := c.SetDisableUserAccount(objectname)
 	check(err)
 	fmt.Printf("[+] User account %s disabled\n", objectname)
+	return nil
+}
+
+func dnsrecords(c *goldapquery.Conn, args ...string) error {
+	fmt.Printf("[+] Searching for all DNS records in LDAP with baseDN %s\n", flags.basedn)
+	err := c.ListDNS()
+	check(err)
 	return nil
 }
 

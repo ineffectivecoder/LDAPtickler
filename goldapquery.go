@@ -570,11 +570,16 @@ func (c *Conn) ListDCs() error {
 }
 
 // ListDNS will search the directory for all DNS records
+// We need to parse binary fields here, yaaaaay
 func (c *Conn) ListDNS() error {
 	filter := "(&(objectClass=dnsNode)(dnsRecord=*))"
-	attributes := []string{"dnsRecord"}
+	attributes := []string{"name", "dnsRecord", "dnsHostName"}
 	searchscope := 2
-	return c.LDAPSearch(searchscope, filter, attributes)
+	var err error = c.LDAPSearch(searchscope, filter, attributes, "DC=DomainDnsZones,"+c.baseDN)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ListGroups will search the directory for all Groups
