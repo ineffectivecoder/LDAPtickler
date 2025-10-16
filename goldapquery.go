@@ -1,9 +1,11 @@
 package goldapquery
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -463,6 +465,31 @@ func (c *Conn) getAllResults(
 		results[i]["DN"] = []string{entry.DN}
 		for _, attribute := range entry.Attributes {
 			switch attribute.Name {
+			case "dnsRecord":
+				values := []string{}
+				for _, v := range attribute.ByteValues {
+					br := bytes.NewReader(v)
+					br.Seek(2, io.SeekStart)
+					b := make([]byte, 2)
+					n, err := br.Read(b)
+					if err != nil {
+						return nil, err
+					}
+					if n != 2 {
+						return nil, fmt.Errorf("could not read dnsRecord")
+					}
+					rectype, n := binary.Uvarint(b)
+					if n == 0 {
+						return nil, fmt.Errorf("could not read record type")
+					}
+					if _, ok := recTypes[rectype]; ok {
+						values = append(values, recTypes[rectype])
+					} else {
+						values = append(values, fmt.Sprintf("Unknown record type %d", rectype))
+					}
+				}
+				results[i][attribute.Name] = values
+
 			case "msDS-AllowedToActOnBehalfOfOtherIdentity":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
@@ -570,7 +597,7 @@ func (c *Conn) ListDCs() error {
 }
 
 // ListDNS will search the directory for all DNS records
-// We need to parse binary fields here, yaaaaay
+// TODO We need to parse binary fields here, yaaaaay
 func (c *Conn) ListDNS() error {
 	filter := "(&(objectClass=dnsNode)(dnsRecord=*))"
 	attributes := []string{"name", "dnsRecord", "dnsHostName"}
