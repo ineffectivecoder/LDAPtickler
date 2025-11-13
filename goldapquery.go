@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
-	"io"
+	"net"
 	"slices"
 	"strconv"
 	"strings"
@@ -446,10 +446,23 @@ func flagunset(data string, flag int) (int, error) {
 	return i, nil
 }
 
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/6912b338-5472-4f59-b912-0edb536b6ed8?redirectedfrom=MSDN
+func byteReader(br *bytes.Reader, length int) ([]byte, error) {
+	b := make([]byte, length)
+	n, err := br.Read(b)
+	if err != nil {
+		return nil, err
+	}
+	if n != length {
+		return nil, fmt.Errorf("could not read dnsRecord")
+	}
+	return b, nil
+}
 func (c *Conn) getAllResults(
 	searchscope int, filter string, attributes []string, baseDN ...string,
 ) ([]map[string][]string, error) {
 	var results []map[string][]string
+	var data string
 	if len(baseDN) == 0 {
 		baseDN = []string{c.baseDN}
 	}
@@ -469,24 +482,63 @@ func (c *Conn) getAllResults(
 				values := []string{}
 				for _, v := range attribute.ByteValues {
 					br := bytes.NewReader(v)
-					br.Seek(2, io.SeekStart)
-					b := make([]byte, 2)
-					n, err := br.Read(b)
+					// reading size
+					b, err := byteReader(br, 2)
 					if err != nil {
 						return nil, err
 					}
-					if n != 2 {
-						return nil, fmt.Errorf("could not read dnsRecord")
-					}
-					rectype, n := binary.Uvarint(b)
+					datalength, n := binary.Uvarint(b)
 					if n == 0 {
 						return nil, fmt.Errorf("could not read record type")
 					}
-					if _, ok := recTypes[rectype]; ok {
-						values = append(values, recTypes[rectype])
-					} else {
-						values = append(values, fmt.Sprintf("Unknown record type %d", rectype))
+					// reading in rectype
+					b, err = byteReader(br, 2)
+					if err != nil {
+						return nil, err
 					}
+					rectype := binary.LittleEndian.Uint64(append(b, []byte{0, 0, 0, 0, 0, 0}...))
+					if _, ok := recTypes[rectype]; !ok {
+						values = append(values, fmt.Sprintf("Unknown record type %d", rectype))
+						continue
+					}
+					// read and skip version(1 byte), rank(1 byte) , flags (2 byte), serial(4 byte)
+					_, err = byteReader(br, 8)
+					if err != nil {
+						return nil, err
+					}
+					// reading in TTL
+					b, err = byteReader(br, 4)
+					if err != nil {
+						return nil, err
+					}
+					ttl := binary.BigEndian.Uint64(append([]byte{0, 0, 0, 0}, b...))
+					// skipping reserved(4 bytes) and timestamp(4 bytes) = 8
+					_, err = byteReader(br, 8)
+					if err != nil {
+						return nil, err
+					}
+					// reading in Data(variable length, fun!)
+					b, err = byteReader(br, int(datalength))
+					if err != nil {
+						return nil, err
+					}
+					switch recTypes[rectype] {
+					case "A":
+						data = net.IP(b).String()
+					case "AAAA":
+						data = net.IP(b).String()
+					case "TXT", "HINFO", "ISDN", "X25", "LOC":
+						data = string(b)
+					case "CNAME", "NS", "PTR", "DNAME", "MB", "MG", "MR", "MD", "MF":
+						data = string(b)
+					case "SRV":
+						// TODO
+					default:
+						data = "unsupported"
+					}
+					_ = ttl
+					val := fmt.Sprintf("%s(%s)", recTypes[rectype], data)
+					values = append(values, val)
 				}
 				results[i][attribute.Name] = values
 
