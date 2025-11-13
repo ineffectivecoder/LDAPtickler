@@ -459,6 +459,32 @@ func byteReader(br *bytes.Reader, length int) ([]byte, error) {
 	}
 	return b, nil
 }
+
+func dnsrpcnameToString(b []byte) (string, error) {
+	br := bytes.NewReader(b[1:]) // skip first byte
+	b, err := byteReader(br, 1)
+	if err != nil {
+		return "", err
+	}
+	sections := int(b[0])
+	data := ""
+	for range sections {
+		b, err = byteReader(br, 1)
+		if err != nil {
+			return "", err
+		}
+		b, err = byteReader(br, int(b[0]))
+		if err != nil {
+			return "", err
+		}
+		if data != "" {
+			data += "."
+		}
+		data += string(b)
+	}
+	return data, nil
+}
+
 func (c *Conn) getAllResults(
 	searchscope int, filter string, attributes []string, baseDN ...string,
 ) ([]map[string][]string, error) {
@@ -531,27 +557,11 @@ func (c *Conn) getAllResults(
 					case "TXT", "HINFO", "ISDN", "X25", "LOC":
 						data = string(b)
 					case "CNAME", "NS", "PTR", "DNAME", "MB", "MG", "MR", "MD", "MF":
-						br2 := bytes.NewReader(b[1:])
-						b, err = byteReader(br2, 1)
+						data, err = dnsrpcnameToString(b)
 						if err != nil {
 							return nil, err
 						}
-						sections := int(b[0])
-						data = ""
-						for range sections {
-							b, err = byteReader(br2, 1)
-							if err != nil {
-								return nil, err
-							}
-							b, err = byteReader(br2, int(b[0]))
-							if err != nil {
-								return nil, err
-							}
-							if data != "" {
-								data += "."
-							}
-							data += string(b)
-						}
+
 					case "SRV":
 						// Skipping priority and weight, 2 bytes each
 						br2 := bytes.NewReader(b[4:])
@@ -561,53 +571,21 @@ func (c *Conn) getAllResults(
 							return nil, err
 						}
 						port := binary.BigEndian.Uint16(b)
-						_, err = byteReader(br2, 1) // Throwaway crap byte
+						b = make([]byte, br2.Len())
+						_, err := br2.Read(b)
 						if err != nil {
 							return nil, err
 						}
-						b, err = byteReader(br2, 1)
+						data, err = dnsrpcnameToString(b)
 						if err != nil {
 							return nil, err
-						}
-						sections := int(b[0])
-						data = ""
-						for range sections {
-							b, err = byteReader(br2, 1)
-							if err != nil {
-								return nil, err
-							}
-							b, err = byteReader(br2, int(b[0]))
-							if err != nil {
-								return nil, err
-							}
-							if data != "" {
-								data += "."
-							}
-							data += string(b)
 						}
 						data = fmt.Sprintf("%s:%d", data, port)
 					case "SOA":
-						// Skipping serial, refresh, retry, expire, minimum (4 bytes each = 20 + 1 byte for length of name)
-						br2 := bytes.NewReader(b[21:])
-						b, err = byteReader(br2, 1)
+						// Skipping serial, refresh, retry, expire, minimum (4 bytes each = 20 bytes )
+						data, err = dnsrpcnameToString(b[20:])
 						if err != nil {
 							return nil, err
-						}
-						sections := int(b[0])
-						data = ""
-						for range sections {
-							b, err = byteReader(br2, 1)
-							if err != nil {
-								return nil, err
-							}
-							b, err = byteReader(br2, int(b[0]))
-							if err != nil {
-								return nil, err
-							}
-							if data != "" {
-								data += "."
-							}
-							data += string(b)
 						}
 
 					default:
