@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"slices"
@@ -530,11 +531,87 @@ func (c *Conn) getAllResults(
 					case "TXT", "HINFO", "ISDN", "X25", "LOC":
 						data = string(b)
 					case "CNAME", "NS", "PTR", "DNAME", "MB", "MG", "MR", "MD", "MF":
-						data = string(b)
+						br2 := bytes.NewReader(b[1:])
+						b, err = byteReader(br2, 1)
+						if err != nil {
+							return nil, err
+						}
+						sections := int(b[0])
+						data = ""
+						for range sections {
+							b, err = byteReader(br2, 1)
+							if err != nil {
+								return nil, err
+							}
+							b, err = byteReader(br2, int(b[0]))
+							if err != nil {
+								return nil, err
+							}
+							if data != "" {
+								data += "."
+							}
+							data += string(b)
+						}
 					case "SRV":
-						// TODO
+						// Skipping priority and weight, 2 bytes each
+						br2 := bytes.NewReader(b[4:])
+						// read 2 bytes for port
+						b, err = byteReader(br2, 2)
+						if err != nil {
+							return nil, err
+						}
+						port := binary.BigEndian.Uint16(b)
+						_, err = byteReader(br2, 1) // Throwaway crap byte
+						if err != nil {
+							return nil, err
+						}
+						b, err = byteReader(br2, 1)
+						if err != nil {
+							return nil, err
+						}
+						sections := int(b[0])
+						data = ""
+						for range sections {
+							b, err = byteReader(br2, 1)
+							if err != nil {
+								return nil, err
+							}
+							b, err = byteReader(br2, int(b[0]))
+							if err != nil {
+								return nil, err
+							}
+							if data != "" {
+								data += "."
+							}
+							data += string(b)
+						}
+						data = fmt.Sprintf("%s:%d", data, port)
+					case "SOA":
+						// Skipping serial, refresh, retry, expire, minimum (4 bytes each = 20 + 1 byte for length of name)
+						br2 := bytes.NewReader(b[21:])
+						b, err = byteReader(br2, 1)
+						if err != nil {
+							return nil, err
+						}
+						sections := int(b[0])
+						data = ""
+						for range sections {
+							b, err = byteReader(br2, 1)
+							if err != nil {
+								return nil, err
+							}
+							b, err = byteReader(br2, int(b[0]))
+							if err != nil {
+								return nil, err
+							}
+							if data != "" {
+								data += "."
+							}
+							data += string(b)
+						}
+
 					default:
-						data = "unsupported"
+						data = "Unsupported:" + hex.EncodeToString(b)
 					}
 					_ = ttl
 					val := fmt.Sprintf("%s(%s)", recTypes[rectype], data)
@@ -649,7 +726,6 @@ func (c *Conn) ListDCs() error {
 }
 
 // ListDNS will search the directory for all DNS records
-// TODO We need to parse binary fields here, yaaaaay
 func (c *Conn) ListDNS() error {
 	filter := "(&(objectClass=dnsNode)(dnsRecord=*))"
 	attributes := []string{"name", "dnsRecord", "dnsHostName"}
