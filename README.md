@@ -77,3 +77,7 @@ This paves the way to do the same for user accounts.
 
 ## TODO
 Adding DNS records, this is a big one
+Support GSSAPI, this should allow non-priv users to add machine accounts and other options
+Shadow Credentials - msds-keycredentiallink
+
+
