@@ -34,6 +34,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [ ] Modify msds-keycredentiallink field   
 
 - [x] Search and list specific types of objects  
+    - [x] Partial support for most useful DNS entries, many other types need work
     - [x] Domain Controllers
     - [x] computers  
     - [x] users  
@@ -75,4 +76,4 @@ This paves the way to do the same for user accounts.
 
 
 ## TODO
-DNS Entries
+Adding DNS records, this is a big one
