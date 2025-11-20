@@ -6,10 +6,8 @@ import (
 	"os"
 	"strings"
 
-	//"github.com/jcmturner/gokrb5/v8/client"
 	"git.red.team/silversurfer/goldapquery"
 
-	//"github.com/go-ldap/ldap/v3/gssapi"
 	"github.com/mjwhitta/cli"
 	"golang.org/x/term"
 )
@@ -89,7 +87,8 @@ var flags struct {
 	domaincontrollers bool
 	filter            string
 	gssapi            bool
-	ldapURL           string
+	insecure          bool
+	dc                string
 	password          bool
 	pth               string
 	searchscope       int
@@ -126,10 +125,11 @@ func init() {
 	// Parse cli flags
 	cli.Flag(&flags.attributes, "a", "attributes", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname. Usage of this may break things")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
-	cli.Flag(&flags.gssapi, "gssapi", false, "Enable GSSAPI and attempt to authenticate")
+	cli.Flag(&flags.gssapi, "g", "gssapi", false, "Enable GSSAPI and attempt to authenticate")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
-	cli.Flag(&flags.ldapURL, "l", "ldapurl", "", "LDAP(S) URL to connect to")
+	cli.Flag(&flags.dc, "dc", "", "Identify domain controller")
+	cli.Flag(&flags.insecure, "insecure", false, "Use ldap:// instead of ldaps://")
 	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
@@ -138,8 +138,8 @@ func init() {
 
 	cli.Parse()
 
-	// Check for ldapURL, because wtf are we going to connect to without it
-	if flags.ldapURL == "" {
+	// Check for dc, because wtf are we going to connect to without it
+	if flags.dc == "" {
 		cli.Usage(1)
 	}
 
@@ -164,9 +164,11 @@ func init() {
 	if flags.password && flags.pth != "" {
 		log.Fatal("[-] Silly Goose detected, you can't PTH and provide a password")
 	}
-
-	if flags.password {
+	if flags.password || flags.gssapi {
 		state.mode = goldapquery.MethodBindPassword
+		if flags.gssapi {
+			state.mode = goldapquery.MethodBindGSSAPI
+		}
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
@@ -181,16 +183,20 @@ func init() {
 	}
 
 	if flags.domain != "" {
-		state.mode = goldapquery.MethodBindDomain
+		if !flags.gssapi {
+			state.mode = goldapquery.MethodBindDomain
+		}
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
 	}
 
-	if flags.pth != "" {
-		state.mode = goldapquery.MethodBindDomainPTH
+	if flags.pth != "" || flags.gssapi {
+		if !flags.gssapi {
+			state.mode = goldapquery.MethodBindDomainPTH
+		}
 		if flags.domain == "" {
-			log.Fatal("[-] Must specify domain to PTH with BindDomain method\n")
+			log.Fatal("[-] Domain is empty, unable to continue\n")
 		}
 
 		if flags.username == "" {
@@ -201,51 +207,44 @@ func init() {
 	if flags.basedn == "" {
 		log.Fatal("[-] A basedn will be required for any action")
 	}
-	// Broken GSSAPI crap
-	/*if flags.gssapi {
-			gssClient, err := gssapi.NewClientWithPassword(
-	        flags.username,     // Kerberos principal name
-	        flags.domain,    // Kerberos realm
-	        state.password,     // Kerberos password
-	        "/etc/krb5.conf",    // krb5 configuration file path
-	        client.DisablePAFXFAST(true), // Optional: disable FAST if your realm needs it
-	    )
-		check(err)
-		defer gssClient.Close()
-		}*/
+
 }
 
 func main() {
-	var c *goldapquery.Conn = goldapquery.New(flags.ldapURL, flags.basedn, flags.skipVerify)
+	var proto string = "ldaps://"
+	if flags.insecure {
+		proto = "ldap://"
+	}
+	// add flag dbag
+	goldapquery.LDAPDebug = true
+	var c *goldapquery.Conn = goldapquery.New(proto+flags.dc, flags.basedn, flags.skipVerify)
 	var err error
-
 	// Attempt anonymous bind, check for flag
 	switch state.mode {
 	case goldapquery.MethodBindAnonymous:
-		fmt.Printf("[+] Attempting anonymous bind to %s\n", flags.ldapURL)
+		fmt.Printf("[+] Attempting anonymous bind to %s\n", flags.dc)
 		err = c.BindAnonymous(flags.username)
 
 	case goldapquery.MethodBindDomain:
-		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.ldapURL)
+		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.dc)
 		err = c.BindDomain(flags.domain, flags.username, state.password)
 
 	case goldapquery.MethodBindDomainPTH:
-		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.ldapURL)
+		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.dc)
 		err = c.BindDomainPTH(flags.domain, flags.username, flags.pth)
 
 	case goldapquery.MethodBindPassword:
-		fmt.Printf("[+] Attempting bind with credentials to %s\n", flags.ldapURL)
+		fmt.Printf("[+] Attempting bind with credentials to %s\n", flags.dc)
 		err = c.BindPassword(flags.username, state.password)
 
-		/*case bindGSSAPI:
-		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.ldapURL)
-		err = l.GSSAPIBindRequest(gssClient)
-		check(err)
-		fmt.Println("[+] GSSAPI bind successful")*/
+	case goldapquery.MethodBindGSSAPI:
+		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.dc)
+		err = c.BindGSSAPI(flags.domain, flags.username, state.password, "ldap/"+flags.dc)
+		fmt.Println("[+] GSSAPI bind successful")
 	}
 	check(err)
 	defer c.Close()
-	fmt.Printf("[+] Successfully connected to %s\n", flags.ldapURL)
+	fmt.Printf("[+] Successfully connected to %s\n", flags.dc)
 	err = lookupTable[strings.ToLower(cli.Arg(0))].call(c, cli.Args()[1:]...)
 	check(err)
 	if err == nil {

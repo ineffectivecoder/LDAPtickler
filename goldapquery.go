@@ -12,7 +12,10 @@ import (
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/go-ldap/ldap/v3/gssapi"
 	winsddlconverter "github.com/ineffectivecoder/win-sddl-converter"
+	"github.com/jcmturner/gokrb5/iana/flags"
+	"github.com/jcmturner/gokrb5/v8/client"
 	"golang.org/x/text/encoding/unicode"
 )
 
@@ -55,9 +58,13 @@ const (
 	UACPartialSecretsAccount        = 0x4000000
 )
 
+// This will reveal creds in plain text, yay
+var LDAPDebug bool
+
 // Conn gives us a structure named lconn linked to *ldap.Conn
 type Conn struct {
 	lconn      *ldap.Conn
+	gssClient  *gssapi.Client
 	baseDN     string
 	skipVerify bool
 	url        string
@@ -87,6 +94,10 @@ func (c *Conn) bindSetup() error {
 	if err != nil {
 		return err
 	}
+	if LDAPDebug {
+		//c.lconn.Debug = true
+	}
+
 	return nil
 }
 
@@ -149,6 +160,36 @@ func (c *Conn) BindDomainPTH(domain string, username string, hash string) error 
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (c *Conn) BindGSSAPI(domain string, username string, password string, spn string) error {
+	// GSSAPI Implementation
+	var err error
+	c.gssClient, err = gssapi.NewClientWithPassword(
+		username,                     // Kerberos principal name
+		strings.ToUpper(domain),      // Kerberos realm
+		password,                     // Kerberos password
+		"/etc/krb5.conf",             // krb5 configuration file path
+		client.DisablePAFXFAST(true), // Optional: disable FAST if your realm needs it
+	)
+	if err != nil {
+		return err
+	}
+
+	err = c.bindSetup()
+	if err != nil {
+		return err
+	}
+	err = c.lconn.GSSAPIBindRequestWithAPOptions(c.gssClient, &ldap.GSSAPIBindRequest{
+		ServicePrincipalName: spn,
+		AuthZID:              "",
+	},
+		[]int{flags.APOptionMutualRequired})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -362,10 +403,13 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 
 // Close closes the LDAP connection
 func (c *Conn) Close() error {
-	if c.lconn == nil {
-		return nil
+	if c.gssClient != nil {
+		c.gssClient.Close()
 	}
-	return c.lconn.Close()
+	if c.lconn != nil {
+		c.lconn.Close()
+	}
+	return nil
 }
 
 func decodeSID(sidBytes []byte) (string, error) {

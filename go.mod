@@ -3,7 +3,7 @@ module git.red.team/silversurfer/goldapquery
 go 1.24.1
 
 require (
-	github.com/go-ldap/ldap/v3 v3.4.11
+	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/ineffectivecoder/win-sddl-converter v1.0.0
 	//github.com/jcmturner/gokrb5/v8 v8.4.4
 	github.com/mjwhitta/cli v1.12.9
@@ -26,4 +26,23 @@ require (
 	golang.org/x/crypto v0.36.0 // indirect
 	//	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
+)
+
+require github.com/jcmturner/gokrb5 v8.4.4+incompatible
+
+require (
+	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
+	github.com/hashicorp/go-uuid v1.0.3 // indirect
+	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
+	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
+	github.com/jcmturner/gofork v1.7.6 // indirect
+	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
+	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
+	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	gopkg.in/jcmturner/aescts.v1 v1.0.1 // indirect
+	gopkg.in/jcmturner/dnsutils.v1 v1.0.1 // indirect
+	gopkg.in/jcmturner/goidentity.v3 v3.0.0 // indirect
+	gopkg.in/jcmturner/gokrb5.v7 v7.5.0 // indirect
+	gopkg.in/jcmturner/rpc.v1 v1.1.0 // indirect
 )
