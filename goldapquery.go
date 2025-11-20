@@ -95,7 +95,7 @@ func (c *Conn) bindSetup() error {
 		return err
 	}
 	if LDAPDebug {
-		//c.lconn.Debug = true
+		c.lconn.Debug = true
 	}
 
 	return nil
@@ -239,6 +239,48 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 	addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
 	encodedPassword := encodePassword(machinepass)
 	addReq.Attribute("unicodePWD", []string{encodedPassword})
+	return c.lconn.Add(addReq)
+}
+
+func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, domain string) error {
+	// AD requires machine SAM to end in $
+	sam := strings.TrimSpace(machinename)
+	if !strings.HasSuffix(sam, "$") {
+		sam += "$"
+	}
+	// CN must not include the trailing $
+	cn := strings.TrimSuffix(sam, "$")
+	// Format unicodePwd: UTF-16LE, quoted
+	//encoded, _ := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder().String(machinepass)
+	quoted := fmt.Sprintf("\"%s\"", machinepass)
+	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+	encodedPwd, err := utf16.NewEncoder().String(quoted)
+	if err != nil {
+		return err
+	}
+	dn := fmt.Sprintf("CN=%s,CN=Computers,%s", cn, c.baseDN)
+	addReq := ldap.NewAddRequest(dn, nil)
+	// Required object classes for low-priv creation
+	addReq.Attribute("objectClass", []string{
+		"top",
+		"computer",
+	})
+	// DOES THE ORDER MATTER? Aligning with Impacket addcomputer.py
+	fqdn := fmt.Sprintf("%s.%s", cn, domain)
+	addReq.Attribute("dNSHostName", []string{fqdn})
+	addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+	addReq.Attribute("servicePrincipalName", []string{
+		"HOST/" + strings.ToLower(cn),
+		"HOST/" + strings.ToLower(fqdn),
+		"RestrictedKrbHost/" + strings.ToLower(cn),
+		"RestrictedKrbHost/" + strings.ToLower(fqdn),
+	})
+	addReq.Attribute("sAMAccountName", []string{sam})
+	addReq.Attribute("unicodePwd", []string{encodedPwd})
+	/*addReq.Attribute("operatingSystem", []string{"Windows"})
+	addReq.Attribute("operatingSystemVersion", []string{"11.0"})
+	addReq.Attribute("operatingSystemServicePack", []string{"Service Pack 0"})*/
+
 	return c.lconn.Add(addReq)
 }
 

@@ -33,6 +33,7 @@ type action struct {
 var lookupTable map[string]action = map[string]action{
 	// Todo add usages across the board
 	"addmachine":                     {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
+	"addmachinelp":                   {call: addmachinelp, numargs: 3, usage: "<machinename> <password> <domain>"},
 	"addspn":                         {call: addspn, numargs: 2, usage: "<machinename> <spn>"},
 	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
 	"certpublishers":                 {call: certpublishers, numargs: 0},
@@ -216,7 +217,7 @@ func main() {
 		proto = "ldap://"
 	}
 	// add flag dbag
-	goldapquery.LDAPDebug = true
+	goldapquery.LDAPDebug = false
 	var c *goldapquery.Conn = goldapquery.New(proto+flags.dc, flags.basedn, flags.skipVerify)
 	var err error
 	// Attempt anonymous bind, check for flag
@@ -240,7 +241,6 @@ func main() {
 	case goldapquery.MethodBindGSSAPI:
 		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.dc)
 		err = c.BindGSSAPI(flags.domain, flags.username, state.password, "ldap/"+flags.dc)
-		fmt.Println("[+] GSSAPI bind successful")
 	}
 	check(err)
 	defer c.Close()
@@ -257,6 +257,19 @@ func addmachine(c *goldapquery.Conn, args ...string) error {
 	machinepass := args[1]
 	// machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
 	err := c.AddMachineAccount(machinename, machinepass)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
+	return nil
+}
+
+func addmachinelp(c *goldapquery.Conn, args ...string) error {
+	machinename := args[0]
+	machinepass := args[1]
+	domain := args[2]
+	// machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
+	err := c.AddMachineAccountLowPriv(machinename, machinepass, domain)
 	if err != nil {
 		return err
 	}
