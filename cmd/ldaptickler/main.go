@@ -112,16 +112,60 @@ func init() {
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
-	cli.Section("Supported Utility Commands", "addmachine, addmachinelp, addspn, adduser, changepassword, deleteobject,",
-		"disablemachine, disableconstraineddelegation, disablespn, disableunconstraineddelegation, disableuser, enableconstraineddelegation, enablemachine, enablespn, enableunconstraineddelegation, enableuser")
+	//cli.Section("Supported Utility Commands", "addmachine, addmachinelp, addspn, adduser, changepassword, deleteobject,",
+	//"disablemachine, disableconstraineddelegation, disablespn, disableunconstraineddelegation, disableuser, enableconstraineddelegation, enablemachine, enablespn, enableunconstraineddelegation, enableuser")
 
-	// cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain") //TODO ADD THE REST
+	//cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain")
+	//TODO ADD THE REST
+	cli.SectionAligned("Supported Utility Commands", "::",
+		"addmachine <machinename> <machinepass>::Adds a new machine to the domain\n",
+		"addmachinelp <machinename> <machinepass>::Adds a new machine using low-priv credentials\n",
+		"addspn <accountname> <spn>::Adds an SPN to an account\n",
+		"adduser <username> <password>::Creates a new user\n",
+		"changepassword <accountname> <newpassword>::Changes the password for an account\n",
+		"deleteobject <objectname>::Deletes an object from the directory\n",
+		"disablemachine <machinename>::Disables a machine account\n",
+		"disableconstraineddelegation <accountname>::Disables constrained delegation for an account\n",
+		"disablespn <accountname> <spn>::Removes an SPN from an account\n",
+		"disableunconstraineddelegation <accountname>::Disables unconstrained delegation for an account\n",
+		"disableuser <username>::Disables a user account\n",
+		"enableconstraineddelegation <accountname> <service>::Enables constrained delegation for an account\n",
+		"enablemachine <machinename>::Enables a machine account\n",
+		"enablespn <accountname> <spn>::Adds an SPN to an account\n",
+		"enableunconstraineddelegation <accountname>::Enables unconstrained delegation for an account\n",
+		"enableuser <username>::Enables a user account\n",
+	)
 
-	cli.Section("Supported LDAP Queries", "certpublishers, computers, constraineddelegation, dnsrecords, domaincontrollers,",
+	/*cli.Section("Supported LDAP Queries", "certpublishers, computers, constraineddelegation, dnsrecords, domaincontrollers,",
 		"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
 		"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
 		"rbcd, schema, shadowcredentials, unconstraineddelegation, users, whoami",
+	)*/
+	cli.SectionAligned("Supported LDAP Queries", "::",
+		"certpublishers::Returns all Certificate Publishers in the domain\n",
+		"computers::Lists all computer objects in the domain\n",
+		"constraineddelegation::Lists accounts configured for constrained delegation\n",
+		"dnsrecords::Returns DNS records stored in Active Directory\n",
+		"domaincontrollers::Lists all domain controllers in the domain\n",
+		"groups::Lists all security and distribution groups\n",
+		"groupswithmembers::Lists groups and their associated members\n",
+		"kerberoastable::Finds accounts vulnerable to Kerberoasting\n",
+		"machineaccountquota::Displays the domain's MachineAccountQuota setting\n",
+		"nopassword::Lists accounts with empty or missing passwords\n",
+		"objectquery::Performs a raw LDAP object query\n",
+		"passworddontexpire::Lists accounts with 'Password Never Expires' set\n",
+		"passwordchangenextlogin::Lists accounts that must change password at next login\n",
+		"protectedusers::Lists members of the Protected Users group\n",
+		"preauthdisabled::Lists accounts with Kerberos pre-authentication disabled\n",
+		"querydescription::Displays descriptions for supported LDAP queries\n",
+		"rbcd::Lists accounts configured for Resource-Based Constrained Delegation (RBCD)\n",
+		"schema::Lists schema objects or extended attributes\n",
+		"shadowcredentials::Lists users with shadow (msDS-KeyCredential) credentials\n",
+		"unconstraineddelegation::Lists accounts with unconstrained delegation enabled\n",
+		"users::Lists all user accounts in the domain\n",
+		"whoami::Runs a whoami-style LDAP query for the current user\n",
 	)
+
 	// Parse cli flags
 	cli.Flag(&flags.attributes, "a", "attributes", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname. Usage of this may break things")
 	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
