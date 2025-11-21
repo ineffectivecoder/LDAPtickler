@@ -163,7 +163,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
 - [x] Creation of user accounts
 - [x] Modification of Service Principal Names
 - [x] Creation of machine accounts
-    -[x] Research why only my DA can do this. This is now sorted out. This very much depended on the specific entries being created for the machine account.
+    - [x] Research why only my DA can do this. This is now sorted out. This very much depended on the specific entries being created for the machine account.
 - [x] Deletion of User and Machine accounts
 - [x] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
 - [ ] Store creds in environment variable  
