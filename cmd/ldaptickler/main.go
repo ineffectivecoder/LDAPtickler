@@ -147,7 +147,7 @@ func init() {
 		"passwordchangenextlogin::Lists accounts that must change password at next login\n",
 		"protectedusers::Lists members of the Protected Users group\n",
 		"preauthdisabled::Lists accounts with Kerberos pre-authentication disabled\n",
-		"querydescription::Displays descriptions for supported LDAP queries\n",
+		"querydescription::Displays descriptions\n",
 		"rbcd::Lists accounts configured for Resource-Based Constrained Delegation (RBCD)\n",
 		"schema::Lists schema objects or extended attributes\n",
 		"shadowcredentials::Lists users with shadow (msDS-KeyCredential) credentials\n",
