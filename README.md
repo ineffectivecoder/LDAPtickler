@@ -21,7 +21,7 @@ This was mainly a research project to better understand AD internals in an LDAP 
 Also attempts at learning how to manipulate specific fields and trying to understand some of the more esoteric parts of AD.  
 
 
-## Example Usage:
+## Example Usage
 ```
 go run ./cmd/ldaptickler/main.go -h 
 Usage: /tmp/go-build620944892/b001/exe/main [OPTIONS] <arg>
@@ -157,7 +157,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
     sAMAccountName: [lowprivguy]
 ```
 
-## Initial features:   
+## Initial features
 - [x] Prompt for user creds  
 - [x] Changing a user's password   
 - [x] Creation of user accounts
@@ -223,11 +223,11 @@ GSSAPI is now implemented thanks to the latest PRs to the go-ldap package.
 
 
 ## Thanks
-### This wouldnt be possible without the following people:  
+### This wouldnt be possible without the following people
 - [mjwhitta](https://github.com/mjwhitta/)     
 - [dumpst3rfir3](https://github.com/dumpst3rfir3/)   
 - [sludgework](https://github.com/sludgework)  
 
-### Without the below packages none of this would be possible:
+### Without the below packages none of this would be possible
 - [go-ldap](https://github.com/go-ldap/ldap)  
 - [gokrb5](github.com/jcmturner/gokrb5/v8)
