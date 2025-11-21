@@ -17,6 +17,8 @@ This has been tested extensively against Windows 2025 Server running Active Dire
 Be extremely careful when arbitrarily modifying or deleting entries in AD, it can lead to all sorts of unexpected behavior.
 I personally have destroyed my domain a few times now leveraging this tool. 
 
+This was mainly a research project to better understand AD internals in an LDAP database.    
+Learning how to manipulate specific fields and trying to understand some of the more esoteric parts of AD.  
 
 ## Initial features:   
 - [x] Prompt for user creds  
