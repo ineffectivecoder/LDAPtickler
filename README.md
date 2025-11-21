@@ -177,7 +177,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
     - [ ] Create self signed cert  
     - [ ] Prepare blob for placement in msds-keycredentiallink field  
     - [ ] Modify msds-keycredentiallink field   
-- [ ] Support creation of DNS entires
+- [ ] Support creation of DNS entries
 - [x] Search and list specific types of objects  
     - [x] Partial support for most useful DNS entries, many other types need work
     - [x] Domain Controllers
