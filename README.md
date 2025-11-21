@@ -82,8 +82,6 @@ It was determined this was silly. Now grabbing the previous UAC setting and doin
 This paves the way to do the same for user accounts.    
 GSSAPI is now implemented thanks to the latest PRs to the go-ldap package.
 
-## TODO
-
 
 ## Thanks
 ### This wouldnt be possible without the following people:  
