@@ -113,7 +113,7 @@ func init() {
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
-	cli.Section("Supported Utility Commands", "addmachine, addspn, adduser, changepassword, deleteobject,",
+	cli.Section("Supported Utility Commands", "addmachine, addmachinelp, addspn, adduser, changepassword, deleteobject,",
 		"disablemachine, disableconstraineddelegation, disablespn, disableunconstraineddelegation, disableuser, enableconstraineddelegation, enablemachine, enablespn, enableunconstraineddelegation, enableuser")
 
 	// cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain") //TODO ADD THE REST
