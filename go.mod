@@ -1,4 +1,4 @@
-module git.red.team/silversurfer/LDAPtickler
+module github.com/ineffectivecoder/LDAPtickler
 
 go 1.24.1
 

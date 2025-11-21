@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	ldaptickler "git.red.team/silversurfer/LDAPtickler"
+	ldaptickler "github.com/ineffectivecoder/LDAPtickler"
 	"github.com/mjwhitta/cli"
 	"golang.org/x/term"
 )
