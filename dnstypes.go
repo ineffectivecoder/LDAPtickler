@@ -1,4 +1,4 @@
-package goldapquery
+package ldaptickler
 
 var (
 	recTypes = map[uint64]string{

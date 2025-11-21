@@ -1,4 +1,4 @@
-package goldapquery
+package ldaptickler
 
 import (
 	"bytes"

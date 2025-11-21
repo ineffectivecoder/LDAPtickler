@@ -1,4 +1,4 @@
-module git.red.team/silversurfer/goldapquery
+module git.red.team/silversurfer/LDAPtickler
 
 go 1.24.1
 
@@ -28,7 +28,10 @@ require (
 	golang.org/x/sys v0.31.0 // indirect
 )
 
-require github.com/jcmturner/gokrb5 v8.4.4+incompatible
+require (
+	github.com/jcmturner/gokrb5 v8.4.4+incompatible
+	github.com/jcmturner/gokrb5/v8 v8.4.4
+)
 
 require (
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
@@ -37,12 +40,6 @@ require (
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
-	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	gopkg.in/jcmturner/aescts.v1 v1.0.1 // indirect
-	gopkg.in/jcmturner/dnsutils.v1 v1.0.1 // indirect
-	gopkg.in/jcmturner/goidentity.v3 v3.0.0 // indirect
-	gopkg.in/jcmturner/gokrb5.v7 v7.5.0 // indirect
-	gopkg.in/jcmturner/rpc.v1 v1.1.0 // indirect
 )

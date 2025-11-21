@@ -1,4 +1,4 @@
-package ldaptickler
+package main
 
 import (
 	"fmt"
