@@ -604,23 +604,3 @@ func whoami(c *ldaptickler.Conn, args ...string) error {
 	fmt.Printf("[+] You are currently authenticated as %+v\n", *result)
 	return nil
 }
-
-//Completely broken pending research into GSSAPI, connection is not secure enough for low priv user to do this :(
-/*case flags.addmachinelowpriv != "":
-machinename, machinepass, _ := strings.Cut(flags.addmachinelowpriv, " ")
-fmt.Printf("[+] Adding machine account %s with password %s\n", machinename, machinepass)
-// addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+flags.basedn, []ldap.Control{})
-// addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
-// addReq.Attribute("sAMAccountName", []string{machinename + "$"})
-// addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
-addReq := ldap.NewAddRequest("CN=TESTPC,CN=Computers,DC=ad,DC=sostup,DC=id", nil)
-addReq.Attribute("objectClass", []string{"computer"})
-addReq.Attribute("sAMAccountName", []string{"TESTPC$"})
-addReq.Attribute("userAccountControl", []string{"4096"})
-addReq.Attribute("dNSHostName", []string{"TESTPC.ad.sostup.id"})
-// addReq.Attribute("servicePrincipalName", []string{"HOST/testdudefd.ad.sostup.id", "HOST/testdudefd", "RestrictedKrbHost/testdudefd.ad.sostup.id", "RestrictedKrbHost/testdudefd"})
-// encodedPassword := encodePassword(machinepass)
-// addReq.Attribute("unicodePWD", []string{encodedPassword})
-err = l.Add(addReq)
-check(err)
-fmt.Printf("[+] Added machine account %s with a low priv account successfully with password %s\n", machinename, machinepass)*/
