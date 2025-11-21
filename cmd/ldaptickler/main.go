@@ -112,11 +112,6 @@ func init() {
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
-	//cli.Section("Supported Utility Commands", "addmachine, addmachinelp, addspn, adduser, changepassword, deleteobject,",
-	//"disablemachine, disableconstraineddelegation, disablespn, disableunconstraineddelegation, disableuser, enableconstraineddelegation, enablemachine, enablespn, enableunconstraineddelegation, enableuser")
-
-	//cli.SectionAligned("Supported Utility Commands", "::", "addmachine <machinename> <machinepass>::Adds a new machine to the domain")
-	//TODO ADD THE REST
 	cli.SectionAligned("Supported Utility Commands", "::",
 		"addmachine <machinename> <machinepass>::Adds a new machine to the domain\n",
 		"addmachinelp <machinename> <machinepass>::Adds a new machine using low-priv credentials\n",
@@ -136,11 +131,6 @@ func init() {
 		"enableuser <username>::Enables a user account\n",
 	)
 
-	/*cli.Section("Supported LDAP Queries", "certpublishers, computers, constraineddelegation, dnsrecords, domaincontrollers,",
-		"groups, groupswithmembers, kerberoastable, machineaccountquota, nopassword, objectquery,",
-		"passworddontexpire, passwordchangenextlogin, protectedusers, preauthdisabled, querydescription,",
-		"rbcd, schema, shadowcredentials, unconstraineddelegation, users, whoami",
-	)*/
 	cli.SectionAligned("Supported LDAP Queries", "::",
 		"certpublishers::Returns all Certificate Publishers in the domain\n",
 		"computers::Lists all computer objects in the domain\n",
@@ -311,7 +301,7 @@ func addmachinelp(c *ldaptickler.Conn, args ...string) error {
 	machinename := args[0]
 	machinepass := args[1]
 	domain := args[2]
-	// machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
+
 	err := c.AddMachineAccountLowPriv(machinename, machinepass, domain)
 	if err != nil {
 		return err
