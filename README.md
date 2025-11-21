@@ -11,6 +11,12 @@ for those so inclined to perform raw ldapsearches that isn't a complete nightmar
 The user of the tool will need to know certain details to use it of course, like the ldap server,  
 have an understanding of what bind methods are supported on the endpoint, basedn,and knowledge of valid creds,etc.
 
+This tool has grown significantly to also allow for modification of certain fields that may be useful to a Red Team operator,
+as well as the incorporation of many queries for spot checking the configuration of many AD attributes.   
+This has been tested extensively against Windows 2025 Server running Active Directory.  
+Be extremely careful when arbitrarily modifying or deleting entries in AD, it can lead to all sorts of unexpected behavior.
+I personally have destroyed my domain a few times now leveraging this tool. 
+
 
 ## Initial features:   
 - [x] Prompt for user creds  
@@ -18,7 +24,7 @@ have an understanding of what bind methods are supported on the endpoint, basedn
 - [x] Creation of user accounts
 - [x] Modification of Service Principal Names
 - [x] Creation of machine accounts
-    - Research why only my DA can do this
+    -[x] Research why only my DA can do this. This is now sorted out. This very much depended on the specific entries being created for the machine account.
 - [x] Deletion of User and Machine accounts
 - [x] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
 - [ ] Store creds in environment variable  
@@ -32,10 +38,11 @@ have an understanding of what bind methods are supported on the endpoint, basedn
     - [ ] Create self signed cert  
     - [ ] Prepare blob for placement in msds-keycredentiallink field  
     - [ ] Modify msds-keycredentiallink field   
-
+- [ ] Support creation of DNS entires
 - [x] Search and list specific types of objects  
     - [x] Partial support for most useful DNS entries, many other types need work
     - [x] Domain Controllers
+    - [x] DNS entries
     - [x] computers  
     - [x] users  
     - [x] groups
@@ -76,8 +83,6 @@ This paves the way to do the same for user accounts.
 GSSAPI is now implemented thanks to the latest PRs to the go-ldap package.
 
 ## TODO
-- [ ]Adding DNS records, this is a big one
-- [x] Support GSSAPI, this should allow non-priv users to add machine accounts and other options
-- [ ]Shadow Credentials - msds-keycredentiallink
+
 
 
