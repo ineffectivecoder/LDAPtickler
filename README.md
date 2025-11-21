@@ -212,7 +212,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
 ## Stretch goals
 
 - [x] Allow for deletion, and modification of existing LDAP entries  
-- [ ]Potentially support BloodHound(Need to look into this more)  
+- [ ] Potentially support BloodHound(Need to look into this more)  
 
 
 ## Updates
