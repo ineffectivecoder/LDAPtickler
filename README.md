@@ -230,4 +230,4 @@ GSSAPI is now implemented thanks to the latest PRs to the go-ldap package.
 
 ### Without the below packages none of this would be possible
 - [go-ldap](https://github.com/go-ldap/ldap)  
-- [gokrb5](https://github.com/jcmturner/gokrb5/v8)
+- [gokrb5](https://github.com/jcmturner/gokrb5)
