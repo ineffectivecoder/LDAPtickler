@@ -155,7 +155,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
     sAMAccountName: [Nointer]
   DN: CN=lowprivguy,CN=Users,DC=spinninglikea,DC=top
     sAMAccountName: [lowprivguy]
-
+```
 
 ## Initial features:   
 - [x] Prompt for user creds  
