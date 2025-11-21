@@ -242,6 +242,7 @@ func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
 	return c.lconn.Add(addReq)
 }
 
+// AddMachineAccountLowPriv will attempt to add a machine account with the supplied details as a low privilege user
 func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, domain string) error {
 	// AD requires machine SAM to end in $
 	sam := strings.TrimSpace(machinename)
@@ -284,6 +285,7 @@ func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, 
 	return c.lconn.Add(addReq)
 }
 
+// AddResourceBasedConstrainedDelegation will attempt to add RBCD permissions from delegatingComputer to targetmachinename
 func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer ...string) error {
 	filter := "(samaccountname=" + delegatingComputer[0] + ")"
 	attributes := []string{"ObjectSid"}
