@@ -224,7 +224,7 @@ GSSAPI is now implemented thanks to the latest PRs to the go-ldap package.
 
 ## Thanks
 ### This wouldnt be possible without the following people:  
-- [mjwitta](https://github.com/mjwhitta/)     
+- [mjwhitta](https://github.com/mjwhitta/)     
 - [dumpst3rfir3](https://github.com/dumpst3rfir3/)   
 - [sludgework](https://github.com/sludgework)  
 
