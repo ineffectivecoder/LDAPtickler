@@ -1,6 +1,6 @@
 # LDAPtickler
-![GoLDAPQuery](goldapquery.png)  
-Not to be confused with GOLD apquery, this is GoLDAPQuery
+![LDAPtickler](ldaptickler.png)  
+Tickler of LDAP
 
 
 ## What's it for?
