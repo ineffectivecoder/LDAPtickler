@@ -132,7 +132,7 @@ AUTHORS
 -d = Domain
 -g = Enable GSSAPI
 -dc = Specify DC
--s = Use TLS
+-s = Skip cert verification
 -u = username
 -p = prompt for password
 users = query users in LDAP
