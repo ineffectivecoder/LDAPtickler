@@ -147,11 +147,28 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top -basedn DC=spinninglikea
 -d = Specify Domain(required for NLTM bind)
 --dc = Specify the domain controller
 -basedn = Specify Basedn
+whoami = run whoami as the action
 ```
 ```
 go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
 [+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
+[+] Successfully connected to tip.spinninglikea.top
+[+] Querying the LDAP server for WhoAmI with baseDN DC=spinninglikea,DC=top
+[+] You are currently authenticated as {AuthzID:u:splat\slacker}
+```
+### Simple Bind
+```
+-s = Skip cert verification
+-p = Prompt for password
+--dc = Specify the domain controller
+-basedn = Specify Basedn
+whoami = run whoami as the action
+```
+```
+go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
+[+] Enter Password:
+[+] Attempting bind with credentials to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
 [+] Querying the LDAP server for WhoAmI with baseDN DC=spinninglikea,DC=top
 [+] You are currently authenticated as {AuthzID:u:splat\slacker}
