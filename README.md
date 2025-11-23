@@ -148,6 +148,7 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top -basedn DC=spinninglikea
 --dc=Specify the domain controller
 -basedn=Specify Basedn
 ```
+```
 go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
 [+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
