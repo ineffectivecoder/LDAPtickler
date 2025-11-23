@@ -163,7 +163,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinnin
 -dc = Specify DC
 -s = Skip cert verification
 -u = username
--p = prompt for password
+-p = Prompt for password
 users = query users in LDAP
 ```
 ```
