@@ -296,7 +296,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
 - [ ] Leverage existing users TGT in Windows environment for authentication
 - [ ] Local password storage options
 - [ ] Derive domain from basedn so the user doesnt need to provide it
-
+- [ ] unrolled/effective group membership  
 ## Updates
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
 It was determined this was silly. Now grabbing the previous UAC setting and doing bit math to add the desired setting.  
