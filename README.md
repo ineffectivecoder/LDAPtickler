@@ -292,7 +292,10 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
 
 - [x] Allow for deletion, and modification of existing LDAP entries  
 - [ ] Potentially support BloodHound(Need to look into this more)  
-
+- [ ] Accept plain text password at the command line  
+- [ ] Leverage existing users TGT in Windows environment for authentication
+- [ ] Local password storage options
+- [ ] Derive domain from basedn so the user doesnt need to provide it
 
 ## Updates
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
