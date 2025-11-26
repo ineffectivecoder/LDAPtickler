@@ -52,7 +52,9 @@ go run ./cmd/ldaptickler/-s -u slacker -p --dc tip.spinninglikea.top -basedn DC=
 ## Example Usage
 ```
 go run ./cmd/ldaptickler/main.go -h 
-Usage: /tmp/go-build620944892/b001/exe/main [OPTIONS] <arg>
+Usage:
+/home/slacker/.cache/go-build/c0/c0388d95956cb2c5d2b51ed6ec84936e8a88288c5788f7255e32ad422e78c5e5-d/ldaptickler
+[OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -78,6 +80,7 @@ OPTIONS
                                and objectquery
     -s, --skip                 Skip SSL verification
     -u, --user=STRING          Username to bind with
+    -v, --verbose              Enable verbose output
 
 Supported Utility Commands
     addmachine <machinename> <machinepass>                 Adds a new machine to
@@ -138,7 +141,7 @@ Supported LDAP Queries
     protectedusers             Lists members of the Protected Users group
     preauthdisabled            Lists accounts with Kerberos pre-authentication
                                disabled
-    querydescription           Displays descriptions for supported LDAP queries
+    querydescription           Displays descriptions
     rbcd                       Lists accounts configured for Resource-Based
                                Constrained Delegation (RBCD)
     schema                     Lists schema objects or extended attributes
