@@ -176,6 +176,7 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top -basedn DC=spinninglikea
 -s = Skip cert verification
 -p = Prompt for password
 -d = Specify Domain(required for NLTM bind)
+-u = username
 --dc = Specify the domain controller
 -basedn = Specify Basedn
 whoami = run whoami as the action
@@ -191,6 +192,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinnin
 ### Simple Bind
 ```
 -s = Skip cert verification
+-u = username, it may be necessary to pass the domain as well for example, domain\username
 -p = Prompt for password
 --dc = Specify the domain controller
 -basedn = Specify Basedn
