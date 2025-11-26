@@ -20,6 +20,34 @@ I personally have destroyed my domain a few times now leveraging this tool.
 This was mainly a research project to better understand AD internals in an LDAP directory.    
 Also attempts at learning how to manipulate specific fields and trying to understand some of the more esoteric parts of AD.  
 
+## Installation
+You'll need the latest copy of golang installed.
+## To compile
+## Linux
+```
+export GOOS=windows
+or
+export GOOS=linux
+go build ./cmd/ldapticker/
+.\ldaptickeler.exe
+or
+./ldaptickler
+```
+## Windows
+```
+$Env:GOOS = "windows"
+or
+$Env:GOOS = "linux"
+go build .\cmd\ldaptickler\
+.\ldaptickler.exe 
+or
+./ldaptickler
+```
+
+### Execute without compiling
+```
+go run ./cmd/ldaptickler/-s -u slacker -p --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
+```
 
 ## Example Usage
 ```
