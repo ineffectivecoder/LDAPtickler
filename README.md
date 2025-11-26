@@ -28,7 +28,7 @@ You'll need the latest copy of golang installed.
 export GOOS=windows
 or
 export GOOS=linux
-go build ./cmd/ldapticker/
+go build ./cmd/ldaptickler/
 .\ldaptickeler.exe
 or
 ./ldaptickler
