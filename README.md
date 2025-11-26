@@ -21,7 +21,7 @@ This was mainly a research project to better understand AD internals in an LDAP 
 Also attempts at learning how to manipulate specific fields and trying to understand some of the more esoteric parts of AD.  
 
 ## Installation
-You'll need the latest copy of (golang)[https://go.dev/dl/] installed.
+You'll need the latest copy of [golang](https://go.dev/dl/) installed.
 ## To compile
 ## Linux
 ```
