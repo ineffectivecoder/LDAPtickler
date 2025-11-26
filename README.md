@@ -29,7 +29,7 @@ export GOOS=windows
 or
 export GOOS=linux
 go build ./cmd/ldaptickler/
-.\ldaptickeler.exe
+.\ldaptickler.exe
 or
 ./ldaptickler
 ```
