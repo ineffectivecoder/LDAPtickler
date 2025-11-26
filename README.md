@@ -46,7 +46,7 @@ or
 
 ### Execute without compiling
 ```
-go run ./cmd/ldaptickler/-s -u slacker -p --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
+go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
 ```
 
 ## Example Usage
