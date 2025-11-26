@@ -94,6 +94,7 @@ var flags struct {
 	searchscope       int
 	skipVerify        bool
 	username          string
+	verbose           bool
 }
 
 func check(err error) {
@@ -169,6 +170,7 @@ func init() {
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.searchscope, "scope", 2, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash, WHY IS THIS SUPPORTED OTB?!")
+	cli.Flag(&flags.verbose, "v", "verbose", false, "Enable verbose output")
 
 	cli.Parse()
 
@@ -241,6 +243,11 @@ func init() {
 	if flags.basedn == "" {
 		log.Fatal("[-] A basedn will be required for any action")
 	}
+	if flags.verbose {
+		ldaptickler.LDAPDebug = true
+	} else {
+		ldaptickler.LDAPDebug = false
+	}
 
 }
 
@@ -250,7 +257,7 @@ func main() {
 		proto = "ldap://"
 	}
 	// add flag dbag
-	ldaptickler.LDAPDebug = false
+	//ldaptickler.LDAPDebug = false
 	var c *ldaptickler.Conn = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
 	var err error
 	// Attempt anonymous bind, check for flag
