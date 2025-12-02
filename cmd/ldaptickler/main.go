@@ -58,6 +58,7 @@ var lookupTable map[string]action = map[string]action{
 	"groupswithmembers":              {call: groupswithmembers, numargs: 0},
 	"kerberoastable":                 {call: kerberoastable, numargs: 0},
 	"machineaccountquota":            {call: machineaccountquota, numargs: 0},
+	"machinecreationdacl":            {call: machinecreationdacl, numargs: 0},
 	"nopassword":                     {call: nopassword, numargs: 0},
 	"objectquery":                    {call: objectquery, numargs: 1, usage: "<objectname>"},
 	"passworddontexpire":             {call: passworddontexpire, numargs: 0},
@@ -142,6 +143,7 @@ func init() {
 		"groupswithmembers::Lists groups and their associated members\n",
 		"kerberoastable::Finds accounts vulnerable to Kerberoasting\n",
 		"machineaccountquota::Displays the domain's MachineAccountQuota setting\n",
+		"machinecreationdacl::Displays the domain's Machine Creation DACL\n",
 		"nopassword::Lists accounts with empty or missing passwords\n",
 		"objectquery::Performs a raw LDAP object query\n",
 		"passworddontexpire::Lists accounts with 'Password Never Expires' set\n",
@@ -208,6 +210,7 @@ func init() {
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
+
 		fmt.Printf("[+] Enter Password:")
 		bytepw, err = term.ReadPassword(int(os.Stdin.Fd()))
 		fmt.Println()
@@ -548,6 +551,13 @@ func kerberoastable(c *ldaptickler.Conn, args ...string) error {
 func machineaccountquota(c *ldaptickler.Conn, args ...string) error {
 	fmt.Printf("[+] Searching for ms-DS-MachineAccountQuota in LDAP with baseDN %s\n", flags.basedn)
 	err := c.ListMachineAccountQuota()
+	check(err)
+	return nil
+}
+
+func machinecreationdacl(c *ldaptickler.Conn, args ...string) error {
+	fmt.Printf("[+] Searching for ms-DS-MachineCreationRestrictedToDACL in LDAP with baseDN %s\n", flags.basedn)
+	err := c.ListMachineCreationDACL()
 	check(err)
 	return nil
 }

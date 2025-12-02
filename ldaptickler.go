@@ -835,6 +835,14 @@ func (c *Conn) ListMachineAccountQuota() error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+// ListMachineCreationDACL will identify the DACL on the Computers container
+func (c *Conn) ListMachineCreationDACL() error {
+	filter := "(objectClass=*)"
+	attributes := []string{"nTSecurityDescriptor"}
+	searchscope := 2
+	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
 // ListNoPassword will identify any users who aren't required to have a password
 func (c *Conn) ListNoPassword() error {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
