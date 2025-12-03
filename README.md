@@ -292,7 +292,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
 
 - [x] Allow for deletion, and modification of existing LDAP entries  
 - [ ] Potentially support BloodHound(Need to look into this more)  
-- [ ] Accept plain text password at the command line  
+- [x] Accept plain text password at the command line  
 - [ ] Leverage existing users TGT in Windows environment for authentication
 - [ ] Local password storage options
 - [ ] Derive domain from basedn so the user doesnt need to provide it
