@@ -229,7 +229,13 @@ func init() {
 	}
 
 	if flags.passwordcli != "" {
-		state.mode = ldaptickler.MethodBindPassword
+		state.password = flags.passwordcli
+		if !flags.gssapi {
+			state.mode = ldaptickler.MethodBindPassword
+		}
+		if flags.gssapi {
+			state.mode = ldaptickler.MethodBindGSSAPI
+		}
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
