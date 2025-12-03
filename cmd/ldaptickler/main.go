@@ -91,6 +91,7 @@ var flags struct {
 	insecure          bool
 	dc                string
 	password          bool
+	passwordcli       string
 	pth               string
 	searchscope       int
 	skipVerify        bool
@@ -167,7 +168,8 @@ func init() {
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
 	cli.Flag(&flags.dc, "dc", "", "Identify domain controller")
 	cli.Flag(&flags.insecure, "insecure", false, "Use ldap:// instead of ldaps://")
-	cli.Flag(&flags.password, "p", "password", false, "Password to bind with, will prompt")
+	cli.Flag(&flags.password, "p", false, "Password to bind with, will prompt")
+	cli.Flag(&flags.passwordcli, "password", "", "Password to bind with, provided on command line")
 	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
 	cli.Flag(&flags.searchscope, "scope", 2, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
@@ -202,6 +204,11 @@ func init() {
 	if flags.password && flags.pth != "" {
 		log.Fatal("[-] Silly Goose detected, you can't PTH and provide a password")
 	}
+
+	if flags.passwordcli != "" && flags.pth != "" {
+		log.Fatal("[-] Silly Goose detected, you can't PTH and provide a password")
+	}
+
 	if flags.password || flags.gssapi {
 		state.mode = ldaptickler.MethodBindPassword
 		if flags.gssapi {
@@ -219,6 +226,14 @@ func init() {
 			log.Fatalf("[-] Last received error message %s", err)
 		}
 		state.password = string(bytepw)
+	}
+
+	if flags.passwordcli != "" {
+		state.mode = ldaptickler.MethodBindPassword
+		if flags.username == "" {
+			log.Fatal("[-] Username is empty, unable to continue")
+		}
+		state.password = flags.passwordcli
 	}
 
 	if flags.domain != "" {
