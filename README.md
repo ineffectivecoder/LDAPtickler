@@ -205,9 +205,33 @@ go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top -basedn D
 [+] Querying the LDAP server for WhoAmI with baseDN DC=spinninglikea,DC=top
 [+] You are currently authenticated as {AuthzID:u:splat\slacker}
 ```
+
+### List computers
+```
+-d = Domain
+--dc = domain controller
+ -basedn = Specify Basedn
+ -s = Skip cert verification
+ -u = username
+ -p = Prompt for password
+ computer = List all computer objects
+```
+
+```
+go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u lowprivguy -p computers
+[+] Enter Password:
+[+] Attempting NTLM bind to tip.spinninglikea.top
+[+] Successfully connected to tip.spinninglikea.top
+[+] Searching for all computers in LDAP with baseDN DC=spinninglikea,DC=top
+```
+
+
+
+
 ### List users
 ```
 -d = Domain
+-basedn = Specify Basedn
 -g = Enable GSSAPI
 -dc = Specify DC
 -s = Skip cert verification

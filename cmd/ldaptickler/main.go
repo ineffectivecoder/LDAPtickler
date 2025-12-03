@@ -541,7 +541,7 @@ func expandlist(in []string) []string {
 }
 
 func filter(c *ldaptickler.Conn, args ...string) error {
-	filter := cli.Arg(1)
+	filter := flags.filter
 	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
 	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
 	check(err)
