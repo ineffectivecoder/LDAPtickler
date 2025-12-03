@@ -51,10 +51,8 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
-go run ./cmd/ldaptickler/ -h
-Usage:
-/home/slacker/.cache/go-build/f3/f305fb48c89f77a4491d4846261afb37d71ee3acb381b3c2b77bfa2a84da717d-d/ldaptickler
-[OPTIONS] <arg>
+go run ./cmd/ldaptickler/ -h                          
+Usage: /tmp/go-build1100308668/b001/exe/ldaptickler [OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -74,8 +72,7 @@ OPTIONS
         --insecure             Use ldap:// instead of ldaps://
     -p                         Password to bind with, will prompt
         --password=STRING      Password to bind with, provided on command line
-        --pth=STRING           Bind with password hash, WHY IS THIS SUPPORTED
-                               OTB?!
+        --pth=STRING           Bind with password hash
         --scope=INT            Define scope of search, 0=Base, 1=Single Level,
                                2=Whole Sub Tree, 3=Children, only used by filter
                                and objectquery
