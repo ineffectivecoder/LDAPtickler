@@ -51,9 +51,9 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
-go run ./cmd/ldaptickler/main.go -h 
+go run ./cmd/ldaptickler/ -h
 Usage:
-/home/slacker/.cache/go-build/c0/c0388d95956cb2c5d2b51ed6ec84936e8a88288c5788f7255e32ad422e78c5e5-d/ldaptickler
+/home/slacker/.cache/go-build/f3/f305fb48c89f77a4491d4846261afb37d71ee3acb381b3c2b77bfa2a84da717d-d/ldaptickler
 [OPTIONS] <arg>
 
 DESCRIPTION
@@ -72,7 +72,8 @@ OPTIONS
     -g, --gssapi               Enable GSSAPI and attempt to authenticate
     -h, --help                 Display this help message.
         --insecure             Use ldap:// instead of ldaps://
-    -p, --password             Password to bind with, will prompt
+    -p                         Password to bind with, will prompt
+        --password=STRING      Password to bind with, provided on command line
         --pth=STRING           Bind with password hash, WHY IS THIS SUPPORTED
                                OTB?!
         --scope=INT            Define scope of search, 0=Base, 1=Single Level,
@@ -133,6 +134,7 @@ Supported LDAP Queries
     groupswithmembers          Lists groups and their associated members
     kerberoastable             Finds accounts vulnerable to Kerberoasting
     machineaccountquota        Displays the domain's MachineAccountQuota setting
+    machinecreationdacl        Displays the domain's Machine Creation DACL
     nopassword                 Lists accounts with empty or missing passwords
     objectquery                Performs a raw LDAP object query
     passworddontexpire         Lists accounts with 'Password Never Expires' set
