@@ -622,8 +622,8 @@ func (c *Conn) getAllResults(
 		results = append(results, map[string][]string{})
 		results[i]["DN"] = []string{entry.DN}
 		for _, attribute := range entry.Attributes {
-			switch attribute.Name {
-			case "dnsRecord":
+			switch strings.ToLower(attribute.Name) {
+			case "dnsrecord":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
 					br := bytes.NewReader(v)
@@ -714,24 +714,24 @@ func (c *Conn) getAllResults(
 					values = append(values, val)
 				}
 				results[i][attribute.Name] = values
-			case "objectGUID":
+			case "objectguid":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
 
 					values = append(values, decodeGUID(v))
 				}
 				results[i][attribute.Name] = values
-			case "objectSid":
+			case "objectsid":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
 					v, _ := decodeSID(v)
 					values = append(values, v)
 				}
 				results[i][attribute.Name] = values
-			case "msDS-AllowedToActOnBehalfOfOtherIdentity":
+			case "msds-allowedtoactonbehalfofotheridentity":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
-					//sddl, err := winsddlconverter.ParseBinary(v)
+
 					sddl, err := sddlparse.SDDLFromBinary(v)
 					if err != nil {
 						return nil, err
@@ -747,10 +747,10 @@ func (c *Conn) getAllResults(
 				}
 				results[i][attribute.Name] = values
 
-			case "nTSecurityDescriptor":
+			case "ntsecuritydescriptor":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
-					//sddl, err := winsddlconverter.ParseBinary(v)
+
 					sddl, err := sddlparse.SDDLFromBinary(v)
 					if err != nil {
 						return nil, err
