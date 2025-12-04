@@ -264,6 +264,25 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
     sAMAccountName: [lowprivguy]
 ```
 
+### Search with custom filter
+```
+-dc = Specify DC
+-basedn = Specify Basedn
+-s = Skip cert verification
+-u = username
+-p = Prompt for password
+users = query users in LDAP
+```
+
+```
+go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u lowprivguy  -p search "(&(samaccountname=Cert Publishers)(member=*))" 
+[+] Enter Password:
+[+] Attempting bind with credentials to tip.spinninglikea.top
+[+] Successfully connected to tip.spinninglikea.top
+[+] Searching with specified filter: (&(samaccountname=Cert Publishers)(member=*)) in LDAP with baseDN DC=spinninglikea,DC=top
+```
+
+
 ## Initial features
 - [x] Prompt for user creds  
 - [x] Changing a user's password   
