@@ -293,7 +293,7 @@ func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, 
 // AddResourceBasedConstrainedDelegation will attempt to add RBCD permissions from delegatingComputer to targetmachinename
 func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer ...string) error {
 	filter := "(samaccountname=" + delegatingComputer[0] + ")"
-	attributes := []string{"ObjectSid"}
+	attributes := []string{"objectSid"}
 	searchscope := 2
 	var err error
 	var results []map[string][]string
@@ -308,10 +308,6 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 
 	}
 	delegatingComputerSID := results[0]["objectSid"][0]
-	decodedSid, err := decodeSID([]byte(delegatingComputerSID))
-	if err != nil {
-		return err
-	}
 
 	filter = "(samaccountname=" + targetmachinename + ")"
 	attributes = []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
@@ -347,12 +343,12 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 		sddl.DiscretionaryAcl = &winsddlconverter.Acl{AclRevision: 2, Aces: []winsddlconverter.Ace{}}
 	}
 	for _, ace := range sddl.DiscretionaryAcl.Aces {
-		if decodedSid == ace.Sid {
+		if delegatingComputerSID == ace.Sid {
 			return fmt.Errorf("delegating computer already has RBCD permissions on target computer")
 		}
 	}
 	ace := winsddlconverter.Ace{
-		AceType: winsddlconverter.ACCESS_ALLOWED_ACE_TYPE, Sid: decodedSid,
+		AceType: winsddlconverter.ACCESS_ALLOWED_ACE_TYPE, Sid: delegatingComputerSID,
 		AccessMask: winsddlconverter.AccessMaskDetail{Mask: 0xF01FF, Flags: []string{"SD", "RC", "WD", "WO"}, HasUnknown: true},
 	}
 	sddl.DiscretionaryAcl.Aces = append(sddl.DiscretionaryAcl.Aces, ace)
@@ -735,15 +731,22 @@ func (c *Conn) getAllResults(
 			case "msDS-AllowedToActOnBehalfOfOtherIdentity":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
-					sddl, err := winsddlconverter.ParseBinary(v)
-
+					//sddl, err := winsddlconverter.ParseBinary(v)
+					sddl, err := sddlparse.SDDLFromBinary(v)
 					if err != nil {
 						return nil, err
 					}
-					// TODO check if modification using regex is beneficial to this query
-					values = append(values, sddl.ToSddl())
+					value := ""
+
+					for _, ace := range sddl.DACL {
+
+						value += ace.String()
+
+					}
+					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
 				}
 				results[i][attribute.Name] = values
+
 			case "nTSecurityDescriptor":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
