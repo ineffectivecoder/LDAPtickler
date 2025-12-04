@@ -51,8 +51,9 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
-go run ./cmd/ldaptickler/ -h                          
-Usage: /tmp/go-build1100308668/b001/exe/ldaptickler [OPTIONS] <arg>
+Usage:
+/home/slacker/.cache/go-build/28/28d0de9b87bec3996cc722ce6eaa25c397c2a023c3643737f850846481b25945-d/ldaptickler
+[OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -65,8 +66,6 @@ OPTIONS
                                be dc=ad,dc=sostup,dc=id
         --dc=STRING            Identify domain controller
     -d, --domain=STRING        Domain for NTLM bind
-    -f, --filter=STRING        Specify your own filter. ex.
-                               (objectClass=computer)
     -g, --gssapi               Enable GSSAPI and attempt to authenticate
     -h, --help                 Display this help message.
         --insecure             Use ldap:// instead of ldaps://
@@ -93,10 +92,12 @@ Supported Utility Commands
                                                            for an account
     deleteobject <objectname>                              Deletes an object
                                                            from the directory
-    disablemachine <machinename>                           Disables a machine
-                                                           account
     disableconstraineddelegation <accountname>             Disables constrained
                                                            delegation for an
+                                                           account
+    disablemachine <machinename>                           Disables a machine
+                                                           account
+    disablerbcd <accountname>                              Disables RBCD for an
                                                            account
     disablespn <accountname> <spn>                         Removes an SPN from
                                                            an account
@@ -112,6 +113,8 @@ Supported Utility Commands
     enablemachine <machinename>                            Enables a machine
                                                            account
     enablespn <accountname> <spn>                          Adds an SPN to an
+                                                           account
+    enablerbcd <accountname> <delegatingcomputer>          Enables RBCD for an
                                                            account
     enableunconstraineddelegation <accountname>            Enables unconstrained
                                                            delegation for an
@@ -144,6 +147,8 @@ Supported LDAP Queries
     rbcd                       Lists accounts configured for Resource-Based
                                Constrained Delegation (RBCD)
     schema                     Lists schema objects or extended attributes
+    search                     Specify your own filter. ex.
+                               (objectClass=computer)
     shadowcredentials          Lists users with shadow (msDS-KeyCredential)
                                credentials
     unconstraineddelegation    Lists accounts with unconstrained delegation
