@@ -461,6 +461,24 @@ func (c *Conn) Close() error {
 	return nil
 }
 
+func decodeGUID(guidBytes []byte) string {
+	if len(guidBytes) != 16 {
+		return fmt.Sprintf("Invalid GUID: %0x", guidBytes)
+	}
+	return fmt.Sprintf("%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		// first 4 bytes (little-endian)
+		uint32(guidBytes[3])<<24|uint32(guidBytes[2])<<16|uint32(guidBytes[1])<<8|uint32(guidBytes[0]),
+		// next 2 bytes (little-endian)
+		uint16(guidBytes[5])<<8|uint16(guidBytes[4]),
+		// next 2 bytes (little-endian)
+		uint16(guidBytes[7])<<8|uint16(guidBytes[6]),
+		// next 2 bytes (big-endian)
+		guidBytes[8], guidBytes[9],
+		// last 6 bytes (big-endian)
+		guidBytes[10], guidBytes[11], guidBytes[12], guidBytes[13], guidBytes[14], guidBytes[15],
+	)
+}
+
 func decodeSID(sidBytes []byte) (string, error) {
 	// 0 = revision, 1 = sub-authority count, 2-7 identifier authority, each sub authority is 4 bytes
 	// Check # of bytes to ensure proper SID
@@ -700,7 +718,20 @@ func (c *Conn) getAllResults(
 					values = append(values, val)
 				}
 				results[i][attribute.Name] = values
+			case "objectGUID":
+				values := []string{}
+				for _, v := range attribute.ByteValues {
 
+					values = append(values, decodeGUID(v))
+				}
+				results[i][attribute.Name] = values
+			case "objectSid":
+				values := []string{}
+				for _, v := range attribute.ByteValues {
+					v, _ := decodeSID(v)
+					values = append(values, v)
+				}
+				results[i][attribute.Name] = values
 			case "msDS-AllowedToActOnBehalfOfOtherIdentity":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
