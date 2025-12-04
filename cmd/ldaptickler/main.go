@@ -243,7 +243,7 @@ func init() {
 			state.password = flags.passwordcli
 		}
 	}
-	// Based on mode ensure we have the domain
+	// Based on mode ensure we have the domain and username
 	switch state.mode {
 	case ldaptickler.MethodBindDomain, ldaptickler.MethodBindDomainPTH, ldaptickler.MethodBindGSSAPI:
 		if flags.domain == "" {
