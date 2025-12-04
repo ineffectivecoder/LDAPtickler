@@ -320,7 +320,8 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
 - [ ] Local password storage options
 - [ ] Derive domain from basedn so the user doesnt need to provide it
 - [ ] unrolled/effective group membership  
-- [ ] Modify scope to be words instead of numbers, easier to recall
+- [ ] Modify scope to be words instead of numbers, easier to recall  
+- [ ] Provide ldapsearch equivalent for each query  
 ## Updates
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
 It was determined this was silly. Now grabbing the previous UAC setting and doing bit math to add the desired setting.  
