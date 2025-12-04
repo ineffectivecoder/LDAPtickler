@@ -57,6 +57,7 @@ var lookupTable map[string]action = map[string]action{
 	"groups":                         {call: groups, numargs: 0},
 	"groupswithmembers":              {call: groupswithmembers, numargs: 0},
 	"kerberoastable":                 {call: kerberoastable, numargs: 0},
+	"loginscripts":                   {call: loginscripts, numargs: 0},
 	"machineaccountquota":            {call: machineaccountquota, numargs: 0},
 	"machinecreationdacl":            {call: machinecreationdacl, numargs: 0},
 	"nopassword":                     {call: nopassword, numargs: 0},
@@ -160,6 +161,7 @@ func init() {
 		"shadowcredentials::Lists users with shadow (msDS-KeyCredential) credentials\n",
 		"unconstraineddelegation::Lists accounts with unconstrained delegation enabled\n",
 		"users::Lists all user accounts in the domain\n",
+		"userloginscripts::List all configured login scripts by accounts, not including GPOs\n",
 		"whoami::Runs a whoami-style LDAP query for the current user\n",
 	)
 
@@ -660,6 +662,13 @@ func unconstraineddelegation(c *ldaptickler.Conn, args ...string) error {
 func users(c *ldaptickler.Conn, args ...string) error {
 	fmt.Printf("[+] Searching for all users in LDAP with baseDN %s\n", flags.basedn)
 	err := c.ListUsers(expandlist(flags.attributes)...)
+	check(err)
+	return nil
+}
+
+func loginscripts(c *ldaptickler.Conn, args ...string) error {
+	fmt.Printf("[+] Searching for all user login scripts with baseDN %s\n", flags.basedn)
+	err := c.ListLoginScripts()
 	check(err)
 	return nil
 }

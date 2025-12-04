@@ -51,8 +51,9 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
+go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u slacker -p -h
 Usage:
-/home/slacker/.cache/go-build/28/28d0de9b87bec3996cc722ce6eaa25c397c2a023c3643737f850846481b25945-d/ldaptickler
+/home/slacker/.cache/go-build/b6/b6b4223e34e3911ca1b09288be869d2cfdc8d259a52c8c8c7fcd030a3ac26890-d/ldaptickler
 [OPTIONS] <arg>
 
 DESCRIPTION
@@ -154,6 +155,8 @@ Supported LDAP Queries
     unconstraineddelegation    Lists accounts with unconstrained delegation
                                enabled
     users                      Lists all user accounts in the domain
+    userloginscripts           List all configured login scripts by accounts,
+                               not including GPOs
     whoami                     Runs a whoami-style LDAP query for the current
                                user
                                
@@ -231,8 +234,6 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -based
 ```
 
 
-
-
 ### List users
 ```
 -d = Domain
@@ -308,13 +309,14 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
     - [x] Partial support for most useful DNS entries, many other types need work
     - [x] Domain Controllers
     - [x] DNS entries
-    - [x] computers  
-    - [x] users  
-    - [x] groups
+    - [x] Computers  
+    - [x] Users  
+    - [x] Groups
     - [x] kerberoastable users
     - [x] user specified
     - [x] Unconstrained ,Constrained Delegation and RBCD
-    - [x] Shadow Credentials
+    - [x] Shadow credentials
+    - [x] Login scripts
     - [x] Protected Users Group
     - [x] Kerberos Pre-Authenticated Disabled
     - [x] Users who dont require a password

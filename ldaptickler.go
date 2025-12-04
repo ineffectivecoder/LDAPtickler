@@ -1007,6 +1007,14 @@ func (c *Conn) ListUsers(attributes ...string) error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+// ListUserLoginScripts lists all scripts configured for user accounts, does not include GPO
+func (c *Conn) ListLoginScripts(attributes ...string) error {
+	filter := "(scriptPath=*)"
+	attributes = []string{"sAMAccountName", "scriptPath", "userAccountControl"}
+	searchscope := 2
+	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
 // RemoveConstrainedDelegation modifies msds-allowedtodelegateto to remove configuration of specific spns or all of them
 func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 	var delegationres string
