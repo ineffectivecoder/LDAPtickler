@@ -44,8 +44,8 @@ var lookupTable map[string]action = map[string]action{
 	"disablemachine":                 {call: disablemachine, numargs: 1, usage: "<machinename>"},
 	"disablerbcd":                    {call: disablerbcd, numargs: 1, usage: "<samaccountname>"},
 	"disablespn":                     {call: disablespn, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
-	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
 	"disableunconstraineddelegation": {call: disableud, numargs: 1, usage: "<samaccountname>"},
+	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
 	"dnsrecords":                     {call: dnsrecords, numargs: 0},
 	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
 	"enablemachine":                  {call: enablemachine, numargs: 1, usage: "<machinename>"},
@@ -53,7 +53,7 @@ var lookupTable map[string]action = map[string]action{
 	"enablerbcd":                     {call: enablerbcd, numargs: 2, usage: "<samaccountname> <delegatingcomputer>"},
 	"enableuser":                     {call: enableuser, numargs: 1, usage: "<username>"},
 	"enableunconstraineddelegation":  {call: enableud, numargs: 1, usage: "<samaccountname>"},
-	"filter":                         {call: filter, numargs: 1, usage: "<filter>"},
+	"search":                         {call: filter, numargs: 1, usage: "<filter>"},
 	"groups":                         {call: groups, numargs: 0},
 	"groupswithmembers":              {call: groupswithmembers, numargs: 0},
 	"kerberoastable":                 {call: kerberoastable, numargs: 0},
@@ -122,14 +122,16 @@ func init() {
 		"adduser <username> <password>::Creates a new user\n",
 		"changepassword <accountname> <newpassword>::Changes the password for an account\n",
 		"deleteobject <objectname>::Deletes an object from the directory\n",
-		"disablemachine <machinename>::Disables a machine account\n",
 		"disableconstraineddelegation <accountname>::Disables constrained delegation for an account\n",
+		"disablemachine <machinename>::Disables a machine account\n",
+		"disablerbcd <accountname>::Disables RBCD for an account\n",
 		"disablespn <accountname> <spn>::Removes an SPN from an account\n",
 		"disableunconstraineddelegation <accountname>::Disables unconstrained delegation for an account\n",
 		"disableuser <username>::Disables a user account\n",
 		"enableconstraineddelegation <accountname> <service>::Enables constrained delegation for an account\n",
 		"enablemachine <machinename>::Enables a machine account\n",
 		"enablespn <accountname> <spn>::Adds an SPN to an account\n",
+		"enablerbcd <accountname> <delegatingcomputer>::Enables RBCD for an account\n",
 		"enableunconstraineddelegation <accountname>::Enables unconstrained delegation for an account\n",
 		"enableuser <username>::Enables a user account\n",
 	)
@@ -154,6 +156,7 @@ func init() {
 		"querydescription::Displays descriptions\n",
 		"rbcd::Lists accounts configured for Resource-Based Constrained Delegation (RBCD)\n",
 		"schema::Lists schema objects or extended attributes\n",
+		"search::Specify your own filter. ex. (objectClass=computer)\n",
 		"shadowcredentials::Lists users with shadow (msDS-KeyCredential) credentials\n",
 		"unconstraineddelegation::Lists accounts with unconstrained delegation enabled\n",
 		"users::Lists all user accounts in the domain\n",
@@ -162,7 +165,6 @@ func init() {
 
 	// Parse cli flags
 	cli.Flag(&flags.attributes, "a", "attributes", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname. Usage of this may break things")
-	cli.Flag(&flags.filter, "f", "filter", "", "Specify your own filter. ex. (objectClass=computer)")
 	cli.Flag(&flags.gssapi, "g", "gssapi", false, "Enable GSSAPI and attempt to authenticate")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
 	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
@@ -208,59 +210,52 @@ func init() {
 	if flags.passwordcli != "" && flags.pth != "" {
 		log.Fatal("[-] Silly Goose detected, you can't PTH and provide a password")
 	}
-
-	if flags.password || flags.gssapi {
+	// Parse flags to determine bind mode
+	switch {
+	case flags.gssapi:
+		state.mode = ldaptickler.MethodBindGSSAPI
+	case flags.pth != "":
+		state.mode = ldaptickler.MethodBindDomainPTH
+	case flags.domain != "":
+		state.mode = ldaptickler.MethodBindDomain
+	case flags.password || flags.passwordcli != "":
 		state.mode = ldaptickler.MethodBindPassword
-		if flags.gssapi {
-			state.mode = ldaptickler.MethodBindGSSAPI
-		}
+	default:
+		state.mode = ldaptickler.MethodBindAnonymous
+	}
+	// Based on mode prompt for password
+	switch state.mode {
+	case ldaptickler.MethodBindGSSAPI, ldaptickler.MethodBindDomain, ldaptickler.MethodBindPassword:
+
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
+		if flags.passwordcli == "" {
+			fmt.Printf("[+] Enter Password:")
+			bytepw, err = term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Println()
 
-		fmt.Printf("[+] Enter Password:")
-		bytepw, err = term.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Println()
-
-		if err != nil {
-			log.Fatalf("[-] Last received error message %s", err)
-		}
-		state.password = string(bytepw)
-	}
-
-	if flags.passwordcli != "" {
-		state.password = flags.passwordcli
-		if !flags.gssapi {
-			state.mode = ldaptickler.MethodBindPassword
-		}
-		if flags.gssapi {
-			state.mode = ldaptickler.MethodBindGSSAPI
-		}
-		if flags.username == "" {
-			log.Fatal("[-] Username is empty, unable to continue")
-		}
-		state.password = flags.passwordcli
-	}
-
-	if flags.domain != "" {
-		if !flags.gssapi {
-			state.mode = ldaptickler.MethodBindDomain
-		}
-		if flags.username == "" {
-			log.Fatal("[-] Username is empty, unable to continue")
+			if err != nil {
+				log.Fatalf("[-] Last received error message %s", err)
+			}
+			state.password = string(bytepw)
+		} else {
+			state.password = flags.passwordcli
 		}
 	}
-
-	if flags.pth != "" || flags.gssapi {
-		if !flags.gssapi {
-			state.mode = ldaptickler.MethodBindDomainPTH
-		}
+	// Based on mode ensure we have the domain
+	switch state.mode {
+	case ldaptickler.MethodBindDomain, ldaptickler.MethodBindDomainPTH, ldaptickler.MethodBindGSSAPI:
 		if flags.domain == "" {
 			log.Fatal("[-] Domain is empty, unable to continue\n")
-		}
-
-		if flags.username == "" {
+		} else if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
+		}
+	}
+	switch state.mode {
+	case ldaptickler.MethodBindDomainPTH:
+		if flags.pth == "" {
+			log.Fatal("[-] PTH hash is empty, unable to continue")
 		}
 	}
 
@@ -541,7 +536,7 @@ func expandlist(in []string) []string {
 }
 
 func filter(c *ldaptickler.Conn, args ...string) error {
-	filter := flags.filter
+	filter := cli.Arg(1)
 	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
 	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
 	check(err)
