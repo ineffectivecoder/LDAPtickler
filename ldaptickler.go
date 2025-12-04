@@ -7,12 +7,16 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/go-ldap/ldap/v3/gssapi"
+	"github.com/huner2/go-sddlparse"
+
+	// Todo replace below library, go-sddlparse is much better
 	winsddlconverter "github.com/ineffectivecoder/win-sddl-converter"
 	"github.com/jcmturner/gokrb5/iana/flags"
 	"github.com/jcmturner/gokrb5/v8/client"
@@ -60,6 +64,7 @@ const (
 
 // This will reveal creds in plain text, yay
 var LDAPDebug bool
+var reSDDL *regexp.Regexp = regexp.MustCompile(`(\([^\)]+\))`)
 
 // Conn gives us a structure named lconn linked to *ldap.Conn
 type Conn struct {
@@ -578,10 +583,21 @@ func (c *Conn) getAllResults(
 ) ([]map[string][]string, error) {
 	var results []map[string][]string
 	var data string
+	var ldapControls []ldap.Control
 	if len(baseDN) == 0 {
 		baseDN = []string{c.baseDN}
 	}
-	result, err := c.ldapSearch(baseDN[0], searchscope, filter, attributes)
+	// Minimal ASN.1: Sequence {INTEGER 0x07 }
+	if slices.Contains(attributes, "nTSecurityDescriptor") {
+		ldapControls = []ldap.Control{
+			&ldap.ControlString{
+				ControlType:  "1.2.840.113556.1.4.801", // LDAP_SERVER_SD_FLAGS_OID
+				Criticality:  true,
+				ControlValue: string([]byte{0x30, 0x03, 0x02, 0x01, 0x07}),
+			},
+		}
+	}
+	result, err := c.ldapSearch(baseDN[0], searchscope, filter, attributes, ldapControls...)
 	if err != nil {
 		return nil, err
 	}
@@ -693,7 +709,26 @@ func (c *Conn) getAllResults(
 					if err != nil {
 						return nil, err
 					}
+					// TODO check if modification using regex is beneficial to this query
 					values = append(values, sddl.ToSddl())
+				}
+				results[i][attribute.Name] = values
+			case "nTSecurityDescriptor":
+				values := []string{}
+				for _, v := range attribute.ByteValues {
+					//sddl, err := winsddlconverter.ParseBinary(v)
+					sddl, err := sddlparse.SDDLFromBinary(v)
+					if err != nil {
+						return nil, err
+					}
+					value := ""
+					writemasks := sddlparse.ACCESS_MASK_GENERIC_ALL | sddlparse.ACCESS_MASK_GENERIC_WRITE | sddlparse.ACCESS_MASK_WRITE_OWNER | sddlparse.ACCESS_MASK_WRITE_DACL
+					for _, ace := range sddl.DACL {
+						if ace.AccessMask&writemasks > 0 {
+							value += ace.String()
+						}
+					}
+					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
 				}
 				results[i][attribute.Name] = values
 
@@ -714,13 +749,13 @@ func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 	return result, err
 }
 
-func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attributes []string) (*ldap.SearchResult, error) {
+func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attributes []string, controls ...ldap.Control) (*ldap.SearchResult, error) {
 	if c.lconn == nil {
 		return nil, fmt.Errorf("you must bind before searching")
 	}
 	var err error
 	var result *ldap.SearchResult
-	searchReq := ldap.NewSearchRequest(basedn, searchscope, 0, 0, 0, false, filter, attributes, []ldap.Control{})
+	searchReq := ldap.NewSearchRequest(basedn, searchscope, 0, 0, 0, false, filter, attributes, controls)
 	result, err = c.lconn.Search(searchReq)
 	if err != nil {
 		return nil, err
@@ -837,7 +872,7 @@ func (c *Conn) ListMachineAccountQuota() error {
 
 // ListMachineCreationDACL will identify the DACL on the Computers container
 func (c *Conn) ListMachineCreationDACL() error {
-	filter := "(objectClass=*)"
+	filter := "(objectClass=domainDNS)"
 	attributes := []string{"nTSecurityDescriptor"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)

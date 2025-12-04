@@ -323,6 +323,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
     - [ ] Pull down schema - need to research this more, I can pull down the top level, beyond that is HUUUUUGE and am limited by LDAP itself
     - [x] Query description field of all objects
     - [x] Query ms-DS-MachineAccountQuota
+    - [x] Query nTSecurityDescriptor field to check top level permissions
 
 - [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
     - [x] anonymous  
@@ -346,6 +347,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
 - [ ] unrolled/effective group membership  
 - [ ] Modify scope to be words instead of numbers, easier to recall  
 - [ ] Provide ldapsearch equivalent for each query  
+- [ ] Support more binary fields, DACLs
 ## Updates
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
 It was determined this was silly. Now grabbing the previous UAC setting and doing bit math to add the desired setting.  

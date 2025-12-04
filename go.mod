@@ -29,6 +29,7 @@ require (
 )
 
 require (
+	github.com/huner2/go-sddlparse v1.0.5
 	github.com/jcmturner/gokrb5 v8.4.4+incompatible
 	github.com/jcmturner/gokrb5/v8 v8.4.4
 )
