@@ -351,6 +351,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
 - [ ] Modify scope to be words instead of numbers, easier to recall  
 - [ ] Provide ldapsearch equivalent for each query  
 - [ ] Support more binary fields, DACLs
+- [x] Add login scripts
 ## Updates
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
 It was determined this was silly. Now grabbing the previous UAC setting and doing bit math to add the desired setting.  
