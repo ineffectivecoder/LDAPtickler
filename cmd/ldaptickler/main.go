@@ -31,6 +31,7 @@ type action struct {
 
 var lookupTable map[string]action = map[string]action{
 	// Todo add usages across the board
+	"addloginscript":                 {call: addloginscript, numargs: 2, usage: "<username> <loginscript>"},
 	"addmachine":                     {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
 	"addmachinelp":                   {call: addmachinelp, numargs: 3, usage: "<machinename> <password> <domain>"},
 	"addspn":                         {call: addspn, numargs: 2, usage: "<machinename> <spn>"},
@@ -117,6 +118,7 @@ func init() {
 	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
 
 	cli.SectionAligned("Supported Utility Commands", "::",
+		"addloginscript <username> <scriptname>:: Adds a login script to an account\n",
 		"addmachine <machinename> <machinepass>::Adds a new machine to the domain\n",
 		"addmachinelp <machinename> <machinepass>::Adds a new machine using low-priv credentials\n",
 		"addspn <accountname> <spn>::Adds an SPN to an account\n",
@@ -146,6 +148,7 @@ func init() {
 		"groups::Lists all security and distribution groups\n",
 		"groupswithmembers::Lists groups and their associated members\n",
 		"kerberoastable::Finds accounts vulnerable to Kerberoasting\n",
+		"loginscripts::List all configured login scripts by accounts, not including GPOs\n",
 		"machineaccountquota::Displays the domain's MachineAccountQuota setting\n",
 		"machinecreationdacl::Displays the domain's Machine Creation DACL\n",
 		"nopassword::Lists accounts with empty or missing passwords\n",
@@ -161,7 +164,6 @@ func init() {
 		"shadowcredentials::Lists users with shadow (msDS-KeyCredential) credentials\n",
 		"unconstraineddelegation::Lists accounts with unconstrained delegation enabled\n",
 		"users::Lists all user accounts in the domain\n",
-		"userloginscripts::List all configured login scripts by accounts, not including GPOs\n",
 		"whoami::Runs a whoami-style LDAP query for the current user\n",
 	)
 
@@ -312,7 +314,16 @@ func main() {
 		os.Exit(0)
 	}
 }
-
+func addloginscript(c *ldaptickler.Conn, args ...string) error {
+	username := args[0]
+	loginscript := args[1]
+	err := c.SetLoginScript(username, loginscript)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("[+] Added login script to account %s  with name %s\n", username, loginscript)
+	return nil
+}
 func addmachine(c *ldaptickler.Conn, args ...string) error {
 	machinename := args[0]
 	machinepass := args[1]

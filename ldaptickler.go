@@ -774,6 +774,24 @@ func (c *Conn) getAllResults(
 	return results, nil
 }
 
+// Get the DN of a specific user
+func (c *Conn) getUserDN(username string) (string, error) {
+	filter := fmt.Sprintf("(&(objectClass=person)(sAMAccountName=%s))", username)
+	attributes := []string{"distinguishedName"}
+	searchscope := 2
+
+	results, err := c.getAllResults(searchscope, filter, attributes, c.baseDN)
+	if err != nil {
+		return "", err
+	}
+
+	if len(results) == 0 {
+		return "", fmt.Errorf("user %s not found", username)
+	}
+
+	return results[0]["distinguishedName"][0], nil
+}
+
 // GetWhoAmI will query the LDAP server for who we currently are authenticated as
 func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 	result, err := c.lconn.WhoAmI(nil)
@@ -1227,6 +1245,24 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
 	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
 	return c.lconn.Modify(enableReq)
+}
+
+// SetLoginScript
+func (c *Conn) SetLoginScript(username string, scriptname string) error {
+	// Build the DN for the user (assuming Users container)
+	userDN, err := c.getUserDN(username)
+	if err != nil {
+		return err
+	}
+	// Create the LDAP Modify request
+	modifyReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
+
+	// Replace the existing scriptPath attribute (or create if missing)
+	modifyReq.Replace("scriptPath", []string{scriptname})
+
+	// Apply the modification
+	return c.lconn.Modify(modifyReq)
+
 }
 
 // SetUserPassword will set a user account's password
