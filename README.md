@@ -51,9 +51,8 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
-go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u slacker -p -h
 Usage:
-/home/slacker/.cache/go-build/b6/b6b4223e34e3911ca1b09288be869d2cfdc8d259a52c8c8c7fcd030a3ac26890-d/ldaptickler
+/home/slacker/.cache/go-build/38/385a8c19a5d5219347ad9a01e45010f79576165ea22e5c2b20b87aa6746839b6-d/ldaptickler
 [OPTIONS] <arg>
 
 DESCRIPTION
@@ -81,6 +80,8 @@ OPTIONS
     -v, --verbose              Enable verbose output
 
 Supported Utility Commands
+    addloginscript <username> <scriptname>                 Adds a login script
+                                                           to an account
     addmachine <machinename> <machinepass>                 Adds a new machine to
                                                            the domain
     addmachinelp <machinename> <machinepass>               Adds a new machine
@@ -134,6 +135,8 @@ Supported LDAP Queries
     groups                     Lists all security and distribution groups
     groupswithmembers          Lists groups and their associated members
     kerberoastable             Finds accounts vulnerable to Kerberoasting
+    loginscripts               List all configured login scripts by accounts,
+                               not including GPOs
     machineaccountquota        Displays the domain's MachineAccountQuota setting
     machinecreationdacl        Displays the domain's Machine Creation DACL
     nopassword                 Lists accounts with empty or missing passwords
@@ -155,8 +158,6 @@ Supported LDAP Queries
     unconstraineddelegation    Lists accounts with unconstrained delegation
                                enabled
     users                      Lists all user accounts in the domain
-    userloginscripts           List all configured login scripts by accounts,
-                               not including GPOs
     whoami                     Runs a whoami-style LDAP query for the current
                                user
                                
