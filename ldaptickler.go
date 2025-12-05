@@ -746,6 +746,24 @@ func (c *Conn) getAllResults(
 					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
 				}
 				results[i][attribute.Name] = values
+			case "msds-groupmsamembership":
+				values := []string{}
+				for _, v := range attribute.ByteValues {
+
+					sddl, err := sddlparse.SDDLFromBinary(v)
+					if err != nil {
+						return nil, err
+					}
+					value := ""
+
+					for _, ace := range sddl.DACL {
+
+						value += ace.String()
+
+					}
+					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
+				}
+				results[i][attribute.Name] = values
 
 			case "ntsecuritydescriptor":
 				values := []string{}
@@ -890,9 +908,12 @@ func (c *Conn) ListDNS() error {
 	return nil
 }
 
+// ListGMSAaccounts will search the directory for all Group Managed Service Accounts and
+//
+//	display the credential if you have privileges
 func (c *Conn) ListGMSAaccounts() error {
 	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"
-	attributes := []string{"samaccountname", "msDS-GroupMSAMembership", "msds-ManagedPasswordInterval"}
+	attributes := []string{"samaccountname", "msDS-GroupMSAMembership", "msds-ManagedPasswordInterval", "msDS-ManagedPassword"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
