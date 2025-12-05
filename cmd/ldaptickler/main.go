@@ -148,7 +148,7 @@ func init() {
 		"constraineddelegation::Lists accounts configured for constrained delegation\n",
 		"dnsrecords::Returns DNS records stored in Active Directory\n",
 		"domaincontrollers::Lists all domain controllers in the domain\n",
-		"gmsaaccounts::Lists all Group Managed Service Accounts (gMSAs) in the domain\n",
+		"gmsaaccounts::Lists all Group Managed Service Accounts (gMSAs) in the domain, will dump NTLM hash if you have access\n",
 		"groups::Lists all security and distribution groups\n",
 		"groupswithmembers::Lists groups and their associated members\n",
 		"kerberoastable::Finds accounts vulnerable to Kerberoasting\n",
@@ -576,6 +576,13 @@ func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
 	check(err)
 	return nil
 }
+
+/*func gmsapassword(c *ldaptickler.Conn, args ...string) error {
+	fmt.Printf("[+] Listing Group Managed Service Accounts for user")
+	err := c.ListGMSAPassword()
+	check(err)
+	return nil
+}*/
 
 func groups(c *ldaptickler.Conn, args ...string) error {
 	fmt.Printf("[+] Searching for all groups in LDAP with baseDN %s\n", flags.basedn)

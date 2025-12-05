@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	ber "github.com/go-asn1-ber/asn1-ber"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/go-ldap/ldap/v3/gssapi"
 	"github.com/huner2/go-sddlparse"
@@ -20,11 +21,33 @@ import (
 	winsddlconverter "github.com/ineffectivecoder/win-sddl-converter"
 	"github.com/jcmturner/gokrb5/iana/flags"
 	"github.com/jcmturner/gokrb5/v8/client"
+	"golang.org/x/crypto/md4"
 	"golang.org/x/text/encoding/unicode"
 )
 
 // BindMethod TODO WHAT IS THIS?!
 type BindMethod int
+
+type UnicodeString struct {
+	Length        uint16
+	MaximumLength uint16
+	BufferOffset  uint32
+}
+type RPCUnicodeString struct {
+	ReferentID    uint32
+	Length        uint16
+	MaximumLength uint16
+	BufferOffset  uint32
+}
+
+type MSDSManagedPasswordBlob struct {
+	Version                uint32
+	Length                 uint32
+	CurrentPasswordOffset  uint32
+	PreviousPasswordOffset uint16
+	QueryPasswordOffset    uint16
+	Buffer                 []byte // raw payload after header
+}
 
 // These enums are bind methods for the bind function
 const (
@@ -106,6 +129,40 @@ func (c *Conn) bindSetup() error {
 	return nil
 }
 
+type ControlRaw struct {
+	ControlType string
+	Criticality bool
+	Value       []byte
+}
+
+func (c *ControlRaw) GetControlType() string { return c.ControlType }
+
+func (c *ControlRaw) String() string {
+	return fmt.Sprintf("ControlRaw(Type=%s, Critical=%v, ValueLen=%d)",
+		c.ControlType, c.Criticality, len(c.Value))
+}
+func (c *ControlRaw) Encode() *ber.Packet {
+	seq := ber.NewSequence("Control")
+
+	// controlType
+	seq.AppendChild(
+		ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, c.ControlType, "Control Type"),
+	)
+
+	// criticality: always include FALSE
+	seq.AppendChild(
+		ber.NewBoolean(ber.ClassUniversal, ber.TypePrimitive, ber.TagBoolean, false, "Criticality"),
+	)
+
+	// controlValue: OCTET STRING containing raw BER sequence
+	if len(c.Value) > 0 {
+		// Cast raw bytes to string so encoder sets payload length
+		val := ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, string(c.Value), "Control Value")
+		seq.AppendChild(val)
+	}
+
+	return seq
+}
 func (c *Conn) createUnicodePasswordRequest(username string, password string) (*ldap.ModifyRequest, error) {
 	passwordSet := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, nil)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
@@ -601,6 +658,7 @@ func (c *Conn) getAllResults(
 	if len(baseDN) == 0 {
 		baseDN = []string{c.baseDN}
 	}
+
 	// Minimal ASN.1: Sequence {INTEGER 0x07 }
 	if slices.Contains(attributes, "nTSecurityDescriptor") {
 		ldapControls = []ldap.Control{
@@ -611,6 +669,16 @@ func (c *Conn) getAllResults(
 			},
 		}
 	}
+	if slices.Contains(attributes, "msDS-ManagedPassword") {
+		ldapControls = append(ldapControls,
+			&ControlRaw{
+				ControlType: "1.2.840.113556.1.4.2064",            // PolicyHints OID
+				Criticality: false,                                // must be non-critical
+				Value:       []byte{0x30, 0x03, 0x02, 0x01, 0x01}, // raw BER: SEQUENCE(INT=1)
+			},
+		)
+	}
+
 	result, err := c.ldapSearch(baseDN[0], searchscope, filter, attributes, ldapControls...)
 	if err != nil {
 		return nil, err
@@ -763,6 +831,33 @@ func (c *Conn) getAllResults(
 					}
 					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
 				}
+				results[i][attribute.Name] = values
+
+				// WELL CRAP, sounds like you have to pass another control option to pull this.
+			case "msds-managedpassword":
+				values := []string{}
+
+				for _, v := range attribute.ByteValues {
+					// Dump the raw blob as a hex string
+					//hexDump := hex.Dump(v)
+					//values = append(values, fmt.Sprintf("Raw blob (%d bytes):\n%s", len(v), hexDump))
+
+					// --- Compute NTLM hash ---
+					// Skip the 16‑byte header, then take the first 256 bytes of payload
+					if len(v) > 16+256 {
+						pwdBytes := v[16 : 16+256]
+
+						h := md4.New()
+						h.Write(pwdBytes)
+						ntlmHash := h.Sum(nil)
+
+						values = append(values,
+							fmt.Sprintf("NTLM Hash: %x", ntlmHash))
+					} else {
+						values = append(values, "NTLM Hash: blob too short")
+					}
+				}
+
 				results[i][attribute.Name] = values
 
 			case "ntsecuritydescriptor":
