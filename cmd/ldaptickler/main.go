@@ -42,6 +42,7 @@ var lookupTable map[string]action = map[string]action{
 	"constraineddelegation":          {call: constraineddelegation, numargs: 0},
 	"deleteobject":                   {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
 	"disableconstraineddelegation":   {call: disablecd, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
+	"disableloginscript":             {call: disableloginscript, numargs: 1, usage: "<username>"},
 	"disablemachine":                 {call: disablemachine, numargs: 1, usage: "<machinename>"},
 	"disablerbcd":                    {call: disablerbcd, numargs: 1, usage: "<samaccountname>"},
 	"disablespn":                     {call: disablespn, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
@@ -126,6 +127,7 @@ func init() {
 		"changepassword <accountname> <newpassword>::Changes the password for an account\n",
 		"deleteobject <objectname>::Deletes an object from the directory\n",
 		"disableconstraineddelegation <accountname>::Disables constrained delegation for an account\n",
+		"disableloginscript <username>::Disables a login script by removing it from the account\n",
 		"disablemachine <machinename>::Disables a machine account\n",
 		"disablerbcd <accountname>::Disables RBCD for an account\n",
 		"disablespn <accountname> <spn>::Removes an SPN from an account\n",
@@ -428,6 +430,16 @@ func deleteobject(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
+func disableloginscript(c *ldaptickler.Conn, args ...string) error {
+	username := args[0]
+	err := c.RemoveLoginScript(username)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("[+] Removed login script from account %s\n", username)
+	return nil
+}
+
 func disablemachine(c *ldaptickler.Conn, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetDisableMachineAccount(objectname)
@@ -678,7 +690,7 @@ func users(c *ldaptickler.Conn, args ...string) error {
 }
 
 func loginscripts(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all user login scripts with baseDN %s\n", flags.basedn)
+	fmt.Printf("[+] Searching for all login scripts with baseDN %s\n", flags.basedn)
 	err := c.ListLoginScripts()
 	check(err)
 	return nil

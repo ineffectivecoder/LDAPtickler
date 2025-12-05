@@ -52,7 +52,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 ## Example Usage
 ```
 Usage:
-/home/slacker/.cache/go-build/38/385a8c19a5d5219347ad9a01e45010f79576165ea22e5c2b20b87aa6746839b6-d/ldaptickler
+/home/slacker/.cache/go-build/49/49e43525c93ca61757507688fa9d955747edee8952f9010cf285756968d8be8a-d/ldaptickler
 [OPTIONS] <arg>
 
 DESCRIPTION
@@ -97,6 +97,9 @@ Supported Utility Commands
     disableconstraineddelegation <accountname>             Disables constrained
                                                            delegation for an
                                                            account
+    disableloginscript <username>                          Disables a login
+                                                           script by removing it
+                                                           from the account
     disablemachine <machinename>                           Disables a machine
                                                            account
     disablerbcd <accountname>                              Disables RBCD for an
@@ -351,7 +354,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
 - [ ] Modify scope to be words instead of numbers, easier to recall  
 - [ ] Provide ldapsearch equivalent for each query  
 - [ ] Support more binary fields, DACLs
-- [x] Add login scripts
+- [x] Add/del login scripts
 - [ ] Reading and writing GPOs?
 ## Updates
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  

@@ -1066,6 +1066,23 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 	return c.lconn.Modify(enableReq)
 }
 
+// RemoveLoginScript removes login script from given user
+func (c *Conn) RemoveLoginScript(username string) error {
+	// First, get the user's DN
+	userDN, err := c.getUserDN(username)
+	if err != nil {
+		return err
+	}
+
+	// Create the LDAP modify request
+	modifyReq := ldap.NewModifyRequest(userDN, nil)
+
+	// Delete the scriptPath attribute (removes any existing value)
+	modifyReq.Delete("scriptPath", nil)
+
+	return c.lconn.Modify(modifyReq)
+}
+
 func (c *Conn) RemoveResourceBasedConstrainedDelegation(targetmachinename string) error {
 	filter := "(samaccountname=" + targetmachinename + ")"
 	attributes := []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
@@ -1249,7 +1266,7 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 
 // SetLoginScript
 func (c *Conn) SetLoginScript(username string, scriptname string) error {
-	// Build the DN for the user (assuming Users container)
+	// Build the DN for the user
 	userDN, err := c.getUserDN(username)
 	if err != nil {
 		return err
