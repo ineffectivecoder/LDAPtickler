@@ -908,9 +908,7 @@ func (c *Conn) ListDNS() error {
 	return nil
 }
 
-// ListGMSAaccounts will search the directory for all Group Managed Service Accounts and
-//
-//	display the credential if you have privileges
+// ListGMSAaccounts will search the directory for all Group Managed Service Accounts and display the credential if you have p
 func (c *Conn) ListGMSAaccounts() error {
 	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"
 	attributes := []string{"samaccountname", "msDS-GroupMSAMembership", "msds-ManagedPasswordInterval", "msDS-ManagedPassword"}
@@ -1054,9 +1052,9 @@ func (c *Conn) ListUsers(attributes ...string) error {
 }
 
 // ListUserLoginScripts lists all scripts configured for user accounts, does not include GPO
-func (c *Conn) ListLoginScripts(attributes ...string) error {
+func (c *Conn) ListLoginScripts() error {
 	filter := "(scriptPath=*)"
-	attributes = []string{"sAMAccountName", "scriptPath", "userAccountControl"}
+	attributes := []string{"sAMAccountName", "scriptPath", "userAccountControl"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
