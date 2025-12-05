@@ -56,6 +56,7 @@ var lookupTable map[string]action = map[string]action{
 	"enableuser":                     {call: enableuser, numargs: 1, usage: "<username>"},
 	"enableunconstraineddelegation":  {call: enableud, numargs: 1, usage: "<samaccountname>"},
 	"search":                         {call: filter, numargs: 1, usage: "<filter>"},
+	"gmsaaccounts":                   {call: gmsaaccounts, numargs: 0},
 	"groups":                         {call: groups, numargs: 0},
 	"groupswithmembers":              {call: groupswithmembers, numargs: 0},
 	"kerberoastable":                 {call: kerberoastable, numargs: 0},
@@ -147,6 +148,7 @@ func init() {
 		"constraineddelegation::Lists accounts configured for constrained delegation\n",
 		"dnsrecords::Returns DNS records stored in Active Directory\n",
 		"domaincontrollers::Lists all domain controllers in the domain\n",
+		"gmsaaccounts::Lists all Group Managed Service Accounts (gMSAs) in the domain\n",
 		"groups::Lists all security and distribution groups\n",
 		"groupswithmembers::Lists groups and their associated members\n",
 		"kerberoastable::Finds accounts vulnerable to Kerberoasting\n",
@@ -564,6 +566,13 @@ func filter(c *ldaptickler.Conn, args ...string) error {
 	filter := cli.Arg(1)
 	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
 	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
+	check(err)
+	return nil
+}
+
+func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
+	fmt.Printf("[+] Searching for all Group Managed Service Accounts in LDAP with baseDN %s\n", flags.basedn)
+	err := c.ListGMSAaccounts()
 	check(err)
 	return nil
 }

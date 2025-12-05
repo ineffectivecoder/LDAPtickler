@@ -890,6 +890,13 @@ func (c *Conn) ListDNS() error {
 	return nil
 }
 
+func (c *Conn) ListGMSAaccounts() error {
+	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"
+	attributes := []string{"samaccountname", "msDS-GroupMSAMembership", "msds-ManagedPasswordInterval"}
+	searchscope := 2
+	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
 // ListGroups will search the directory for all Groups
 func (c *Conn) ListGroups() error {
 	filter := "(objectCategory=group)"

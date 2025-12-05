@@ -51,9 +51,8 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
-Usage:
-/home/slacker/.cache/go-build/49/49e43525c93ca61757507688fa9d955747edee8952f9010cf285756968d8be8a-d/ldaptickler
-[OPTIONS] <arg>
+go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u slacker -p -h
+Usage: /tmp/go-build3197275409/b001/exe/ldaptickler [OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -135,6 +134,8 @@ Supported LDAP Queries
                                delegation
     dnsrecords                 Returns DNS records stored in Active Directory
     domaincontrollers          Lists all domain controllers in the domain
+    gmsaaccounts               Lists all Group Managed Service Accounts (gMSAs)
+                               in the domain
     groups                     Lists all security and distribution groups
     groupswithmembers          Lists groups and their associated members
     kerberoastable             Finds accounts vulnerable to Kerberoasting
