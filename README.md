@@ -322,6 +322,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
     - [x] Unconstrained ,Constrained Delegation and RBCD
     - [x] Shadow credentials
     - [x] Login scripts
+    - [x] GMSA accounts
     - [x] Protected Users Group
     - [x] Kerberos Pre-Authenticated Disabled
     - [x] Users who dont require a password
