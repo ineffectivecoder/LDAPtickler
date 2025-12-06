@@ -40,6 +40,7 @@ var lookupTable map[string]action = map[string]action{
 	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
 	"certpublishers":                 {call: certpublishers, numargs: 0},
 	"changepassword":                 {call: changepassword, numargs: 2, usage: "<username> <password>"},
+	"collectsharphound":              {call: collectsharphound, numargs: 0},
 	"computers":                      {call: computers, numargs: 0},
 	"constraineddelegation":          {call: constraineddelegation, numargs: 0},
 	"deleteobject":                   {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
@@ -90,12 +91,15 @@ var state struct {
 var flags struct {
 	attributes        cli.StringList
 	basedn            string
+	collectors        cli.StringList
 	domain            string
 	domaincontrollers bool
+	dryRun            bool
 	filter            string
 	gssapi            bool
 	insecure          bool
 	dc                string
+	output            string
 	password          bool
 	passwordcli       string
 	pth               string
@@ -170,6 +174,7 @@ func init() {
 		"schema::Lists schema objects or extended attributes\n",
 		"search::Specify your own filter. ex. (objectClass=computer)\n",
 		"shadowcredentials::Lists users with shadow (msDS-KeyCredential) credentials\n",
+		"collectsharphound::Runs SharpHound-style collectors and packages results into ZIP (use --collectors, --dry-run, --output flags)\n",
 		"unconstraineddelegation::Lists accounts with unconstrained delegation enabled\n",
 		"users::Lists all user accounts in the domain\n",
 		"whoami::Runs a whoami-style LDAP query for the current user\n",
@@ -189,6 +194,9 @@ func init() {
 	cli.Flag(&flags.searchscope, "scope", 2, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash")
 	cli.Flag(&flags.verbose, "v", "verbose", false, "Enable verbose output")
+	cli.Flag(&flags.collectors, "c", "collectors", "", "Comma-separated list of collectors to run (users,computers,groups,domains)")
+	cli.Flag(&flags.dryRun, "r", "dry-run", false, "Run collectors without writing files (dry-run)")
+	cli.Flag(&flags.output, "o", "output", "", "Output zip file path for collectors")
 
 	cli.Parse()
 
@@ -769,5 +777,33 @@ func whoami(c *ldaptickler.Conn, args ...string) error {
 	result, err := c.GetWhoAmI()
 	check(err)
 	fmt.Printf("[+] You are currently authenticated as %+v\n", *result)
+	return nil
+}
+
+func collectsharphound(c *ldaptickler.Conn, args ...string) error {
+	var out string
+	if len(args) > 0 {
+		out = args[0]
+	}
+	// If user provided --output, prefer that
+	if flags.output != "" {
+		out = flags.output
+	}
+	// Determine requested collectors
+	collectors := []string{}
+	if len(flags.collectors) > 0 {
+		collectors = expandlist(flags.collectors)
+	}
+
+	fmt.Printf("[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n", collectors, flags.dryRun, flags.basedn)
+	zipPath, err := c.CollectSharpHound(collectors, out, flags.basedn, flags.dryRun)
+	if err != nil {
+		return err
+	}
+	if flags.dryRun {
+		fmt.Printf("[+] Dry-run completed successfully\n")
+	} else {
+		fmt.Printf("[+] Successfully wrote collector output to %s\n", zipPath)
+	}
 	return nil
 }
