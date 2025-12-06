@@ -128,8 +128,8 @@ Supported Utility Commands
                                                            account
     enableuser <username>                                  Enables a user
                                                            account
-    removeshadowcredential <username>                      Removes all shadow
-                                                           credentials from an
+    disableshadowcredential <username>                      Removes all shadow
+                                                           credentials from the
                                                            account
                                                            
 

@@ -35,7 +35,7 @@ var lookupTable map[string]action = map[string]action{
 	"addmachine":                     {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
 	"addmachinelp":                   {call: addmachinelp, numargs: 3, usage: "<machinename> <password> <domain>"},
 	"addshadowcredential":            {call: addshadowcredential, numargs: 1, usage: "<username>"},
-	"removeshadowcredential":         {call: removeshadowcredential, numargs: 1, usage: "<username>"},
+	"disableshadowcredential":        {call: disableshadowcredential, numargs: 1, usage: "<username>"},
 	"addspn":                         {call: addspn, numargs: 2, usage: "<machinename> <spn>"},
 	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
 	"certpublishers":                 {call: certpublishers, numargs: 0},
@@ -143,7 +143,7 @@ func init() {
 		"enablerbcd <accountname> <delegatingcomputer>::Enables RBCD for an account\n",
 		"enableunconstraineddelegation <accountname>::Enables unconstrained delegation for an account\n",
 		"enableuser <username>::Enables a user account\n",
-		"removeshadowcredential <username>::Removes all shadow credentials from an account\n",
+		"disableshadowcredential <username>::Removes all shadow credentials from the account\n",
 	)
 
 	cli.SectionAligned("Supported LDAP Queries", "::",
@@ -394,13 +394,13 @@ func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func removeshadowcredential(c *ldaptickler.Conn, args ...string) error {
+func disableshadowcredential(c *ldaptickler.Conn, args ...string) error {
 	username := args[0]
-	fmt.Printf("[+] Removing shadow credentials for account %s\n", username)
+	fmt.Printf("[+] Disabling shadow credentials for account %s\n", username)
 	if err := c.RemoveShadowCredentials(username); err != nil {
 		return err
 	}
-	fmt.Printf("[+] Successfully removed shadow credentials from account %s\n", username)
+	fmt.Printf("[+] Successfully disabled shadow credentials for account %s\n", username)
 
 	return nil
 }
