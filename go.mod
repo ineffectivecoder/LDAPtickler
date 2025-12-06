@@ -43,4 +43,5 @@ require (
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	golang.org/x/net v0.38.0 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.6.0 // indirect
 )

@@ -1,3 +1,5 @@
 .vscode
 .exe
 local
+.pfx
+.ccache

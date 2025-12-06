@@ -2,19 +2,30 @@ package ldaptickler
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net"
+	"os"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/go-ldap/ldap/v3/gssapi"
 	"github.com/huner2/go-sddlparse"
+	pkcs12 "software.sslmate.com/src/go-pkcs12"
 
 	// Todo replace below library, go-sddlparse is much better
 	winsddlconverter "github.com/ineffectivecoder/win-sddl-converter"
@@ -46,6 +57,15 @@ type MSDSManagedPasswordBlob struct {
 	PreviousPasswordOffset uint16
 	QueryPasswordOffset    uint16
 	Buffer                 []byte // raw payload after header
+}
+
+// KeyCredentialBlob represents the structure for shadow credentials (msDS-KeyCredentialLink)
+// Reference: https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/
+type KeyCredentialBlob struct {
+	Version      uint32   // Reserved, must be 0
+	CredentialID [16]byte // Unique identifier (typically random)
+	Credential   [32]byte // Public key material (32 bytes for ECDSA P-256)
+	Reserved     [32]byte // Reserved
 }
 
 // These enums are bind methods for the bind function
@@ -1435,4 +1455,367 @@ func (c *Conn) SetUserPassword(username string, userpass string) error {
 		return err
 	}
 	return c.lconn.Modify(passwordReq)
+}
+
+// RemoveShadowCredentials deletes all msDS-KeyCredentialLink entries from the specified user
+func (c *Conn) RemoveShadowCredentials(username string) error {
+	userDN, err := c.getUserDN(username)
+	if err != nil {
+		return err
+	}
+
+	modifyReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
+	modifyReq.Delete("msDS-KeyCredentialLink", nil)
+
+	if err := c.lconn.Modify(modifyReq); err != nil {
+		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultNoSuchAttribute {
+			return nil
+		}
+		return fmt.Errorf("failed to remove shadow credential(s) from LDAP: %w", err)
+	}
+
+	return nil
+}
+
+// AddShadowCredential adds a shadow credential (msDS-KeyCredentialLink) to a user account
+// This allows authentication via a new public key credential without changing the password
+// Returns the credential ID for use with PKINIT
+// AddShadowCredentialWithPFX adds a shadow credential and generates a PFX file for use with gettgtpkinit.py
+// Returns: PFX filename, PFX password, credential ID, error
+func (c *Conn) AddShadowCredentialWithPFX(username string, outputPath string) (pfxFilename string, pfxPassword string, credentialID string, err error) {
+	// Get the user's DN
+	userDN, err := c.getUserDN(username)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	// Extract domain from baseDN (e.g., DC=spinninglikea,DC=top -> spinninglikea.top)
+	domain := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(c.baseDN, "DC=", ""), ",", "."))
+	upn := username + "@" + domain
+
+	// Generate RSA private key (2048-bit for compatibility with gettgtpkinit.py)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	// Generate self-signed certificate with UPN in SAN
+	// Pass username for CN and upn for SAN
+	certBytes, err := GenerateSelfSignedCertRSA(username, upn, privateKey)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to generate certificate: %w", err)
+	}
+
+	// Parse the certificate
+	cert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	// Extract public key PEM from private key
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to marshal public key: %w", err)
+	}
+	pubKeyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubKeyBytes}))
+
+	// Generate a random password for the PFX
+	passwordBytes := make([]byte, 16)
+	if _, err := rand.Read(passwordBytes); err != nil {
+		return "", "", "", fmt.Errorf("failed to generate password: %w", err)
+	}
+	password := hex.EncodeToString(passwordBytes)
+
+	// Generate PFX
+	pfxBytes, err := GeneratePFXRSA(certBytes, privateKey, password)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to generate PFX: %w", err)
+	}
+
+	// Save PFX file
+	filename := fmt.Sprintf("%s/%s.pfx", outputPath, username)
+	err = SaveBytesToFile(filename, pfxBytes)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to save PFX file: %w", err)
+	}
+
+	// Create the KeyCredential blob from the public key and certificate
+	_, blobBytes, credHex, err := CreateKeyCredentialBlob(pubKeyPEM, cert)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to build key credential blob: %w", err)
+	}
+
+	// Format the blob as DN-Binary for LDAP transmission
+	// Format: B:hexlength:hexdata:distinguishedName
+	// This is the standard LDAP format for msDS-KeyCredentialLink attribute
+	hexData := strings.ToUpper(hex.EncodeToString(blobBytes))
+	dnWithBinary := fmt.Sprintf("B:%d:%s:%s", len(hexData), hexData, userDN)
+
+	// Create LDAP modify request with DN-Binary format
+	// msDS-KeyCredentialLink expects the value in DN-Binary format: B:length:hexdata:dn
+	modifyReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
+	modifyReq.Add("msDS-KeyCredentialLink", []string{dnWithBinary})
+
+	err = c.lconn.Modify(modifyReq)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to add shadow credential to LDAP: %w", err)
+	}
+
+	return filename, password, credHex, nil
+}
+
+// SaveBytesToFile writes bytes to a file
+func SaveBytesToFile(filename string, data []byte) error {
+	return os.WriteFile(filename, data, 0600)
+}
+
+// (previous generateKeyCredentialBlob helpers removed in favor of CreateKeyCredentialBlob)
+
+// Accepts a public key in PEM format and returns the blob, credential ID, and any error
+// Returns: (blob hex string, credential ID hex string, error)
+// Accepts a public key in PEM format and certificate and returns: base64-encoded blob, raw blob bytes, credential ID hex, and error
+// The blob format includes the certificate DER bytes after the header.
+// KeyCredentialLink entry types
+const (
+	KeyCredentialEntryKeyID                         = 0x01
+	KeyCredentialEntryKeyHash                       = 0x02
+	KeyCredentialEntryKeyMaterial                   = 0x03
+	KeyCredentialEntryKeyUsage                      = 0x04
+	KeyCredentialEntryKeySource                     = 0x05
+	KeyCredentialEntryDeviceID                      = 0x06
+	KeyCredentialEntryCustomKeyInfo                 = 0x07
+	KeyCredentialEntryApproximateLastLogonTimeStamp = 0x08
+	KeyCredentialEntryCreationTime                  = 0x09
+)
+
+// KeyCredentialLink usage values
+const (
+	KeyUsageNGC = 0x01
+)
+
+// KeyCredentialLink source values
+const (
+	KeySourceAD = 0x00
+)
+
+// KeyCredentialLink key type values (for bcrypt RSA key blob format)
+const (
+	KeyTypeRSAPublic = 0x31415352 // "RSA1" in little endian
+)
+
+// MarshalRSAPublicKeyBcrypt serializes an RSA public key in bcrypt RSA key blob format
+// This is the Windows-specific format required for msDS-KeyCredentialLink
+// https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_rsakey_blob
+func MarshalRSAPublicKeyBcrypt(key *rsa.PublicKey) ([]byte, error) {
+	modulusBytes := key.N.Bytes()
+	exponentBytes := big.NewInt(int64(key.E)).Bytes()
+
+	buf := new(bytes.Buffer)
+
+	// Write bcrypt RSA key blob header
+	binary.Write(buf, binary.LittleEndian, uint32(KeyTypeRSAPublic))   // KeyType: RSA1
+	binary.Write(buf, binary.LittleEndian, uint32(8*key.Size()))       // KeySize in bits
+	binary.Write(buf, binary.LittleEndian, uint32(len(exponentBytes))) // Exponent size
+	binary.Write(buf, binary.LittleEndian, uint32(len(modulusBytes)))  // Modulus size
+	binary.Write(buf, binary.LittleEndian, uint32(0))                  // Prime1 size (0 for public key)
+	binary.Write(buf, binary.LittleEndian, uint32(0))                  // Prime2 size (0 for public key)
+	buf.Write(exponentBytes)                                           // Exponent
+	buf.Write(modulusBytes)                                            // Modulus
+
+	return buf.Bytes(), nil
+}
+
+// buildKeyCredentialEntry creates a KeyCredentialLink entry
+// Format: Length (2 bytes LE) + Identifier (1 byte) + Value
+func buildKeyCredentialEntry(entryType uint8, value []byte) []byte {
+	buf := new(bytes.Buffer)
+	length := uint16(len(value))
+	binary.Write(buf, binary.LittleEndian, length)
+	buf.WriteByte(entryType)
+	buf.Write(value)
+	return buf.Bytes()
+}
+
+func CreateKeyCredentialBlob(publicKeyPEM string, cert *x509.Certificate) (string, []byte, string, error) {
+	// Parse PEM
+	block, _ := pem.Decode([]byte(publicKeyPEM))
+	if block == nil {
+		return "", nil, "", fmt.Errorf("failed to parse public key PEM")
+	}
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("failed to parse PKIX public key: %w", err)
+	}
+
+	// Support both RSA and ECDSA keys
+	rsaKey, isRSA := pub.(*rsa.PublicKey)
+	if !isRSA {
+		// Could also support ECDSA if needed
+		return "", nil, "", fmt.Errorf("public key type not supported: must be RSA")
+	}
+
+	// Marshal the RSA public key in bcrypt RSA key blob format (Windows-specific format)
+	// This is the default format used by keycred and expected by Active Directory
+	keyMaterial, err := MarshalRSAPublicKeyBcrypt(rsaKey)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("failed to marshal RSA key: %w", err)
+	}
+
+	// Build entries that will be hashed for KeyHash
+	var hashedEntries [][]byte
+
+	// 1. KeyMaterial entry (type 0x03)
+	keyMaterialEntry := buildKeyCredentialEntry(KeyCredentialEntryKeyMaterial, keyMaterial)
+	hashedEntries = append(hashedEntries, keyMaterialEntry)
+
+	// 2. KeyUsage entry (type 0x04) - NGC (0x01)
+	keyUsageValue := []byte{KeyUsageNGC}
+	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryKeyUsage, keyUsageValue))
+
+	// 3. KeySource entry (type 0x05) - AD (0x00)
+	keySourceValue := []byte{KeySourceAD}
+	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryKeySource, keySourceValue))
+
+	// 4. DeviceID entry (type 0x06) - Random UUID
+	deviceID := make([]byte, 16)
+	rand.Read(deviceID)
+	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryDeviceID, deviceID))
+
+	// 5. CustomKeyInfo entry (type 0x07) - Empty stub (Version=1, Flags=0)
+	customKeyInfo := []byte{0x01, 0x00}
+	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryCustomKeyInfo, customKeyInfo))
+
+	// 6. ApproximateLastLogonTimeStamp entry (type 0x08) - current time as Windows FILETIME
+	now := time.Now()
+	filetime := (now.Unix() + 11644473600) * 10000000 // Convert Unix time to Windows FILETIME
+	logonTimeBuf := new(bytes.Buffer)
+	binary.Write(logonTimeBuf, binary.LittleEndian, uint64(filetime))
+	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryApproximateLastLogonTimeStamp, logonTimeBuf.Bytes()))
+
+	// 7. KeyCreationTime entry (type 0x09) - current time as Windows FILETIME
+	creationTimeBuf := new(bytes.Buffer)
+	binary.Write(creationTimeBuf, binary.LittleEndian, uint64(filetime))
+	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryCreationTime, creationTimeBuf.Bytes()))
+
+	// Compute KeyHash (SHA256 of all hashed entries concatenated)
+	hashInput := new(bytes.Buffer)
+	for _, entry := range hashedEntries {
+		hashInput.Write(entry)
+	}
+	keyHashSum := sha256.Sum256(hashInput.Bytes())
+	keyHashEntry := buildKeyCredentialEntry(KeyCredentialEntryKeyHash, keyHashSum[:])
+
+	// KeyID is the SHA-256 hash of the KeyMaterial entry's VALUE (not the full entry)
+	keyIDSum := sha256.Sum256(keyMaterial)
+	keyIDEntry := buildKeyCredentialEntry(KeyCredentialEntryKeyID, keyIDSum[:])
+	credIDBytes := keyIDSum[:16] // Use first 16 bytes for credential ID display
+
+	// Assemble final blob: Version (4 bytes LE) + KeyID + KeyHash + hashedEntries
+	finalBuf := new(bytes.Buffer)
+	binary.Write(finalBuf, binary.LittleEndian, uint32(0x00000200)) // Version 2
+
+	// Order: KeyID, KeyHash, then the hashed entries
+	finalBuf.Write(keyIDEntry)
+	finalBuf.Write(keyHashEntry)
+	for _, entry := range hashedEntries {
+		finalBuf.Write(entry)
+	}
+
+	blobBytes := finalBuf.Bytes()
+	blobBase64 := base64.StdEncoding.EncodeToString(blobBytes)
+	credentialIDHex := hex.EncodeToString(credIDBytes)
+
+	return blobBase64, blobBytes, credentialIDHex, nil
+}
+
+// GenerateSelfSignedCertRSA creates a self-signed certificate for RSA keys
+func GenerateSelfSignedCertRSA(username string, upn string, privateKey *rsa.PrivateKey) ([]byte, error) {
+	// Create certificate subject/issuer with just the CommonName (matches keycred)
+	subject := pkix.Name{
+		CommonName: username,
+	}
+
+	// Build UPN otherName SAN extension
+	// OID 1.3.6.1.4.1.311.20.2.3 is the Microsoft UPN OID
+	// Correct structure (matching keycred):
+	// SEQUENCE {
+	//   [0] {              # otherName context tag
+	//     OBJECT           # UPN OID
+	//     [0] {            # Explicit tag
+	//       UTF8STRING     # UPN value
+	//     }
+	//   }
+	// }
+	upnOID := []byte{0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37, 0x14, 0x02, 0x03}
+	upnValue := []byte(upn) // Full UPN for SAN
+
+	// Build the UTF8STRING
+	utf8Tag := append([]byte{0x0C, byte(len(upnValue))}, upnValue...)
+	// Wrap in explicit [0] tag
+	explicitTag := append([]byte{0xA0, byte(len(utf8Tag))}, utf8Tag...)
+	// Concatenate OID and explicit tag (NOT wrapped in SEQUENCE)
+	otherNameContent := append(upnOID, explicitTag...)
+	// Wrap in [0] context tag for otherName
+	otherName := append([]byte{0xA0, byte(len(otherNameContent))}, otherNameContent...)
+
+	// Wrap in SEQUENCE for SAN extension value
+	sanValue := append([]byte{0x30, byte(len(otherName))}, otherName...)
+
+	// Create certificate template matching keycred's approach
+	cert := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      subject,
+		Issuer:       subject,                                    // Self-signed, so issuer = subject
+		NotBefore:    time.Now().Add(-40 * 365 * 24 * time.Hour), // Valid from 40 years ago
+		NotAfter:     time.Now().Add(40 * 365 * 24 * time.Hour),  // Valid for 40 years in future
+		KeyUsage:     x509.KeyUsageCertSign,                      // CertSign for shadow credentials
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id:       []int{2, 5, 29, 17}, // SAN OID
+				Critical: false,
+				Value:    sanValue,
+			},
+		},
+	}
+
+	// Self-sign the certificate
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	return certBytes, nil
+}
+
+// GeneratePFXRSA creates a PFX file containing the certificate and RSA private key
+// Returns the PFX bytes
+func GeneratePFXRSA(certBytes []byte, privateKey *rsa.PrivateKey, password string) ([]byte, error) {
+	// Parse the certificate
+	cert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	// Use go-pkcs12 with modern encryption (avoids RC2 issues)
+	return createPKCS12RSA(cert, privateKey, password)
+}
+
+// createPKCS12RSA creates a PKCS12 (PFX) file for RSA keys
+func createPKCS12RSA(cert *x509.Certificate, privateKey *rsa.PrivateKey, password string) ([]byte, error) {
+	// Use go-pkcs12 to encode a proper PKCS#12 (PFX) container containing
+	// the private key and certificate. No CA chain is provided.
+	// Use pkcs12.Modern to avoid RC2 encryption which causes issues with older OpenSSL
+	var pfxEncoder *pkcs12.Encoder
+	if password != "" {
+		pfxEncoder = pkcs12.Modern
+	} else {
+		pfxEncoder = pkcs12.Passwordless
+	}
+
+	pfxBytes, err := pfxEncoder.Encode(privateKey, cert, nil, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pkcs12: %w", err)
+	}
+	return pfxBytes, nil
 }
