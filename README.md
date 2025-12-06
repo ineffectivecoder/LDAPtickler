@@ -106,6 +106,9 @@ Supported Utility Commands
                                                            account
     disablerbcd <accountname>                              Disables RBCD for an
                                                            account
+    disableshadowcredential <username>                      Removes all shadow
+                                                           credentials from the
+                                                           account
     disablespn <accountname> <spn>                         Removes an SPN from
                                                            an account
     disableunconstraineddelegation <accountname>           Disables
@@ -119,17 +122,14 @@ Supported Utility Commands
                                                            account
     enablemachine <machinename>                            Enables a machine
                                                            account
-    enablespn <accountname> <spn>                          Adds an SPN to an
-                                                           account
     enablerbcd <accountname> <delegatingcomputer>          Enables RBCD for an
+                                                           account
+    enablespn <accountname> <spn>                          Adds an SPN to an
                                                            account
     enableunconstraineddelegation <accountname>            Enables unconstrained
                                                            delegation for an
                                                            account
     enableuser <username>                                  Enables a user
-                                                           account
-    disableshadowcredential <username>                      Removes all shadow
-                                                           credentials from the
                                                            account
                                                            
 
