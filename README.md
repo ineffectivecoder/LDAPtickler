@@ -305,10 +305,10 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
     - [x] Unconstrained - Refactored
     - [x] Constrained  - Refactored
     - [x] Resource Based Constrained Delegation, support has been added for validation, adding and removing. Remove only supports all for now. Need to fix.   
-- [ ] Support modification of msds-keycredentiallink for shadow credentials  
-    - [ ] Create self signed cert  
-    - [ ] Prepare blob for placement in msds-keycredentiallink field  
-    - [ ] Modify msds-keycredentiallink field   
+- [x] Support modification of msds-keycredentiallink for shadow credentials  
+    - [x] Create self signed cert  
+    - [x] Prepare blob for placement in msds-keycredentiallink field  
+    - [x] Modify msds-keycredentiallink field   
 - [ ] Support creation of DNS entries
 - [x] Search and list specific types of objects  
     - [x] Partial support for most useful DNS entries, many other types need work
