@@ -589,6 +589,71 @@ func byteReader(br *bytes.Reader, length int) ([]byte, error) {
 	return b, nil
 }
 
+// ParseMSDSManagedPasswordBlob parses the binary blob from msDS-ManagedPassword attribute
+func ParseMSDSManagedPasswordBlob(blob []byte) (*MSDSManagedPasswordBlob, error) {
+	if len(blob) < 16 {
+		return nil, fmt.Errorf("blob too short: expected at least 16 bytes, got %d", len(blob))
+	}
+
+	br := bytes.NewReader(blob)
+
+	// Read header fields
+	header := make([]byte, 16)
+	if _, err := br.Read(header); err != nil {
+		return nil, err
+	}
+
+	result := &MSDSManagedPasswordBlob{
+		Version:                binary.LittleEndian.Uint32(header[0:4]),
+		Length:                 binary.LittleEndian.Uint32(header[4:8]),
+		CurrentPasswordOffset:  binary.LittleEndian.Uint32(header[8:12]),
+		PreviousPasswordOffset: binary.LittleEndian.Uint16(header[12:14]),
+		QueryPasswordOffset:    binary.LittleEndian.Uint16(header[14:16]),
+	}
+
+	// Read remaining buffer
+	remaining := make([]byte, len(blob)-16)
+	if _, err := br.Read(remaining); err != nil && err.Error() != "EOF" {
+		return nil, err
+	}
+	result.Buffer = remaining
+
+	return result, nil
+}
+
+// GetCurrentPassword extracts the current password from the blob
+func (m *MSDSManagedPasswordBlob) GetCurrentPassword() ([]byte, error) {
+	if m.CurrentPasswordOffset == 0 {
+		return nil, fmt.Errorf("current password offset is 0")
+	}
+
+	// Password offset is relative to start of buffer
+	offset := int(m.CurrentPasswordOffset) - 16 // subtract header size since Buffer starts after header
+	if offset < 0 || offset >= len(m.Buffer) {
+		return nil, fmt.Errorf("invalid current password offset: %d", m.CurrentPasswordOffset)
+	}
+
+	// Read 256 bytes (standard password length for gMSA)
+	end := offset + 256
+	if end > len(m.Buffer) {
+		return nil, fmt.Errorf("password extends beyond buffer")
+	}
+
+	return m.Buffer[offset : offset+256], nil
+}
+
+// GetCurrentPasswordNTLMHash computes the NTLM hash of the current password
+func (m *MSDSManagedPasswordBlob) GetCurrentPasswordNTLMHash() (string, error) {
+	pwd, err := m.GetCurrentPassword()
+	if err != nil {
+		return "", err
+	}
+
+	h := md4.New()
+	h.Write(pwd)
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
 func dnsrpcnameToString(b []byte) (string, error) {
 	br := bytes.NewReader(b[1:]) // skip first byte
 	b, err := byteReader(br, 1)
@@ -803,24 +868,19 @@ func (c *Conn) getAllResults(
 				values := []string{}
 
 				for _, v := range attribute.ByteValues {
-					// Dump the raw blob as a hex string
-					//hexDump := hex.Dump(v)
-					//values = append(values, fmt.Sprintf("Raw blob (%d bytes):\n%s", len(v), hexDump))
-
-					// --- Compute NTLM hash ---
-					// Skip the 16‑byte header, then take the first 256 bytes of payload
-					if len(v) > 16+256 {
-						pwdBytes := v[16 : 16+256]
-
-						h := md4.New()
-						h.Write(pwdBytes)
-						ntlmHash := h.Sum(nil)
-
-						values = append(values,
-							fmt.Sprintf("NTLM Hash: %x", ntlmHash))
-					} else {
-						values = append(values, "NTLM Hash: blob too short")
+					blob, err := ParseMSDSManagedPasswordBlob(v)
+					if err != nil {
+						values = append(values, fmt.Sprintf("Error parsing blob: %v", err))
+						continue
 					}
+
+					ntlmHash, err := blob.GetCurrentPasswordNTLMHash()
+					if err != nil {
+						values = append(values, fmt.Sprintf("Error computing NTLM hash: %v", err))
+						continue
+					}
+
+					values = append(values, fmt.Sprintf("NTLM Hash: %s", ntlmHash))
 				}
 
 				results[i][attribute.Name] = values
