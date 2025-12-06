@@ -51,8 +51,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
-go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u slacker -p -h
-Usage: /tmp/go-build3197275409/b001/exe/ldaptickler [OPTIONS] <arg>
+Usage: /tmp/go-build2405261985/b001/exe/ldaptickler [OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -86,6 +85,10 @@ Supported Utility Commands
     addmachinelp <machinename> <machinepass>               Adds a new machine
                                                            using low-priv
                                                            credentials
+    addshadowcredential <username>                         Adds shadow
+                                                           credential and
+                                                           generates PFX file in
+                                                           current directory
     addspn <accountname> <spn>                             Adds an SPN to an
                                                            account
     adduser <username> <password>                          Creates a new user
@@ -125,6 +128,9 @@ Supported Utility Commands
                                                            account
     enableuser <username>                                  Enables a user
                                                            account
+    removeshadowcredential <username>                      Removes all shadow
+                                                           credentials from an
+                                                           account
                                                            
 
 Supported LDAP Queries
@@ -135,7 +141,8 @@ Supported LDAP Queries
     dnsrecords                 Returns DNS records stored in Active Directory
     domaincontrollers          Lists all domain controllers in the domain
     gmsaaccounts               Lists all Group Managed Service Accounts (gMSAs)
-                               in the domain
+                               in the domain, will dump NTLM hash if you have
+                               access
     groups                     Lists all security and distribution groups
     groupswithmembers          Lists groups and their associated members
     kerberoastable             Finds accounts vulnerable to Kerberoasting

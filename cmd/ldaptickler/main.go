@@ -126,7 +126,6 @@ func init() {
 		"addmachine <machinename> <machinepass>::Adds a new machine to the domain\n",
 		"addmachinelp <machinename> <machinepass>::Adds a new machine using low-priv credentials\n",
 		"addshadowcredential <username>::Adds shadow credential and generates PFX file in current directory\n",
-		"removeshadowcredential <username>::Removes all shadow credentials from the account\n",
 		"addspn <accountname> <spn>::Adds an SPN to an account\n",
 		"adduser <username> <password>::Creates a new user\n",
 		"changepassword <accountname> <newpassword>::Changes the password for an account\n",
@@ -144,6 +143,7 @@ func init() {
 		"enablerbcd <accountname> <delegatingcomputer>::Enables RBCD for an account\n",
 		"enableunconstraineddelegation <accountname>::Enables unconstrained delegation for an account\n",
 		"enableuser <username>::Enables a user account\n",
+		"removeshadowcredential <username>::Removes all shadow credentials from an account\n",
 	)
 
 	cli.SectionAligned("Supported LDAP Queries", "::",
