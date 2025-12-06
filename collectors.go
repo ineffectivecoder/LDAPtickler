@@ -67,6 +67,9 @@ func (c *Conn) CollectSharpHound(collectors []string, outputPath string, baseDN 
 		"computers": c.collectComputersBloodHound,
 		"groups":    c.collectGroupsBloodHound,
 		"domains":   c.collectDomainsBloodHound,
+		"ous":       c.collectOUsBloodHound,
+		"gpos":      c.collectGPOsBloodHound,
+		"trusts":    c.collectTrustsBloodHound,
 	}
 
 	// normalize requested collectors
@@ -332,6 +335,139 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
 		"meta": map[string]interface{}{
 			"version": "4",
 			"type":    "domains",
+		},
+	}, nil
+}
+
+func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
+	filter := "(objectClass=organizationalUnit)"
+	attrs := []string{"distinguishedName", "objectGUID", "name", "gPLink"}
+	res, err := c.getAllResults(2, filter, attrs, baseDN)
+	if err != nil {
+		return nil, err
+	}
+
+	out := []map[string]interface{}{}
+	for _, e := range res {
+		dn := firstOrEmpty(e, "DN")
+		guid := firstOrEmpty(e, "objectGUID")
+		if guid == "" {
+			guid = dn
+		}
+
+		props := map[string]interface{}{
+			"name": firstOrEmpty(e, "name"),
+			"domain": extractDomainFromDN(dn),
+			"distinguishedname": dn,
+		}
+
+		gpLink := firstOrEmpty(e, "gPLink")
+		linkedGPOs := []string{}
+		if gpLink != "" {
+			parts := strings.Split(gpLink, "[LDAP://")
+			for i := 1; i < len(parts); i++ {
+				if idx := strings.Index(parts[i], ";"); idx > 0 {
+					linkedGPOs = append(linkedGPOs, "LDAP://"+parts[i][:idx])
+				}
+			}
+		}
+
+		ou := map[string]interface{}{
+			"ObjectId":   guid,
+			"Properties": props,
+		}
+		if len(linkedGPOs) > 0 {
+			ou["LinkedGPOs"] = linkedGPOs
+		}
+		out = append(out, ou)
+	}
+
+	return map[string]interface{}{
+		"data": out,
+		"meta": map[string]interface{}{
+			"version": "4",
+			"type": "ous",
+		},
+	}, nil
+}
+
+func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
+	filter := "(objectClass=groupPolicyContainer)"
+	attrs := []string{"distinguishedName", "displayName", "name", "cn"}
+	res, err := c.getAllResults(2, filter, attrs, baseDN)
+	if err != nil {
+		return nil, err
+	}
+
+	out := []map[string]interface{}{}
+	for _, e := range res {
+		dn := firstOrEmpty(e, "DN")
+		name := firstOrEmpty(e, "displayName")
+		if name == "" {
+			name = firstOrEmpty(e, "cn")
+		}
+
+		props := map[string]interface{}{
+			"name": name,
+			"domain": extractDomainFromDN(dn),
+		}
+
+		gpo := map[string]interface{}{
+			"ObjectId":   dn,
+			"Properties": props,
+		}
+		out = append(out, gpo)
+	}
+
+	return map[string]interface{}{
+		"data": out,
+		"meta": map[string]interface{}{
+			"version": "4",
+			"type": "gpos",
+		},
+	}, nil
+}
+
+func (c *Conn) collectTrustsBloodHound(baseDN string) (interface{}, error) {
+	filter := "(objectClass=trustedDomain)"
+	attrs := []string{"cn", "flatName", "distinguishedName", "objectSid", "trustAttributes", "trustDirection", "trustType"}
+	res, err := c.getAllResults(2, filter, attrs, baseDN)
+	if err != nil {
+		return map[string]interface{}{
+			"data": []any{},
+			"meta": map[string]interface{}{
+				"version": "4",
+				"type": "trusts",
+			},
+		}, nil
+	}
+
+	out := []map[string]interface{}{}
+	for _, e := range res {
+		dn := firstOrEmpty(e, "DN")
+		cn := firstOrEmpty(e, "cn")
+
+		props := map[string]interface{}{
+			"name": cn,
+			"domain": extractDomainFromDN(dn),
+			"flatname": firstOrEmpty(e, "flatName"),
+			"trustattributes": firstOrEmpty(e, "trustAttributes"),
+			"trustdirection": firstOrEmpty(e, "trustDirection"),
+			"trusttype": firstOrEmpty(e, "trustType"),
+		}
+
+		trust := map[string]interface{}{
+			"ObjectId":   cn,
+			"Properties": props,
+		}
+		out = append(out, trust)
+	}
+
+	return map[string]interface{}{
+		"data": out,
+		"meta": map[string]interface{}{
+			"version": "4",
+			"type": "trusts",
 		},
 	}, nil
 }
