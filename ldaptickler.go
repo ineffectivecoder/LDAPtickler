@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	ber "github.com/go-asn1-ber/asn1-ber"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/go-ldap/ldap/v3/gssapi"
 	"github.com/huner2/go-sddlparse"
@@ -129,40 +128,6 @@ func (c *Conn) bindSetup() error {
 	return nil
 }
 
-type ControlRaw struct {
-	ControlType string
-	Criticality bool
-	Value       []byte
-}
-
-func (c *ControlRaw) GetControlType() string { return c.ControlType }
-
-func (c *ControlRaw) String() string {
-	return fmt.Sprintf("ControlRaw(Type=%s, Critical=%v, ValueLen=%d)",
-		c.ControlType, c.Criticality, len(c.Value))
-}
-func (c *ControlRaw) Encode() *ber.Packet {
-	seq := ber.NewSequence("Control")
-
-	// controlType
-	seq.AppendChild(
-		ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, c.ControlType, "Control Type"),
-	)
-
-	// criticality: always include FALSE
-	seq.AppendChild(
-		ber.NewBoolean(ber.ClassUniversal, ber.TypePrimitive, ber.TagBoolean, false, "Criticality"),
-	)
-
-	// controlValue: OCTET STRING containing raw BER sequence
-	if len(c.Value) > 0 {
-		// Cast raw bytes to string so encoder sets payload length
-		val := ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, string(c.Value), "Control Value")
-		seq.AppendChild(val)
-	}
-
-	return seq
-}
 func (c *Conn) createUnicodePasswordRequest(username string, password string) (*ldap.ModifyRequest, error) {
 	passwordSet := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, nil)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
@@ -671,10 +636,10 @@ func (c *Conn) getAllResults(
 	}
 	if slices.Contains(attributes, "msDS-ManagedPassword") {
 		ldapControls = append(ldapControls,
-			&ControlRaw{
-				ControlType: "1.2.840.113556.1.4.2064",            // PolicyHints OID
-				Criticality: false,                                // must be non-critical
-				Value:       []byte{0x30, 0x03, 0x02, 0x01, 0x01}, // raw BER: SEQUENCE(INT=1)
+			&ldap.ControlString{
+				ControlType:  "1.2.840.113556.1.4.2064",                    // PolicyHints OID
+				Criticality:  false,                                        // must be non-critical
+				ControlValue: string([]byte{0x30, 0x03, 0x02, 0x01, 0x01}), // raw BER: SEQUENCE(INT=1)
 			},
 		)
 	}
