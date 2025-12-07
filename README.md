@@ -354,7 +354,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC
 ## Stretch goals
 
 - [x] Allow for deletion, and modification of existing LDAP entries  
-- [ ] Potentially support BloodHound(Need to look into this more)  
+- [x] Potentially support BloodHound(Need to look into this more)  
 - [x] Accept plain text password at the command line  
 - [ ] Leverage existing users TGT in Windows environment for authentication
 - [ ] Local password storage options
