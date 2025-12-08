@@ -51,7 +51,9 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC
 
 ## Example Usage
 ```
-Usage: /tmp/go-build2405261985/b001/exe/ldaptickler [OPTIONS] <arg>
+Usage:
+/home/slacker/.cache/go-build/05/0514f7f4a2e08921cba86e944c1454cd708caf3c2f9c10d5f4b2e5b5a1fcb5ff-d/ldaptickler
+[OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -62,11 +64,15 @@ OPTIONS
                                this may break things
     -b, --basedn=STRING        Specify baseDN for query, ex. ad.sostup.id would
                                be dc=ad,dc=sostup,dc=id
+    -c, --collectors=STRING    Comma-separated list of collectors to run
+                               (users,computers,groups,domains)
         --dc=STRING            Identify domain controller
     -d, --domain=STRING        Domain for NTLM bind
+    -r, --dry-run              Run collectors without writing files (dry-run)
     -g, --gssapi               Enable GSSAPI and attempt to authenticate
     -h, --help                 Display this help message.
         --insecure             Use ldap:// instead of ldaps://
+    -o, --output=STRING        Output zip file path for collectors
     -p                         Password to bind with, will prompt
         --password=STRING      Password to bind with, provided on command line
         --pth=STRING           Bind with password hash
@@ -106,9 +112,6 @@ Supported Utility Commands
                                                            account
     disablerbcd <accountname>                              Disables RBCD for an
                                                            account
-    disableshadowcredential <username>                      Removes all shadow
-                                                           credentials from the
-                                                           account
     disablespn <accountname> <spn>                         Removes an SPN from
                                                            an account
     disableunconstraineddelegation <accountname>           Disables
@@ -122,20 +125,26 @@ Supported Utility Commands
                                                            account
     enablemachine <machinename>                            Enables a machine
                                                            account
-    enablerbcd <accountname> <delegatingcomputer>          Enables RBCD for an
-                                                           account
     enablespn <accountname> <spn>                          Adds an SPN to an
+                                                           account
+    enablerbcd <accountname> <delegatingcomputer>          Enables RBCD for an
                                                            account
     enableunconstraineddelegation <accountname>            Enables unconstrained
                                                            delegation for an
                                                            account
     enableuser <username>                                  Enables a user
                                                            account
+    disableshadowcredential <username>                     Removes all shadow
+                                                           credentials from the
+                                                           account
                                                            
 
 Supported LDAP Queries
     certpublishers             Returns all Certificate Publishers in the domain
     computers                  Lists all computer objects in the domain
+    collectbh                  Runs SharpHound-style collectors and packages
+                               results into ZIP (use --collectors, --dry-run,
+                               --output flags)
     constraineddelegation      Lists accounts configured for constrained
                                delegation
     dnsrecords                 Returns DNS records stored in Active Directory

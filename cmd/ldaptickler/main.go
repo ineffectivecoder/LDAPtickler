@@ -138,6 +138,7 @@ func init() {
 		"disableloginscript <username>::Disables a login script by removing it from the account\n",
 		"disablemachine <machinename>::Disables a machine account\n",
 		"disablerbcd <accountname>::Disables RBCD for an account\n",
+		"disableshadowcredential <username>::Removes all shadow credentials from the account\n",
 		"disablespn <accountname> <spn>::Removes an SPN from an account\n",
 		"disableunconstraineddelegation <accountname>::Disables unconstrained delegation for an account\n",
 		"disableuser <username>::Disables a user account\n",
@@ -147,7 +148,6 @@ func init() {
 		"enablerbcd <accountname> <delegatingcomputer>::Enables RBCD for an account\n",
 		"enableunconstraineddelegation <accountname>::Enables unconstrained delegation for an account\n",
 		"enableuser <username>::Enables a user account\n",
-		"disableshadowcredential <username>::Removes all shadow credentials from the account\n",
 	)
 
 	cli.SectionAligned("Supported LDAP Queries", "::",
