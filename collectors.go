@@ -61,7 +61,7 @@ type BHMetadata struct {
 }
 
 // CollectSharpHound runs LDAP collectors and writes BloodHound-compatible JSON into a zip archive.
-func (c *Conn) CollectSharpHound(collectors []string, outputPath string, baseDN string, dryRun bool) (string, error) {
+func (c *Conn) CollectBloodHound(collectors []string, outputPath string, baseDN string, dryRun bool) (string, error) {
 	supported := map[string]func(string) (interface{}, error){
 		"users":     c.collectUsersBloodHound,
 		"computers": c.collectComputersBloodHound,
@@ -129,7 +129,7 @@ func (c *Conn) CollectSharpHound(collectors []string, outputPath string, baseDN 
 	}
 
 	if outputPath == "" {
-		outputPath = fmt.Sprintf("sharphound-%s.zip", time.Now().Format("20060102-150405"))
+		outputPath = fmt.Sprintf("ldaptickler-%s.zip", time.Now().Format("20060102-150405"))
 	}
 
 	// Create zip
@@ -356,8 +356,8 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
 		}
 
 		props := map[string]interface{}{
-			"name": firstOrEmpty(e, "name"),
-			"domain": extractDomainFromDN(dn),
+			"name":              firstOrEmpty(e, "name"),
+			"domain":            extractDomainFromDN(dn),
 			"distinguishedname": dn,
 		}
 
@@ -386,7 +386,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
 		"data": out,
 		"meta": map[string]interface{}{
 			"version": "4",
-			"type": "ous",
+			"type":    "ous",
 		},
 	}, nil
 }
@@ -408,7 +408,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
 		}
 
 		props := map[string]interface{}{
-			"name": name,
+			"name":   name,
 			"domain": extractDomainFromDN(dn),
 		}
 
@@ -423,7 +423,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
 		"data": out,
 		"meta": map[string]interface{}{
 			"version": "4",
-			"type": "gpos",
+			"type":    "gpos",
 		},
 	}, nil
 }
@@ -437,7 +437,7 @@ func (c *Conn) collectTrustsBloodHound(baseDN string) (interface{}, error) {
 			"data": []any{},
 			"meta": map[string]interface{}{
 				"version": "4",
-				"type": "trusts",
+				"type":    "trusts",
 			},
 		}, nil
 	}
@@ -448,12 +448,12 @@ func (c *Conn) collectTrustsBloodHound(baseDN string) (interface{}, error) {
 		cn := firstOrEmpty(e, "cn")
 
 		props := map[string]interface{}{
-			"name": cn,
-			"domain": extractDomainFromDN(dn),
-			"flatname": firstOrEmpty(e, "flatName"),
+			"name":            cn,
+			"domain":          extractDomainFromDN(dn),
+			"flatname":        firstOrEmpty(e, "flatName"),
 			"trustattributes": firstOrEmpty(e, "trustAttributes"),
-			"trustdirection": firstOrEmpty(e, "trustDirection"),
-			"trusttype": firstOrEmpty(e, "trustType"),
+			"trustdirection":  firstOrEmpty(e, "trustDirection"),
+			"trusttype":       firstOrEmpty(e, "trustType"),
 		}
 
 		trust := map[string]interface{}{
@@ -467,7 +467,7 @@ func (c *Conn) collectTrustsBloodHound(baseDN string) (interface{}, error) {
 		"data": out,
 		"meta": map[string]interface{}{
 			"version": "4",
-			"type": "trusts",
+			"type":    "trusts",
 		},
 	}, nil
 }

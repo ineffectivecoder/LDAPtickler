@@ -711,13 +711,13 @@ func (c *Conn) getAllResults(
 
 	// Minimal ASN.1: Sequence {INTEGER 0x07 }
 	if slices.Contains(attributes, "nTSecurityDescriptor") {
-		ldapControls = []ldap.Control{
+		ldapControls = append(ldapControls,
 			&ldap.ControlString{
 				ControlType:  "1.2.840.113556.1.4.801", // LDAP_SERVER_SD_FLAGS_OID
 				Criticality:  true,
 				ControlValue: string([]byte{0x30, 0x03, 0x02, 0x01, 0x07}),
 			},
-		}
+		)
 	}
 	if slices.Contains(attributes, "msDS-ManagedPassword") {
 		ldapControls = append(ldapControls,
@@ -832,6 +832,7 @@ func (c *Conn) getAllResults(
 					values = append(values, val)
 				}
 				results[i][attribute.Name] = values
+				results[i][attribute.Name+"_raw"] = attribute.Values
 			case "objectguid":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
@@ -839,6 +840,7 @@ func (c *Conn) getAllResults(
 					values = append(values, decodeGUID(v))
 				}
 				results[i][attribute.Name] = values
+				results[i][attribute.Name+"_raw"] = attribute.Values
 			case "objectsid":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
@@ -864,6 +866,7 @@ func (c *Conn) getAllResults(
 					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
 				}
 				results[i][attribute.Name] = values
+				results[i][attribute.Name+"_raw"] = attribute.Values
 			case "msds-groupmsamembership":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
@@ -882,6 +885,7 @@ func (c *Conn) getAllResults(
 					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
 				}
 				results[i][attribute.Name] = values
+				results[i][attribute.Name+"_raw"] = attribute.Values
 
 				// WELL CRAP, sounds like you have to pass another control option to pull this.
 			case "msds-managedpassword":
@@ -904,6 +908,7 @@ func (c *Conn) getAllResults(
 				}
 
 				results[i][attribute.Name] = values
+				results[i][attribute.Name+"_raw"] = attribute.Values
 
 			case "ntsecuritydescriptor":
 				values := []string{}
@@ -923,9 +928,11 @@ func (c *Conn) getAllResults(
 					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
 				}
 				results[i][attribute.Name] = values
+				results[i][attribute.Name+"_raw"] = attribute.Values
 
 			default:
 				results[i][attribute.Name] = attribute.Values
+				results[i][attribute.Name+"_raw"] = attribute.Values
 			}
 		}
 	}
@@ -990,6 +997,9 @@ func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string, b
 		}
 		slices.Sort(keys)
 		for _, key := range keys {
+			if strings.HasSuffix(key, "_raw") {
+				continue
+			}
 			values := result[key]
 			if key == "DN" {
 				continue // Skip DN key as it is already printed
