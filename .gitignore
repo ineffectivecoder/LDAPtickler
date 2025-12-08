@@ -1,7 +1,25 @@
-.vscode
+.vscode/
 .exe
-local
+.dll
+.so
+.dylib
+local/
+test/
 .pfx
 .ccache
-.json
-.zip
+*.json
+*.zip
+*.out
+ldaptickler
+output.*
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.pfx
