@@ -350,8 +350,8 @@ func addFileToZip(zw *zip.Writer, path string) error {
 // BloodHound-compatible collector implementations
 
 func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
-	// Get users: objectCategory=person OR (GMSA accounts: userAccountControl=4096 that are NOT computers)
-	filter := "(|(objectCategory=person)(userAccountControl=4096))"
+	// Get regular users
+	filter := "(objectCategory=person)"
 	attrs := []string{
 		// Identity attributes
 		"distinguishedName", "sAMAccountName", "userPrincipalName", "objectSid", "objectGUID",
@@ -380,6 +380,13 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
 		return nil, err
 	}
 
+	// Also search for GMSA accounts in Managed Service Accounts container
+	msaContainerDN := "CN=Managed Service Accounts," + baseDN
+	msaRes, msaErr := c.getAllResults(1, "(objectClass=*)", attrs, msaContainerDN)
+	if msaErr == nil && len(msaRes) > 0 {
+		res = append(res, msaRes...)
+	}
+
 	out := []BHUser{}
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
@@ -392,16 +399,10 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
 		}
 
 		samAccountName := firstOrEmpty(e, "sAMAccountName")
-		pgid := firstOrEmpty(e, "primaryGroupID")
-
-		// Skip computer accounts: those with primaryGroupID 515 (Domain Computers) or 516 (Domain Controllers)
-		// GMSA accounts have primaryGroupID null/empty, so they pass this check
-		if pgid == "515" || pgid == "516" {
-			continue
-		}
-
 		uacStr := firstOrEmpty(e, "userAccountControl")
-		uacProps := parseUAC(uacStr) // Get primary group SID
+		uacProps := parseUAC(uacStr)
+
+		// Get primary group SID
 		var primaryGroupSID *string
 		if pgid := firstOrEmpty(e, "primaryGroupID"); pgid != "" {
 			if domainSID != "" {
@@ -673,6 +674,13 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil {
 		return nil, err
+	}
+
+	// Also search for built-in groups in the BUILTIN container
+	builtinContainerDN := "CN=BUILTIN," + baseDN
+	builtinRes, builtinErr := c.getAllResults(1, filter, attrs, builtinContainerDN)
+	if builtinErr == nil && len(builtinRes) > 0 {
+		res = append(res, builtinRes...)
 	}
 
 	out := []BHGroup{}
@@ -1082,7 +1090,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
 }
 
 func (c *Conn) collectContainersBloodHound(baseDN string) (interface{}, error) {
-	// Collect all container objects (CN, OU root level containers, etc.)
+	// Collect all container objects from both domain and configuration partitions
 	filter := "(|(objectClass=container)(objectClass=organizationalUnit))"
 	attrs := []string{
 		// Identity and basic info
@@ -1092,9 +1100,25 @@ func (c *Conn) collectContainersBloodHound(baseDN string) (interface{}, error) {
 		// Security
 		"nTSecurityDescriptor",
 	}
+
+	// Search domain partition only - SharpHound uses subtree scope on domain
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil {
+		// If domain search fails, return error
 		return nil, err
+	}
+
+	// Also search Configuration partition for containers
+	// SharpHound searches the entire Configuration partition with subtree scope
+	configDN := "CN=Configuration," + baseDN
+	configRes, err := c.getAllResults(2, filter, attrs, configDN)
+	if err != nil {
+		fmt.Printf("[!] Configuration partition search error: %v\n", err)
+	} else if len(configRes) > 0 {
+		fmt.Printf("[+] Found %d containers in Configuration partition\n", len(configRes))
+		res = append(res, configRes...)
+	} else {
+		fmt.Printf("[!] Configuration partition search returned 0 results\n")
 	}
 
 	out := []map[string]interface{}{}
