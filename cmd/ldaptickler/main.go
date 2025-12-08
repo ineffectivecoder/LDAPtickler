@@ -251,7 +251,7 @@ func init() {
 			log.Fatal("[-] Username is empty, unable to continue")
 		}
 		if flags.passwordcli == "" {
-			fmt.Printf("[+] Enter Password:")
+			fmt.Printf("[+] Enter Password: ")
 			bytepw, err = term.ReadPassword(int(os.Stdin.Fd()))
 			fmt.Println()
 
