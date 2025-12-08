@@ -1487,9 +1487,6 @@ func (c *Conn) RemoveShadowCredentials(username string) error {
 	return nil
 }
 
-// AddShadowCredential adds a shadow credential (msDS-KeyCredentialLink) to a user account
-// This allows authentication via a new public key credential without changing the password
-// Returns the credential ID for use with PKINIT
 // AddShadowCredentialWithPFX adds a shadow credential and generates a PFX file for use with gettgtpkinit.py
 // Returns: PFX filename, PFX password, credential ID, error
 func (c *Conn) AddShadowCredentialWithPFX(username string, outputPath string) (pfxFilename string, pfxPassword string, credentialID string, err error) {
