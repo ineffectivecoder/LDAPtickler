@@ -10,7 +10,6 @@ test/
 *.json
 *.zip
 *.out
-ldaptickler
 output.*
 
 # IDE

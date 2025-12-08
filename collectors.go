@@ -173,8 +173,9 @@ type BHEnterpriseCA struct {
 	Properties              map[string]interface{} `json:"Properties"`
 	HostingComputer         *string                `json:"HostingComputer"`
 	CARegistryData          interface{}            `json:"CARegistryData"`
-	EnabledCertTemplates    []string               `json:"EnabledCertTemplates"`
+	EnabledCertTemplates    []BHMember             `json:"EnabledCertTemplates"`
 	HttpEnrollmentEndpoints []string               `json:"HttpEnrollmentEndpoints"`
+	IssuedBy                *string                `json:"IssuedBy"`
 	Aces                    []BHAce                `json:"Aces"`
 	IsDeleted               bool                   `json:"IsDeleted"`
 	IsACLProtected          bool                   `json:"IsACLProtected"`
@@ -349,7 +350,8 @@ func addFileToZip(zw *zip.Writer, path string) error {
 // BloodHound-compatible collector implementations
 
 func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
-	filter := "(&(objectCategory=person)(objectClass=user))"
+	// Get users: objectCategory=person OR (GMSA accounts: userAccountControl=4096 that are NOT computers)
+	filter := "(|(objectCategory=person)(userAccountControl=4096))"
 	attrs := []string{
 		// Identity attributes
 		"distinguishedName", "sAMAccountName", "userPrincipalName", "objectSid", "objectGUID",
@@ -390,10 +392,16 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
 		}
 
 		samAccountName := firstOrEmpty(e, "sAMAccountName")
-		uacStr := firstOrEmpty(e, "userAccountControl")
-		uacProps := parseUAC(uacStr)
+		pgid := firstOrEmpty(e, "primaryGroupID")
 
-		// Get primary group SID
+		// Skip computer accounts: those with primaryGroupID 515 (Domain Computers) or 516 (Domain Controllers)
+		// GMSA accounts have primaryGroupID null/empty, so they pass this check
+		if pgid == "515" || pgid == "516" {
+			continue
+		}
+
+		uacStr := firstOrEmpty(e, "userAccountControl")
+		uacProps := parseUAC(uacStr) // Get primary group SID
 		var primaryGroupSID *string
 		if pgid := firstOrEmpty(e, "primaryGroupID"); pgid != "" {
 			if domainSID != "" {
@@ -1449,6 +1457,73 @@ func buildPKIConfigDN(baseDN string) string {
 	return "CN=Public Key Services,CN=Services,CN=Configuration," + baseDN
 }
 
+// Helper function to find certificate template containers and Root CAs
+func (c *Conn) getCertTemplateContainerGUID(baseDN string) *string {
+	pkiBaseDN := buildPKIConfigDN(baseDN)
+	containerDN := "CN=Certificate Templates," + pkiBaseDN
+	filter := "(objectClass=container)"
+	attrs := []string{"objectGUID"}
+
+	res, err := c.getAllResults(0, filter, attrs, containerDN)
+	if err != nil || len(res) == 0 {
+		return nil
+	}
+
+	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
+		return &guid
+	}
+	return nil
+}
+
+func (c *Conn) findRootCAForEnterprise(baseDN string) *string {
+	pkiBaseDN := buildPKIConfigDN(baseDN)
+	filter := "(objectClass=certificationAuthority)"
+	attrs := []string{"objectGUID"}
+
+	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
+	if err != nil || len(res) == 0 {
+		return nil
+	}
+
+	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
+		return &guid
+	}
+	return nil
+}
+
+func (c *Conn) getCertificationAuthoritiesContainerGUID(baseDN string) *string {
+	pkiBaseDN := buildPKIConfigDN(baseDN)
+	containerDN := "CN=Certification Authorities," + pkiBaseDN
+	filter := "(objectClass=container)"
+	attrs := []string{"objectGUID"}
+
+	res, err := c.getAllResults(0, filter, attrs, containerDN)
+	if err != nil || len(res) == 0 {
+		return nil
+	}
+
+	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
+		return &guid
+	}
+	return nil
+}
+
+func (c *Conn) getPKIContainerGUID(baseDN string) *string {
+	pkiBaseDN := buildPKIConfigDN(baseDN)
+	filter := "(objectClass=container)"
+	attrs := []string{"objectGUID"}
+
+	res, err := c.getAllResults(0, filter, attrs, pkiBaseDN)
+	if err != nil || len(res) == 0 {
+		return nil
+	}
+
+	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
+		return &guid
+	}
+	return nil
+}
+
 // findCertTemplateGUIDsByCA finds which certificate templates can be issued by an Enterprise CA
 // In AD, all templates published in the forest are available to all CAs, but specific
 // templates can be restricted. For now, we return all templates in the domain as all CAs
@@ -1530,6 +1605,7 @@ func (c *Conn) collectCertTemplatesBloodHound(baseDN string) (interface{}, error
 	var out []BHCertTemplate
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
+	templateContainerGUID := c.getCertTemplateContainerGUID(baseDN)
 
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
@@ -1560,13 +1636,22 @@ func (c *Conn) collectCertTemplatesBloodHound(baseDN string) (interface{}, error
 			"issuancepolicies":              nilIfEmpty(entry["msPKI-Certificate-Policy"]),
 		}
 
+		// Set ContainedBy if we found the container
+		var containedBy *BHContainedBy
+		if templateContainerGUID != nil {
+			containedBy = &BHContainedBy{
+				ObjectIdentifier: *templateContainerGUID,
+				ObjectType:       "Container",
+			}
+		}
+
 		certObj := BHCertTemplate{
 			ObjectID:       guid,
 			Properties:     props,
 			Aces:           []BHAce{},
 			IsDeleted:      false,
 			IsACLProtected: false,
-			ContainedBy:    nil,
+			ContainedBy:    containedBy,
 		}
 		out = append(out, certObj)
 	}
@@ -1605,6 +1690,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 	var out []BHEnterpriseCA
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
+	issuedByCA := c.findRootCAForEnterprise(baseDN)
 
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
@@ -1627,7 +1713,14 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 		}
 
 		// Find certificate templates published by this CA
-		enabledTemplates := c.findCertTemplateGUIDsByCA(name, baseDN)
+		templateGUIDs := c.findCertTemplateGUIDsByCA(name, baseDN)
+		enabledTemplates := []BHMember{}
+		for _, guid := range templateGUIDs {
+			enabledTemplates = append(enabledTemplates, BHMember{
+				ObjectIdentifier: guid,
+				ObjectType:       "CertTemplate",
+			})
+		}
 
 		props := map[string]interface{}{
 			"distinguishedname": dn,
@@ -1647,6 +1740,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 			CARegistryData:          nil,
 			EnabledCertTemplates:    enabledTemplates,
 			HttpEnrollmentEndpoints: []string{},
+			IssuedBy:                issuedByCA,
 			Aces:                    []BHAce{},
 			IsDeleted:               false,
 			IsACLProtected:          false,
@@ -1668,24 +1762,28 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 
 func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
-	filter := "(objectClass=pkiAIA)"
+	aiaContainerDN := "CN=AIA," + pkiBaseDN
 	attrs := []string{
 		"objectGUID", "cn", "distinguishedName", "whenCreated",
 		"crossCertificatePair",
 	}
-	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
-	if err != nil {
-		// Return empty result instead of error if no entries found
-		return map[string]interface{}{
-			"data": []BHAIACA{},
-			"meta": map[string]interface{}{
-				"methods": 0,
-				"type":    "aiacas",
-				"count":   0,
-				"version": 5,
-			},
-		}, nil
+	// Search in AIA container for all objects (looking for CA objects)
+	res, err := c.getAllResults(1, "(objectClass=*)", attrs, aiaContainerDN)
+	if err != nil || len(res) == 0 {
+		// If that doesn't work, try searching whole PKI base for anything in AIA
+		res, err = c.getAllResults(2, "(|(objectClass=pkiAIA)(cn=*))", attrs, aiaContainerDN)
 	}
+	// Filter out the AIA container itself if it was returned
+	filtered := make([]map[string][]string, 0)
+	for _, entry := range res {
+		dn := firstOrEmpty(entry, "DN")
+		cn := firstOrEmpty(entry, "cn")
+		// Skip the AIA container itself (where cn=AIA and dn matches the container)
+		if !(cn == "AIA" && dn == aiaContainerDN) {
+			filtered = append(filtered, entry)
+		}
+	}
+	res = filtered
 
 	var out []BHAIACA
 	domainSID := c.getDomainSID(baseDN)
@@ -1735,11 +1833,13 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
 
 func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
+	// Search only in the Certification Authorities container to exclude NTAuthCertificates
+	rootCAsContainerDN := "CN=Certification Authorities," + pkiBaseDN
 	filter := "(objectClass=certificationAuthority)"
 	attrs := []string{
 		"objectGUID", "cn", "distinguishedName", "whenCreated",
 	}
-	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
+	res, err := c.getAllResults(1, filter, attrs, rootCAsContainerDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
 		return map[string]interface{}{
@@ -1756,6 +1856,7 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 	var out []BHRootCA
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
+	rootCAContainerGUID := c.getCertificationAuthoritiesContainerGUID(baseDN)
 
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
@@ -1776,6 +1877,15 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
 		}
 
+		// Set ContainedBy if we found the container
+		var containedBy *BHContainedBy
+		if rootCAContainerGUID != nil {
+			containedBy = &BHContainedBy{
+				ObjectIdentifier: *rootCAContainerGUID,
+				ObjectType:       "Container",
+			}
+		}
+
 		rootObj := BHRootCA{
 			ObjectID:       guid,
 			Properties:     props,
@@ -1783,7 +1893,7 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 			Aces:           []BHAce{},
 			IsDeleted:      false,
 			IsACLProtected: false,
-			ContainedBy:    nil,
+			ContainedBy:    containedBy,
 		}
 		out = append(out, rootObj)
 	}
@@ -1822,6 +1932,7 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 	var out []BHNTAuthStore
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
+	pkiContainerGUID := c.getPKIContainerGUID(baseDN)
 
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
@@ -1842,6 +1953,15 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
 		}
 
+		// Set ContainedBy to Public Key Services container
+		var containedBy *BHContainedBy
+		if pkiContainerGUID != nil {
+			containedBy = &BHContainedBy{
+				ObjectIdentifier: *pkiContainerGUID,
+				ObjectType:       "Container",
+			}
+		}
+
 		ntObj := BHNTAuthStore{
 			ObjectID:       guid,
 			Properties:     props,
@@ -1849,7 +1969,7 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 			Aces:           []BHAce{},
 			IsDeleted:      false,
 			IsACLProtected: false,
-			ContainedBy:    nil,
+			ContainedBy:    containedBy,
 		}
 		out = append(out, ntObj)
 	}
@@ -1867,12 +1987,22 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 
 func (c *Conn) collectIssuancePoliciesBloodHound(baseDN string) (interface{}, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
-	filter := "(objectClass=msPKI-IssuancePolicy)"
+	// Issuance Policies are typically under CN=OID
+	oidContainerDN := "CN=OID," + pkiBaseDN
 	attrs := []string{
 		"objectGUID", "cn", "displayName", "distinguishedName", "whenCreated",
 		"msPKI-OIDCertTemplate-OID",
 	}
-	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
+	// Search in OID container for issuance policy objects
+	res, err := c.getAllResults(1, "(displayName=*Assurance*)", attrs, oidContainerDN)
+	if err != nil || len(res) == 0 {
+		// Try searching for msPKI-IssuancePolicy objectClass
+		res, err = c.getAllResults(2, "(objectClass=msPKI-IssuancePolicy)", attrs, oidContainerDN)
+	}
+	if err != nil || len(res) == 0 {
+		// Last attempt: search whole PKI base
+		res, err = c.getAllResults(2, "(objectClass=msPKI-IssuancePolicy)", attrs, pkiBaseDN)
+	}
 	if err != nil {
 		// Return empty result instead of error if no entries found
 		return map[string]interface{}{
