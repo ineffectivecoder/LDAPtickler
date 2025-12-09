@@ -326,9 +326,7 @@ func main() {
 	fmt.Printf("[+] Successfully connected to %s\n", flags.dc)
 	err = lookupTable[strings.ToLower(cli.Arg(0))].call(c, cli.Args()[1:]...)
 	check(err)
-	if err == nil {
-		os.Exit(0)
-	}
+
 }
 func addloginscript(c *ldaptickler.Conn, args ...string) error {
 	username := args[0]

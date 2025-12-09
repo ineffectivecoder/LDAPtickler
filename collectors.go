@@ -1159,61 +1159,6 @@ func (c *Conn) collectContainersBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectTrustsBloodHound(baseDN string) (interface{}, error) {
-	filter := "(objectClass=trustedDomain)"
-	attrs := []string{
-		// Identity
-		"cn", "distinguishedName", "objectSid",
-		// Trust information
-		"flatName", "trustAttributes", "trustDirection", "trustType", "trustPartner",
-		// Trust forest
-		"whenCreated", "whenChanged",
-	}
-	res, err := c.getAllResults(2, filter, attrs, baseDN)
-	if err != nil {
-		return map[string]interface{}{
-			"data": []any{},
-			"meta": map[string]interface{}{
-				"methods": 0,
-				"type":    "trusts",
-				"count":   0,
-				"version": 5,
-			},
-		}, nil
-	}
-
-	out := []map[string]interface{}{}
-	for _, e := range res {
-		dn := firstOrEmpty(e, "DN")
-		cn := firstOrEmpty(e, "cn")
-
-		props := map[string]interface{}{
-			"name":            cn,
-			"domain":          extractDomainFromDN(dn),
-			"flatname":        firstOrEmpty(e, "flatName"),
-			"trustattributes": firstOrEmpty(e, "trustAttributes"),
-			"trustdirection":  firstOrEmpty(e, "trustDirection"),
-			"trusttype":       firstOrEmpty(e, "trustType"),
-		}
-
-		trust := map[string]interface{}{
-			"ObjectIdentifier": cn,
-			"Properties":       props,
-		}
-		out = append(out, trust)
-	}
-
-	return map[string]interface{}{
-		"data": out,
-		"meta": map[string]interface{}{
-			"methods": 0,
-			"type":    "trusts",
-			"count":   len(out),
-			"version": 5,
-		},
-	}, nil
-}
-
 // Helper functions
 
 func firstOrEmpty(m map[string][]string, k string) string {
@@ -1226,14 +1171,6 @@ func firstOrEmpty(m map[string][]string, k string) string {
 	return ""
 }
 
-// toNullableString converts empty string to nil, otherwise returns the string as interface{}
-func toNullableString(s string) interface{} {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
 // Helper functions for type conversion
 func toInt(s string) interface{} {
 	if s == "" {
@@ -1244,13 +1181,6 @@ func toInt(s string) interface{} {
 		return nil
 	}
 	return int(val)
-}
-
-func toBool(b bool) interface{} {
-	if b {
-		return true
-	}
-	return false
 }
 
 func toStringOrNil(s string) interface{} {
