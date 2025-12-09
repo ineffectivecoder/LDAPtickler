@@ -1032,7 +1032,7 @@ func (c *Conn) ListConstrainedDelegation() error {
 
 // ListComputers will search the directory for all computer/machine account objects
 func (c *Conn) ListComputers() error {
-	filter := "(objectClass=computer)"
+	filter := "(&(objectClass=computer)(!(objectClass=msDS-GroupManagedServiceAccount)))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
