@@ -463,6 +463,34 @@ func changepassword(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
+func collectbh(c *ldaptickler.Conn, args ...string) error {
+	var out string
+	if len(args) > 0 {
+		out = args[0]
+	}
+	// If user provided --output, prefer that
+	if flags.output != "" {
+		out = flags.output
+	}
+	// Determine requested collectors
+	collectors := []string{}
+	if len(flags.collectors) > 0 {
+		collectors = expandlist(flags.collectors)
+	}
+
+	fmt.Printf("[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n", collectors, flags.null, flags.basedn)
+	zipPath, err := c.CollectBloodHound(collectors, out, flags.basedn, flags.null)
+	if err != nil {
+		return err
+	}
+	if flags.null {
+		fmt.Printf("[+] Traffic sent successfully, not outputting files\n")
+	} else {
+		fmt.Printf("[+] Successfully wrote collector output to %s\n", zipPath)
+	}
+	return nil
+}
+
 func computers(c *ldaptickler.Conn, args ...string) error {
 	fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s\n", flags.basedn)
 	err := c.ListComputers()
@@ -780,33 +808,5 @@ func whoami(c *ldaptickler.Conn, args ...string) error {
 	result, err := c.GetWhoAmI()
 	check(err)
 	fmt.Printf("[+] You are currently authenticated as %+v\n", *result)
-	return nil
-}
-
-func collectbh(c *ldaptickler.Conn, args ...string) error {
-	var out string
-	if len(args) > 0 {
-		out = args[0]
-	}
-	// If user provided --output, prefer that
-	if flags.output != "" {
-		out = flags.output
-	}
-	// Determine requested collectors
-	collectors := []string{}
-	if len(flags.collectors) > 0 {
-		collectors = expandlist(flags.collectors)
-	}
-
-	fmt.Printf("[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n", collectors, flags.null, flags.basedn)
-	zipPath, err := c.CollectBloodHound(collectors, out, flags.basedn, flags.null)
-	if err != nil {
-		return err
-	}
-	if flags.null {
-		fmt.Printf("[+] Traffic sent successfully, not outputting files\n")
-	} else {
-		fmt.Printf("[+] Successfully wrote collector output to %s\n", zipPath)
-	}
 	return nil
 }
