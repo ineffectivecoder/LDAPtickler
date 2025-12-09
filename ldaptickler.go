@@ -117,6 +117,7 @@ type Conn struct {
 	baseDN     string
 	skipVerify bool
 	url        string
+	username   string
 }
 
 // New TODO great note Chris
@@ -172,6 +173,7 @@ func encodePassword(password string) string {
 
 // BindAnonymous will attempt to bind to the specified URL with an optional username.
 func (c *Conn) BindAnonymous(username string) error {
+	c.username = username
 	var err error
 	err = c.bindSetup()
 	if err != nil {
@@ -186,6 +188,7 @@ func (c *Conn) BindAnonymous(username string) error {
 
 // BindDomain will attempt to bind to the specified URL with a username, password and domain.
 func (c *Conn) BindDomain(domain string, username string, password string) error {
+	c.username = username
 	var err error
 	err = c.bindSetup()
 	if err != nil {
@@ -200,6 +203,7 @@ func (c *Conn) BindDomain(domain string, username string, password string) error
 
 // BindDomainPTH will attempt to bind to the specified URL with a username, password hash and domain.
 func (c *Conn) BindDomainPTH(domain string, username string, hash string) error {
+	c.username = username
 	var err error
 	err = c.bindSetup()
 	if err != nil {
@@ -214,6 +218,7 @@ func (c *Conn) BindDomainPTH(domain string, username string, hash string) error 
 
 func (c *Conn) BindGSSAPI(domain string, username string, password string, spn string) error {
 	// GSSAPI Implementation
+	c.username = username
 	var err error
 	c.gssClient, err = gssapi.NewClientWithPassword(
 		username,                     // Kerberos principal name
@@ -244,6 +249,7 @@ func (c *Conn) BindGSSAPI(domain string, username string, password string, spn s
 
 // BindPassword will attempt a simple bind to the specified  URL with supplied username and password
 func (c *Conn) BindPassword(username string, password string) error {
+	c.username = username
 	var err error
 	err = c.bindSetup()
 	if err != nil {
@@ -973,7 +979,11 @@ func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attribu
 		return nil, fmt.Errorf("you must bind before searching")
 	}
 	if Debug {
-		log.Printf("[+] ldapsearch -H %s -D 'user@domain' -W -b %s -ZZ -o tls_reqcert=allow '%s' %s\n", c.url, basedn, filter, strings.Join(attributes, " "))
+		if c.username != "" {
+			log.Printf("[+] ldapsearch -H %s -D %s -W -b %s -o tls_reqcert=allow '%s' %s\n", c.url, c.username, basedn, filter, strings.Join(attributes, " "))
+		} else {
+			log.Printf("[+] ldapsearch -H %s -b %s -ZZ -o tls_reqcert=allow '%s' %s\n", c.url, basedn, filter, strings.Join(attributes, " "))
+		}
 	}
 	var err error
 	var result *ldap.SearchResult
