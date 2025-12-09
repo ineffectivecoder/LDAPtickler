@@ -23,7 +23,7 @@ require (
 	//	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	//	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/mjwhitta/errors v1.0.5 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.36.0
 	//	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 )
@@ -32,6 +32,7 @@ require (
 	github.com/huner2/go-sddlparse v1.0.5
 	github.com/jcmturner/gokrb5 v8.4.4+incompatible
 	github.com/jcmturner/gokrb5/v8 v8.4.4
+	software.sslmate.com/src/go-pkcs12 v0.6.0
 )
 
 require (
@@ -43,5 +44,4 @@ require (
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	software.sslmate.com/src/go-pkcs12 v0.6.0 // indirect
 )

@@ -1199,7 +1199,7 @@ func nilIfEmpty(slice []string) interface{} {
 }
 
 func sliceOrNil(slice []string) []string {
-	if slice == nil || len(slice) == 0 {
+	if len(slice) == 0 {
 		return nil
 	}
 	return slice
@@ -1758,7 +1758,7 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
 	res, err := c.getAllResults(1, "(objectClass=*)", attrs, aiaContainerDN)
 	if err != nil || len(res) == 0 {
 		// If that doesn't work, try searching whole PKI base for anything in AIA
-		res, err = c.getAllResults(2, "(|(objectClass=pkiAIA)(cn=*))", attrs, aiaContainerDN)
+		res, _ = c.getAllResults(2, "(|(objectClass=pkiAIA)(cn=*))", attrs, aiaContainerDN)
 	}
 	// Filter out the AIA container itself if it was returned
 	filtered := make([]map[string][]string, 0)
