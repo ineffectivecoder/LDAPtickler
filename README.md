@@ -361,7 +361,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 - [x] Accept plain text password at the command line  
 - [ ] Leverage existing users TGT in Windows environment for authentication
 - [ ] Local password storage options
-- [ ] Derive domain from basedn so the user doesnt need to provide it
+- [x] Derive domain from dc so the user doesnt need to provide it
 - [ ] unrolled/effective group membership  
 - [ ] Modify scope to be words instead of numbers, easier to recall  
 - [ ] Provide ldapsearch equivalent for each query  
