@@ -1,6 +1,7 @@
 package ldaptickler
 
 /*
+Update 12/9/25 - This is more or less equal to the data being pulled with sharphound
 LDAP Attribute Collection Strategy
 ====================================
 

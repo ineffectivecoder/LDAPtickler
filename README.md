@@ -46,13 +46,13 @@ or
 
 ### Execute without compiling
 ```
-go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
+go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top  whoami
 ```
 
 ## Example Usage
 ```
 Usage:
-/home/slacker/.cache/go-build/05/0514f7f4a2e08921cba86e944c1454cd708caf3c2f9c10d5f4b2e5b5a1fcb5ff-d/ldaptickler
+/home/slacker/.cache/go-build/4c/4ceafdbe71e8a2e633229ac950c4e469ef7f1d68d0695e873af95d772fae8d88-d/ldaptickler
 [OPTIONS] <arg>
 
 DESCRIPTION
@@ -68,10 +68,10 @@ OPTIONS
                                (users,computers,groups,domains)
         --dc=STRING            Identify domain controller
     -d, --domain=STRING        Domain for NTLM bind
-    -r, --dry-run              Run collectors without writing files (dry-run)
     -g, --gssapi               Enable GSSAPI and attempt to authenticate
     -h, --help                 Display this help message.
         --insecure             Use ldap:// instead of ldaps://
+    -n, --null                 Run collectors without writing files
     -o, --output=STRING        Output zip file path for collectors
     -p                         Password to bind with, will prompt
         --password=STRING      Password to bind with, provided on command line
@@ -112,6 +112,9 @@ Supported Utility Commands
                                                            account
     disablerbcd <accountname>                              Disables RBCD for an
                                                            account
+    disableshadowcredential <username>                     Removes all shadow
+                                                           credentials from the
+                                                           account
     disablespn <accountname> <spn>                         Removes an SPN from
                                                            an account
     disableunconstraineddelegation <accountname>           Disables
@@ -134,16 +137,13 @@ Supported Utility Commands
                                                            account
     enableuser <username>                                  Enables a user
                                                            account
-    disableshadowcredential <username>                     Removes all shadow
-                                                           credentials from the
-                                                           account
                                                            
 
 Supported LDAP Queries
     certpublishers             Returns all Certificate Publishers in the domain
     computers                  Lists all computer objects in the domain
     collectbh                  Runs SharpHound-style collectors and packages
-                               results into ZIP (use --collectors, --dry-run,
+                               results into ZIP (use --collectors, --null,
                                --output flags)
     constraineddelegation      Lists accounts configured for constrained
                                delegation
@@ -189,11 +189,10 @@ AUTHORS
 ```
 -s = Skip cert verification
 --dc = Specify the domain controller
--basedn = Specify basedn
 whoami = run whoami as the action
 ```
 ```
-go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
+go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top  whoami
 [+] Attempting anonymous bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
 [+] Querying the LDAP server for WhoAmI with baseDN DC=spinninglikea,DC=top
@@ -206,11 +205,10 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top -basedn DC=spinninglikea
 -d = Specify Domain(required for NLTM bind)
 -u = username
 --dc = Specify the domain controller
--basedn = Specify Basedn
 whoami = run whoami as the action
 ```
 ```
-go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
+go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinninglikea.top  whoami
 [+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
@@ -223,11 +221,10 @@ go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinnin
 -u = username, it may be necessary to pass the domain as well for example, domain\username
 -p = Prompt for password
 --dc = Specify the domain controller
--basedn = Specify Basedn
 whoami = run whoami as the action
 ```
 ```
-go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top whoami
+go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top  whoami
 [+] Enter Password:
 [+] Attempting bind with credentials to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
@@ -239,7 +236,6 @@ go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top -basedn D
 ```
 -d = Domain
 --dc = domain controller
- -basedn = Specify Basedn
  -s = Skip cert verification
  -u = username
  -p = Prompt for password
@@ -247,7 +243,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top -basedn D
 ```
 
 ```
-go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u lowprivguy -p computers
+go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top  -s -u lowprivguy -p computers
 [+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
@@ -258,7 +254,6 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -based
 ### List users
 ```
 -d = Domain
--basedn = Specify Basedn
 -g = Enable GSSAPI
 -dc = Specify DC
 -s = Skip cert verification
@@ -267,7 +262,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -based
 users = query users in LDAP
 ```
 ```
-go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u lowprivguy -p users
+go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top  -s -u lowprivguy -p users
 [+] Enter Password:
 [+] Attempting GSSAPI bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
@@ -289,7 +284,6 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top -bas
 ### Search with custom filter
 ```
 -dc = Specify DC
--basedn = Specify Basedn
 -s = Skip cert verification
 -u = username
 -p = Prompt for password
@@ -297,7 +291,7 @@ users = query users in LDAP
 ```
 
 ```
-go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top -basedn DC=spinninglikea,DC=top -s -u lowprivguy  -p search "(&(samaccountname=Cert Publishers)(member=*))" 
+go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p search "(&(samaccountname=Cert Publishers)(member=*))" 
 [+] Enter Password:
 [+] Attempting bind with credentials to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
