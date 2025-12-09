@@ -982,7 +982,7 @@ func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attribu
 		if c.username != "" {
 			log.Printf("[+] ldapsearch -H %s -D %s -W -b %s -o tls_reqcert=allow '%s' %s\n", c.url, c.username, basedn, filter, strings.Join(attributes, " "))
 		} else {
-			log.Printf("[+] ldapsearch -H %s -b %s -ZZ -o tls_reqcert=allow '%s' %s\n", c.url, basedn, filter, strings.Join(attributes, " "))
+			log.Printf("[+] ldapsearch -H %s -b %s -o tls_reqcert=allow '%s' %s\n", c.url, basedn, filter, strings.Join(attributes, " "))
 		}
 	}
 	var err error
