@@ -1463,7 +1463,7 @@ func (c *Conn) getPKIContainerGUID(baseDN string) *string {
 // In AD, all templates published in the forest are available to all CAs, but specific
 // templates can be restricted. For now, we return all templates in the domain as all CAs
 // can theoretically issue them unless restricted via permissions.
-func (c *Conn) findCertTemplateGUIDsByCA(caName string, baseDN string) []string {
+func (c *Conn) findCertTemplateGUIDsByCA(baseDN string) []string {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	filter := "(objectClass=pKICertificateTemplate)"
 	attrs := []string{"objectGUID"}
@@ -1666,7 +1666,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 		}
 
 		// Find certificate templates published by this CA
-		templateGUIDs := c.findCertTemplateGUIDsByCA(name, baseDN)
+		templateGUIDs := c.findCertTemplateGUIDsByCA(baseDN)
 		enabledTemplates := []BHMember{}
 		for _, guid := range templateGUIDs {
 			enabledTemplates = append(enabledTemplates, BHMember{
