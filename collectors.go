@@ -287,6 +287,16 @@ func (c *Conn) CollectBloodHound(collectors []string, outputPath string, baseDN 
 		if err != nil {
 			return "", fmt.Errorf("collector %s failed: %w", name, err)
 		}
+
+		// Print count for this collector
+		if dataMap, ok := data.(map[string]interface{}); ok {
+			if meta, ok := dataMap["meta"].(map[string]interface{}); ok {
+				if count, ok := meta["count"].(int); ok {
+					fmt.Printf("[+] Collected %d %s\n", count, name)
+				}
+			}
+		}
+
 		if dryRun {
 			continue
 		}
@@ -1569,7 +1579,25 @@ func (c *Conn) findCertTemplateGUIDsByCA(caName string, baseDN string) []string 
 		}
 	}
 	return guids
-} // findComputerByDNSName finds a computer GUID by matching its dNSHostName
+}
+
+// getContainerGUIDByDN retrieves the objectGUID of a container by its DN
+func (c *Conn) getContainerGUIDByDN(dn string) string {
+	attrs := []string{"objectGUID"}
+	result, err := c.ldapSearch(dn, 0, "(objectClass=*)", attrs)
+	if err != nil || len(result.Entries) == 0 {
+		return ""
+	}
+
+	for _, attr := range result.Entries[0].Attributes {
+		if attr.Name == "objectGUID" && len(attr.ByteValues) > 0 {
+			return decodeGUID(attr.ByteValues[0])
+		}
+	}
+	return ""
+}
+
+// findComputerByDNSName finds a computer GUID by matching its dNSHostName
 func (c *Conn) findComputerByDNSName(dnsHostname string, baseDN string) *string {
 	if dnsHostname == "" {
 		return nil
@@ -1746,6 +1774,20 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 			})
 		}
 
+		// Find parent container (Enrollment Services) for ContainedBy relationship
+		var containedBy *BHContainedBy
+		parts := strings.Split(dn, ",")
+		if len(parts) > 1 {
+			parentDN := strings.Join(parts[1:], ",")
+			parentGUID := c.getContainerGUIDByDN(parentDN)
+			if parentGUID != "" {
+				containedBy = &BHContainedBy{
+					ObjectIdentifier: parentGUID,
+					ObjectType:       "Container",
+				}
+			}
+		}
+
 		props := map[string]interface{}{
 			"distinguishedname": dn,
 			"domain":            strings.ToUpper(domain),
@@ -1768,7 +1810,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 			Aces:                    []BHAce{},
 			IsDeleted:               false,
 			IsACLProtected:          false,
-			ContainedBy:             nil,
+			ContainedBy:             containedBy,
 		}
 		out = append(out, caObj)
 	}
