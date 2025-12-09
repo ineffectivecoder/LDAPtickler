@@ -288,15 +288,6 @@ func (c *Conn) CollectBloodHound(collectors []string, outputPath string, baseDN 
 			return "", fmt.Errorf("collector %s failed: %w", name, err)
 		}
 
-		// Print count for this collector
-		if dataMap, ok := data.(map[string]interface{}); ok {
-			if meta, ok := dataMap["meta"].(map[string]interface{}); ok {
-				if count, ok := meta["count"].(int); ok {
-					fmt.Printf("[+] Collected %d %s\n", count, name)
-				}
-			}
-		}
-
 		if dryRun {
 			continue
 		}
@@ -1125,7 +1116,6 @@ func (c *Conn) collectContainersBloodHound(baseDN string) (interface{}, error) {
 	if err != nil {
 		fmt.Printf("[!] Configuration partition search error: %v\n", err)
 	} else if len(configRes) > 0 {
-		fmt.Printf("[+] Found %d containers in Configuration partition\n", len(configRes))
 		res = append(res, configRes...)
 	} else {
 		fmt.Printf("[!] Configuration partition search returned 0 results\n")
@@ -1955,7 +1945,7 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 		rootObj := BHRootCA{
 			ObjectID:       guid,
 			Properties:     props,
-			DomainSID:      nil,
+			DomainSID:      &dsid,
 			Aces:           []BHAce{},
 			IsDeleted:      false,
 			IsACLProtected: false,
@@ -2031,7 +2021,7 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 		ntObj := BHNTAuthStore{
 			ObjectID:       guid,
 			Properties:     props,
-			DomainSID:      nil,
+			DomainSID:      &dsid,
 			Aces:           []BHAce{},
 			IsDeleted:      false,
 			IsACLProtected: false,
