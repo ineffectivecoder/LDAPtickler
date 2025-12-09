@@ -278,7 +278,13 @@ func init() {
 			log.Fatal("[-] PTH hash is empty, unable to continue")
 		}
 	}
-
+	// Deriving the basedn from the dc hostname
+	if strings.Contains(flags.dc, ".") && flags.basedn == "" {
+		flags.basedn = "DC=" + strings.Join(
+			strings.Split(flags.dc, ".")[1:],
+			",DC=",
+		)
+	}
 	if flags.basedn == "" {
 		log.Fatal("[-] A basedn will be required for any action")
 	}
