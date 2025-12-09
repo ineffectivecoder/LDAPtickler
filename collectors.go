@@ -1271,26 +1271,6 @@ func parseUAC(uacStr string) map[string]interface{} {
 	return result
 }
 
-// parseWinFiletime converts Windows FILETIME to Unix timestamp
-func parseWinFiletime(ftStr string) int64 {
-	if ftStr == "" {
-		return 0
-	}
-	var ft int64
-	_, err := fmt.Sscanf(ftStr, "%d", &ft)
-	if err != nil {
-		return 0
-	}
-	// Windows FILETIME is 100-nanosecond intervals since Jan 1, 1601
-	// Convert to Unix timestamp (seconds since Jan 1, 1970)
-	if ft == 0 {
-		return 0
-	}
-	// 116444736000000000 is the number of 100-nanosecond intervals from 1601-01-01 to 1970-01-01
-	unixTime := (ft - 116444736000000000) / 10000000
-	return unixTime
-}
-
 // parseLDAPTimestamp converts Windows FILETIME (used by lastLogon, pwdLastSet) to Unix timestamp
 // FILETIME is stored as a 64-bit integer representing 100-nanosecond intervals since 1601-01-01
 func parseLDAPTimestamp(timeStr string) int64 {
