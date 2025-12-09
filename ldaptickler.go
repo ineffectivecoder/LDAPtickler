@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"os"
@@ -107,6 +108,7 @@ const (
 // This will reveal creds in plain text, yay
 var LDAPDebug bool
 var reSDDL *regexp.Regexp = regexp.MustCompile(`(\([^\)]+\))`)
+var Debug bool
 
 // Conn gives us a structure named lconn linked to *ldap.Conn
 type Conn struct {
@@ -969,6 +971,9 @@ func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attributes []string, controls ...ldap.Control) (*ldap.SearchResult, error) {
 	if c.lconn == nil {
 		return nil, fmt.Errorf("you must bind before searching")
+	}
+	if Debug {
+		log.Printf("[+] ldapsearch -H %s -D 'user@domain' -W -b %s -ZZ -o tls_reqcert=allow '%s' %s\n", c.url, basedn, filter, strings.Join(attributes, " "))
 	}
 	var err error
 	var result *ldap.SearchResult
