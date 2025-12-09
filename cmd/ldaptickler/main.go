@@ -92,13 +92,13 @@ var flags struct {
 	attributes        cli.StringList
 	basedn            string
 	collectors        cli.StringList
+	dc                string
 	domain            string
 	domaincontrollers bool
-	dryRun            bool
 	filter            string
 	gssapi            bool
 	insecure          bool
-	dc                string
+	null              bool
 	output            string
 	password          bool
 	passwordcli       string
@@ -153,7 +153,7 @@ func init() {
 	cli.SectionAligned("Supported LDAP Queries", "::",
 		"certpublishers::Returns all Certificate Publishers in the domain\n",
 		"computers::Lists all computer objects in the domain\n",
-		"collectbh::Runs SharpHound-style collectors and packages results into ZIP (use --collectors, --dry-run, --output flags)\n",
+		"collectbh::Runs SharpHound-style collectors and packages results into ZIP (use --collectors, --null, --output flags)\n",
 		"constraineddelegation::Lists accounts configured for constrained delegation\n",
 		"dnsrecords::Returns DNS records stored in Active Directory\n",
 		"domaincontrollers::Lists all domain controllers in the domain\n",
@@ -195,7 +195,7 @@ func init() {
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash")
 	cli.Flag(&flags.verbose, "v", "verbose", false, "Enable verbose output")
 	cli.Flag(&flags.collectors, "c", "collectors", "", "Comma-separated list of collectors to run (users,computers,groups,domains)")
-	cli.Flag(&flags.dryRun, "r", "dry-run", false, "Run collectors without writing files (dry-run)")
+	cli.Flag(&flags.null, "n", "null", false, "Run collectors without writing files")
 	cli.Flag(&flags.output, "o", "output", "", "Output zip file path for collectors")
 
 	cli.Parse()
@@ -792,13 +792,13 @@ func collectbh(c *ldaptickler.Conn, args ...string) error {
 		collectors = expandlist(flags.collectors)
 	}
 
-	fmt.Printf("[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n", collectors, flags.dryRun, flags.basedn)
-	zipPath, err := c.CollectBloodHound(collectors, out, flags.basedn, flags.dryRun)
+	fmt.Printf("[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n", collectors, flags.null, flags.basedn)
+	zipPath, err := c.CollectBloodHound(collectors, out, flags.basedn, flags.null)
 	if err != nil {
 		return err
 	}
-	if flags.dryRun {
-		fmt.Printf("[+] Dry-run completed successfully\n")
+	if flags.null {
+		fmt.Printf("[+] Traffic sent successfully, not outputting files\n")
 	} else {
 		fmt.Printf("[+] Successfully wrote collector output to %s\n", zipPath)
 	}
