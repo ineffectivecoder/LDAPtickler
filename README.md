@@ -468,7 +468,7 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 - [ ] LAPS support(ms-mcs-admpwd, mslaps-encryptedpassword, mlaps-dsrmpassword attributes)
 - [ ] Delegated managed service account(msDS-DelegatedMSAState,msDS-ManagedAccountPrecededByLink,msDS-SupersededAccountState,msDS-SupersededManagedServiceAccountLink)
 - [x] Socks proxy support
-- [ ] DC and FSMO role querying(fSMORoleOwner)
+- [x] FSMO role querying(fSMORoleOwner)
 - [ ] Search by provided operating system filter
 ## Updates
 * GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
