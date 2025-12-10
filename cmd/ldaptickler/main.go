@@ -685,13 +685,6 @@ func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-/*func gmsapassword(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Listing Group Managed Service Accounts for user")
-	err := c.ListGMSAPassword()
-	check(err)
-	return nil
-}*/
-
 func groups(c *ldaptickler.Conn, args ...string) error {
 	fmt.Printf("[+] Searching for all groups in LDAP with baseDN %s\n", flags.basedn)
 	err := c.ListGroups()
