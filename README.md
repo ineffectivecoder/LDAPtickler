@@ -457,7 +457,7 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
   - [x] Users  
   - [x] Groups
   - [x] kerberoastable users
-  - [x] user specified
+  - [x] User specified
   - [x] Unconstrained ,Constrained Delegation and RBCD
   - [x] Shadow credentials
   - [x] Login scripts
