@@ -372,12 +372,14 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 - [ ] Useful SCCM queries?
 - [ ] LAPS support
 ## Updates
-Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
-It was determined this was silly. Now grabbing the previous UAC setting and doing bit math to add the desired setting.  
-This paves the way to do the same for user accounts.    
-GSSAPI is now implemented thanks to the latest PRs to the go-ldap package.
-
-
+* GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
+* BloodHound collector has been implemented  
+* Shadowcredential creation and removal is now supported  
+* We can read GMSA passwords assuming you are the correct privileged user  
+* Deriving basedn from the name of the DC is now supported  
+* Adding and deleting login scripts is now supported  
+* Plain text password command line support  
+* Providing LDAP search equivalent command if you pass -D  
 ## Thanks
 ### Thank you for testing and letting me bounce ideas off of you!
 - [mjwhitta](https://github.com/mjwhitta/)     
