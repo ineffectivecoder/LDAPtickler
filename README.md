@@ -51,7 +51,9 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top  whoami
 
 ## Example Usage
 ```
-Usage: ./ldaptickler [OPTIONS] <arg>
+Usage:
+ldaptickler
+[OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -149,6 +151,7 @@ Supported LDAP Queries
                                delegation
     dnsrecords                 Returns DNS records stored in Active Directory
     domaincontrollers          Lists all domain controllers in the domain
+    fsmoroles                  Lists all FSMO roles for the domain
     gmsaaccounts               Lists all Group Managed Service Accounts (gMSAs)
                                in the domain, will dump NTLM hash if you have
                                access
