@@ -1139,6 +1139,14 @@ func (c *Conn) ListDNS() error {
 	return nil
 }
 
+// ListFSMORoles will search the directory for all FSMO role holders
+func (c *Conn) ListFSMORoles() error {
+	filter := "(fsmoroleOwner=*)"
+	attributes := []string{"distinguishedName", "fsmoroleOwner"}
+	searchscope := 2
+	return c.LDAPSearch(searchscope, filter, attributes)
+}
+
 // ListGMSAaccounts will search the directory for all Group Managed Service Accounts and display the credential if you have p
 func (c *Conn) ListGMSAaccounts() error {
 	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"

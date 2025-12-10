@@ -57,6 +57,7 @@ var lookupTable map[string]action = map[string]action{
 	"enableconstraineddelegation":    {call: enablecd, numargs: 2, usage: "<samaccountname> <spn>"},
 	"enablerbcd":                     {call: enablerbcd, numargs: 2, usage: "<samaccountname> <delegatingcomputer>"},
 	"enableuser":                     {call: enableuser, numargs: 1, usage: "<username>"},
+	"fsmoroles":                      {call: fsmoroles, numargs: 0},
 	"enableunconstraineddelegation":  {call: enableud, numargs: 1, usage: "<samaccountname>"},
 	"search":                         {call: filter, numargs: 1, usage: "<filter>"},
 	"gmsaaccounts":                   {call: gmsaaccounts, numargs: 0},
@@ -160,6 +161,7 @@ func init() {
 		"constraineddelegation::Lists accounts configured for constrained delegation\n",
 		"dnsrecords::Returns DNS records stored in Active Directory\n",
 		"domaincontrollers::Lists all domain controllers in the domain\n",
+		"fsmoroles::Lists all FSMO roles for the domain\n",
 		"gmsaaccounts::Lists all Group Managed Service Accounts (gMSAs) in the domain, will dump NTLM hash if you have access\n",
 		"groups::Lists all security and distribution groups\n",
 		"groupswithmembers::Lists groups and their associated members\n",
@@ -665,6 +667,13 @@ func filter(c *ldaptickler.Conn, args ...string) error {
 	filter := cli.Arg(1)
 	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
 	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
+	check(err)
+	return nil
+}
+
+func fsmoroles(c *ldaptickler.Conn, args ...string) error {
+	fmt.Printf("[+] Searching for all FSMO role holders in LDAP with baseDN %s\n", flags.basedn)
+	err := c.ListFSMORoles()
 	check(err)
 	return nil
 }

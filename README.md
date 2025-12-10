@@ -457,17 +457,19 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 - [ ] Leverage existing users TGT in Windows environment for authentication
 - [ ] Local password storage options
 - [x] Derive domain from dc so the user doesnt need to provide it
-- [ ] unrolled/effective group membership  
+- [ ] Unrolled/effective group membership  
 - [ ] Modify scope to be words instead of numbers, easier to recall  
 - [x] Provide ldapsearch equivalent for each query  
 - [ ] Support more binary fields, DACLs
 - [x] Add/del login scripts
-- [ ] Reading and writing GPOs?
+- [x] Reading GPOs(supported by collectbh)
 - [ ] When searching, store binary and string version of data, dont throw away binary version
-- [ ] Useful SCCM queries?
-- [ ] LAPS support
-- [ ] Support all things for delegated managed service account  
+- [ ] Useful SCCM queries objectClasses(mSSMS*,mSSMSClient,mSSMSManagementPoint,mSSMSDistributionPoint,mSSMSSite,mSSMSEnvironment(mS-SMS-Site-CODE=*)
+- [ ] LAPS support(ms-mcs-admpwd, mslaps-encryptedpassword, mlaps-dsrmpassword attributes)
+- [ ] Delegated managed service account(msDS-DelegatedMSAState,msDS-ManagedAccountPrecededByLink,msDS-SupersededAccountState,msDS-SupersededManagedServiceAccountLink)
 - [x] Socks proxy support
+- [ ] DC and FSMO role querying(fSMORoleOwner)
+- [ ] Search by provided operating system filter
 ## Updates
 * GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
 * BloodHound collector has been implemented  
