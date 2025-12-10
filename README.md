@@ -1,29 +1,35 @@
+
 # LDAPtickler
+
 ![LDAPtickler](ldaptickler.png)  
 Tickler of LDAP
 
-
 ## What's it for?
+
 This tool is intended to simplify searching LDAP for various objects.  
-It will support multiple operating systems out of the box, thanks to it being written in Go.   
+It will support multiple operating systems out of the box, thanks to it being written in Go.  
 Using ldapsearch is somewhat of a drag and I was hoping to provide a tool  
 for those so inclined to perform raw ldapsearches that isn't a complete nightmare to use.  
 The user of the tool will need to know certain details to use it of course, like the ldap server,  
 have an understanding of what bind methods are supported on the endpoint, basedn,and knowledge of valid creds,etc.
 
 This tool has grown significantly to also allow for modification of certain fields that may be useful to a Red Team operator,
-as well as the incorporation of many queries for spot checking the configuration of many AD attributes.   
+as well as the incorporation of many queries for spot checking the configuration of many AD attributes.  
 This has been tested extensively against Windows 2025 Server running Active Directory.  
 Be extremely careful when arbitrarily modifying or deleting entries in AD, it can lead to all sorts of unexpected behavior.
-I personally have destroyed my domain a few times now leveraging this tool. 
+I personally have destroyed my domain a few times now leveraging this tool.  
 
-This was mainly a research project to better understand AD internals in an LDAP directory.    
+This was mainly a research project to better understand AD internals in an LDAP directory.  
 Also attempts at learning how to manipulate specific fields and trying to understand some of the more esoteric parts of AD.  
 
 ## Installation
+
 You'll need the latest copy of [golang](https://go.dev/dl/) installed.
+
 ## To compile
+
 ## Linux
+
 ```
 export GOOS=windows
 or
