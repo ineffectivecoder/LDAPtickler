@@ -39,7 +39,9 @@ go build ./cmd/ldaptickler/
 or
 ./ldaptickler
 ```
+
 ## Windows
+
 ```
 $Env:GOOS = "windows"
 or
@@ -51,11 +53,13 @@ or
 ```
 
 ### Execute without compiling
+
 ```
 go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top  whoami
 ```
 
 ## Example Usage
+
 ```
 Usage:
 ldaptickler
@@ -194,12 +198,15 @@ Supported LDAP Queries
 AUTHORS
     Chris Hodson r2d2@sostup.id
 ```
+
 ### Anonymous bind 
+
 ```
 -s = Skip cert verification
 --dc = Specify the domain controller
 whoami = run whoami as the action
 ```
+
 ```
 go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top  whoami
 [+] Attempting anonymous bind to tip.spinninglikea.top
@@ -207,7 +214,9 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top  whoami
 [+] Querying the LDAP server for WhoAmI with baseDN DC=spinninglikea,DC=top
 [+] You are currently authenticated as {AuthzID:}
 ```
+
 ### NTLM Bind
+
 ```
 -s = Skip cert verification
 -p = Prompt for password
@@ -216,6 +225,7 @@ go run ./cmd/ldaptickler/ -s --dc tip.spinninglikea.top  whoami
 --dc = Specify the domain controller
 whoami = run whoami as the action
 ```
+
 ```
 go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinninglikea.top  whoami
 [+] Enter Password:
@@ -224,7 +234,9 @@ go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinnin
 [+] Querying the LDAP server for WhoAmI with baseDN DC=spinninglikea,DC=top
 [+] You are currently authenticated as {AuthzID:u:splat\slacker}
 ```
+
 ### Simple Bind
+
 ```
 -s = Skip cert verification
 -u = username, it may be necessary to pass the domain as well for example, domain\username
@@ -232,6 +244,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p -d spinninglikea.top --dc tip.spinnin
 --dc = Specify the domain controller
 whoami = run whoami as the action
 ```
+
 ```
 go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top  whoami
 [+] Enter Password:
@@ -242,6 +255,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p  --dc tip.spinninglikea.top  whoami
 ```
 
 ### List computers
+
 ```
 -d = Domain
 --dc = domain controller
@@ -259,8 +273,8 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top  -s -u
 [+] Searching for all computers in LDAP with baseDN DC=spinninglikea,DC=top
 ```
 
-
 ### List users
+
 ```
 -d = Domain
 -g = Enable GSSAPI
@@ -279,6 +293,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top  -s 
 ```
 
 ### Search with custom filter
+
 ```
 --dc = Specify DC
 -s = Skip cert verification
@@ -296,6 +311,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 ```
 
 ### Bloodhound collector support
+
 ```
 -d = specify the domain
 --dc = specify the domain controller
@@ -303,6 +319,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 -u = username
 -s = skip cert verification
 ```
+
 ```
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p collectbh
 [+] Enter Password: 
@@ -313,6 +330,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 ```
 
 ### Adding shadow credentials
+
 ```
 -d = specify the domain
 --dc = specify the domain controller
@@ -320,7 +338,6 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 -u = username
 -s = skip cert verification
 ```
-
 
 ```
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p addshadowcredential slacker
@@ -350,6 +367,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 ```
 
 ### Disable shadow credentials
+
 ```
 -d = specify the domain
 --dc = specify the domain controller
@@ -357,6 +375,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 -u = username
 -s = skip cert verification
 ```
+
 ```
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p disableshadowcredential slacker
 [+] Enter Password: 
@@ -365,7 +384,9 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 [+] Disabling shadow credentials for account slacker
 [+] Successfully disabled shadow credentials for account slacker
 ```
+
 ### Read GMSA credentials, if privileged they will display
+
 ```
 -d = specify the domain
 --dc = specify the domain controller
@@ -373,6 +394,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 -u = username
 -s = skip cert verification
 ```
+
 ```
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p gmsaaccounts                   
 [+] Enter Password: 
@@ -391,6 +413,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 -s = skip cert verification
 --proxy = specify socks5 proxy
 ```
+
 ```
 strace -e connect ./ldaptickler --proxy socks5://127.0.0.1:8000 --dc tip.spinninglikea.top -s -d spinninglikea.top -basedn DC=spinninglikea,DC=top -u slacker -p computers
 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=99603, si_uid=1000} ---
@@ -404,59 +427,59 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 ```
 
 ## Initial features
+
 - [x] Prompt for user creds  
-- [x] Changing a user's password   
+- [x] Changing a user's password  
 - [x] Creation of user accounts
 - [x] Modification of Service Principal Names
 - [x] Creation of machine accounts
-    - [x] Research why only my DA can do this. This is now sorted out. This very much depended on the specific entries being created for the machine account.
+  - [x] Research why only my DA can do this. This is now sorted out. This very much depended on the specific entries being created for the machine account.  
 - [x] Deletion of User and Machine accounts
 - [x] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
 - [ ] Store creds in environment variable  
 - [x] Refactor
-    - [x] Create Library
+  - [x] Create Library
 - [ ] Support Adding and removing of all delegation attributes  
-    - [x] Unconstrained - Refactored
-    - [x] Constrained  - Refactored
-    - [x] Resource Based Constrained Delegation, support has been added for validation, adding and removing. Remove only supports all for now. Need to fix.   
+  - [x] Unconstrained - Refactored
+  - [x] Constrained  - Refactored
+  - [x] Resource Based Constrained Delegation, support has been added for validation, adding and removing. Remove only supports all for now. Need to fix.  
 - [x] Support modification of msds-keycredentiallink for shadow credentials  
-    - [x] Create self signed cert  
-    - [x] Prepare blob for placement in msds-keycredentiallink field  
-    - [x] Modify msds-keycredentiallink field   
+  - [x] Create self signed cert  
+  - [x] Prepare blob for placement in msds-keycredentiallink field  
+  - [x] Modify msds-keycredentiallink field  
 - [ ] Support creation of DNS entries
 - [x] Search and list specific types of objects  
-    - [x] Partial support for most useful DNS entries, many other types need work
-    - [x] Domain Controllers
-    - [x] DNS entries
-    - [x] Computers  
-    - [x] Users  
-    - [x] Groups
-    - [x] kerberoastable users
-    - [x] user specified
-    - [x] Unconstrained ,Constrained Delegation and RBCD
-    - [x] Shadow credentials
-    - [x] Login scripts
-    - [x] GMSA accounts and password
-    - [x] Protected Users Group
-    - [x] Kerberos Pre-Authenticated Disabled
-    - [x] Users who dont require a password
-    - [x] Users set to require password change at next login
-    - [x] Users set to have the password never expire
-    - [ ] Pull down schema - need to research this more, I can pull down the top level, beyond that is HUUUUUGE and am limited by LDAP itself
-    - [x] Query description field of all objects
-    - [x] Query ms-DS-MachineAccountQuota
-    - [x] Query nTSecurityDescriptor field to check top level permissions
+  - [x] Partial support for most useful DNS entries, many other types need work
+  - [x] Domain Controllers
+  - [x] DNS entries
+  - [x] Computers  
+  - [x] Users  
+  - [x] Groups
+  - [x] kerberoastable users
+  - [x] user specified
+  - [x] Unconstrained ,Constrained Delegation and RBCD
+  - [x] Shadow credentials
+  - [x] Login scripts
+  - [x] GMSA accounts and password
+  - [x] Protected Users Group
+  - [x] Kerberos Pre-Authenticated Disabled
+  - [x] Users who dont require a password
+  - [x] Users set to require password change at next login
+  - [x] Users set to have the password never expire
+  - [ ] Pull down schema - need to research this more, I can pull down the top level, beyond that is HUUUUUGE and am limited by LDAP itself
+  - [x] Query description field of all objects
+  - [x] Query ms-DS-MachineAccountQuota
+  - [x] Query nTSecurityDescriptor field to check top level permissions
 
 - [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
-    - [x] anonymous  
-    - [x] simple  
-    - [x] ntlm  
-    - [x] ntlm with PTH  
-    - [x] GSSAPI  
-    - [ ] SASL  
+  - [x] anonymous  
+  - [x] simple  
+  - [x] ntlm  
+  - [x] ntlm with PTH  
+  - [x] GSSAPI  
+  - [ ] SASL  
 - [ ] Support dumping the entire database  
 - [x] Support ldaps and ldap  
-
 
 ## Stretch goals
 
@@ -479,23 +502,29 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 - [x] Socks proxy support
 - [x] FSMO role querying(fSMORoleOwner)
 - [ ] Search by provided operating system filter
+
 ## Updates
-* GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
-* BloodHound collector has been implemented  
-* Shadowcredential creation and removal is now supported  
-* We can read GMSA passwords assuming you are the correct privileged user  
-* Deriving basedn from the name of the DC is now supported  
-* Adding and deleting login scripts is now supported  
-* Plain text password command line support  
-* Providing LDAP search equivalent command if you pass -D  
-* Socks Proxy 5 support(tested through CobaltStrike beacon)
+
+- GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
+- BloodHound collector has been implemented  
+- Shadowcredential creation and removal is now supported  
+- We can read GMSA passwords assuming you are the correct privileged user  
+- Deriving basedn from the name of the DC is now supported  
+- Adding and deleting login scripts is now supported  
+- Plain text password command line support  
+- Providing LDAP search equivalent command if you pass -D  
+- Socks Proxy 5 support(tested through CobaltStrike beacon)
+
 ## Thanks
-### Thank you for testing and letting me bounce ideas off of you!
-- [mjwhitta](https://github.com/mjwhitta/)     
-- [dumpst3rfir3](https://github.com/dumpst3rfir3/)   
+
+### Thank you for testing and letting me bounce ideas off of you
+
+- [mjwhitta](https://github.com/mjwhitta/)  
+- [dumpst3rfir3](https://github.com/dumpst3rfir3/)  
 - [sludgework](https://github.com/sludgework)  
 - [mayyhem](https://github.com/Mayyhem)  
 
 ### Without the below packages none of this would be possible
+
 - [go-ldap](https://github.com/go-ldap/ldap)  
 - [gokrb5](https://github.com/jcmturner/gokrb5)
