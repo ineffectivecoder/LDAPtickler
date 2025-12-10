@@ -371,6 +371,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 - [ ] When searching, store binary and string version of data, dont throw away binary version
 - [ ] Useful SCCM queries?
 - [ ] LAPS support
+- [ ] Support all things for delegated managed service account  
 ## Updates
 * GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
 * BloodHound collector has been implemented  
