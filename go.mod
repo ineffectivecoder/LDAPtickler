@@ -32,6 +32,7 @@ require (
 	github.com/huner2/go-sddlparse v1.0.5
 	github.com/jcmturner/gokrb5 v8.4.4+incompatible
 	github.com/jcmturner/gokrb5/v8 v8.4.4
+	golang.org/x/net v0.38.0
 	software.sslmate.com/src/go-pkcs12 v0.6.0
 )
 
@@ -43,5 +44,4 @@ require (
 	github.com/jcmturner/gofork v1.7.6 // indirect
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
-	golang.org/x/net v0.38.0 // indirect
 )
