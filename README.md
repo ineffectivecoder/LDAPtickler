@@ -255,7 +255,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top  -s -u
 ```
 -d = Domain
 -g = Enable GSSAPI
--dc = Specify DC
+--dc = Specify DC
 -s = Skip cert verification
 -u = username
 -p = Prompt for password
@@ -271,7 +271,7 @@ go run ./cmd/ldaptickler/ -d targetdomain.com -g --dc tip.spinninglikea.top  -s 
 
 ### Search with custom filter
 ```
--dc = Specify DC
+--dc = Specify DC
 -s = Skip cert verification
 -u = username
 -p = Prompt for password
