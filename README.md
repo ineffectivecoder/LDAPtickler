@@ -356,6 +356,22 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 [+] Disabling shadow credentials for account slacker
 [+] Successfully disabled shadow credentials for account slacker
 ```
+### Read GMSA credentials, if privileged they will display
+```
+-d = specify the domain
+--dc = specify the domain controller
+-p = prompt for password
+-u = username
+-s = skip cert verification
+```
+```
+go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p gmsaaccounts                   
+[+] Enter Password: 
+[+] Attempting NTLM bind to tip.spinninglikea.top
+[+] Successfully connected to tip.spinninglikea.top
+[+] Searching for all Group Managed Service Accounts in LDAP with baseDN DC=spinninglikea,DC=top
+```
+
 
 
 ## Initial features
