@@ -447,6 +447,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 - [ ] Useful SCCM queries?
 - [ ] LAPS support
 - [ ] Support all things for delegated managed service account  
+- [x] Socks proxy support
 ## Updates
 * GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
 * BloodHound collector has been implemented  

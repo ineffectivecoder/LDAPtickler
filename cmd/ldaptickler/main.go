@@ -102,10 +102,12 @@ var flags struct {
 	output            string
 	password          bool
 	passwordcli       string
+	proxy             string
 	pth               string
 	searchscope       int
 	skipVerify        bool
 	username          string
+	useProxyChains    bool
 	verbose           bool
 }
 
@@ -118,6 +120,7 @@ func check(err error) {
 func init() {
 	var bytepw []byte
 	var err error
+
 	log.Default().SetFlags(0)
 	// Configure cli package
 	cli.Align = true // Defaults to false
@@ -192,6 +195,7 @@ func init() {
 	cli.Flag(&flags.output, "o", "output", "", "Output zip file path for collectors")
 	cli.Flag(&flags.password, "p", false, "Password to bind with, will prompt")
 	cli.Flag(&flags.passwordcli, "password", "", "Password to bind with, provided on command line")
+	cli.Flag(&flags.proxy, "proxy", "", "SOCKS5 proxy URL (e.g., socks5://127.0.0.1:9050)")
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash")
 	cli.Flag(&flags.searchscope, "scope", 2, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
 	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
@@ -305,6 +309,9 @@ func main() {
 	// add flag dbag
 	//ldaptickler.LDAPDebug = false
 	var c *ldaptickler.Conn = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
+	if flags.proxy != "" {
+		c.SetProxy(flags.proxy)
+	}
 	var err error
 	// Attempt anonymous bind, check for flag
 	switch state.mode {

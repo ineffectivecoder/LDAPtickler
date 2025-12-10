@@ -16,6 +16,7 @@ import (
 	"log"
 	"math/big"
 	"net"
+	"net/url"
 	"os"
 	"regexp"
 	"slices"
@@ -33,6 +34,7 @@ import (
 	"github.com/jcmturner/gokrb5/iana/flags"
 	"github.com/jcmturner/gokrb5/v8/client"
 	"golang.org/x/crypto/md4"
+	"golang.org/x/net/proxy"
 	"golang.org/x/text/encoding/unicode"
 )
 
@@ -118,6 +120,7 @@ type Conn struct {
 	skipVerify bool
 	url        string
 	username   string
+	proxyURL   string
 }
 
 // New TODO great note Chris
@@ -129,21 +132,83 @@ func New(url string, basedn string, skipVerify ...bool) *Conn {
 	return connection
 }
 
+// SetProxy configures SOCKS5 proxy for LDAP connection
+func (c *Conn) SetProxy(proxyURL string) {
+	c.proxyURL = proxyURL
+}
+
 func (c *Conn) bindSetup() error {
 	var err error
-	// fmt.Printf("[+] skipVerify currently set to %t\n", skipVerify)
-	if strings.HasPrefix(c.url, "ldaps:") {
-		// ServerName: "0.0.0.0", MaxVersion: tls.VersionTLS12
-		c.lconn, err = ldap.DialURL(c.url, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: c.skipVerify}))
-	} else {
-		if !strings.HasPrefix(c.url, "ldap:") {
-			c.url = "ldap://" + c.url
+
+	// If proxy is configured, use SOCKS5 dialer
+	if c.proxyURL != "" {
+		// Parse LDAP URL to get host
+		u, err := url.Parse(c.url)
+		if err != nil {
+			return err
 		}
-		c.lconn, err = ldap.DialURL(c.url)
+
+		// Parse proxy URL to get host:port
+		proxyURL, err := url.Parse(c.proxyURL)
+		if err != nil {
+			return fmt.Errorf("invalid proxy URL: %w", err)
+		}
+		proxyAddr := proxyURL.Host
+		if proxyAddr == "" {
+			// If no scheme, assume it's already host:port
+			proxyAddr = c.proxyURL
+		}
+
+		// Create SOCKS5 dialer
+		proxyDialer, err := proxy.SOCKS5("tcp",
+			proxyAddr,
+			nil, // no auth
+			proxy.Direct)
+		if err != nil {
+			return err
+		}
+
+		// Dial through proxy - add default port if missing
+		ldapAddr := u.Host
+		if !strings.Contains(ldapAddr, ":") {
+			if strings.HasPrefix(c.url, "ldaps:") {
+				ldapAddr += ":636"
+			} else {
+				ldapAddr += ":389"
+			}
+		}
+
+		conn, err := proxyDialer.Dial("tcp", ldapAddr)
+		if err != nil {
+			return err
+		}
+
+		// Wrap with TLS if using LDAPS
+		if strings.HasPrefix(c.url, "ldaps:") {
+			tlsConn := tls.Client(conn, &tls.Config{
+				InsecureSkipVerify: c.skipVerify,
+				ServerName:         u.Hostname(),
+			})
+			conn = tlsConn
+		}
+
+		c.lconn = ldap.NewConn(conn, strings.HasPrefix(c.url, "ldaps:"))
+		c.lconn.Start()
+	} else {
+		// Original direct connection code
+		if strings.HasPrefix(c.url, "ldaps:") {
+			c.lconn, err = ldap.DialURL(c.url, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: c.skipVerify}))
+		} else {
+			if !strings.HasPrefix(c.url, "ldap:") {
+				c.url = "ldap://" + c.url
+			}
+			c.lconn, err = ldap.DialURL(c.url)
+		}
+		if err != nil {
+			return err
+		}
 	}
-	if err != nil {
-		return err
-	}
+
 	if LDAPDebug {
 		c.lconn.Debug = true
 	}
