@@ -197,6 +197,7 @@ func (c *Conn) bindSetup() error {
 	} else {
 		// Original direct connection code
 		if strings.HasPrefix(c.url, "ldaps:") {
+			// look into other dialer
 			c.lconn, err = ldap.DialURL(c.url, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: c.skipVerify}))
 		} else {
 			if !strings.HasPrefix(c.url, "ldap:") {
