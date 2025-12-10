@@ -477,6 +477,7 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 * Adding and deleting login scripts is now supported  
 * Plain text password command line support  
 * Providing LDAP search equivalent command if you pass -D  
+* Socks Proxy 5 support(tested through CobaltStrike beacon)
 ## Thanks
 ### Thank you for testing and letting me bounce ideas off of you!
 - [mjwhitta](https://github.com/mjwhitta/)     
