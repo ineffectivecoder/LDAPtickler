@@ -357,7 +357,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 ## Stretch goals
 
 - [x] Allow for deletion, and modification of existing LDAP entries  
-- [x] Potentially support BloodHound(Need to look into this more)  
+- [x] Bloodhound support, collector has equivalent output as sharphound in my test domain, still testing
 - [x] Accept plain text password at the command line  
 - [ ] Leverage existing users TGT in Windows environment for authentication
 - [ ] Local password storage options
@@ -369,7 +369,8 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 - [x] Add/del login scripts
 - [ ] Reading and writing GPOs?
 - [ ] When searching, store binary and string version of data, dont throw away binary version
-
+- [ ] Useful SCCM queries?
+- [ ] LAPS support
 ## Updates
 Fixed issue when setting UserAccountControl for machine accounts. Before I was just blowing away the prior setting and replacing.  
 It was determined this was silly. Now grabbing the previous UAC setting and doing bit math to add the desired setting.  
