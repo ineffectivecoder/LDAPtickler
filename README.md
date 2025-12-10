@@ -51,9 +51,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top  whoami
 
 ## Example Usage
 ```
-Usage:
-/home/slacker/.cache/go-build/4c/4ceafdbe71e8a2e633229ac950c4e469ef7f1d68d0695e873af95d772fae8d88-d/ldaptickler
-[OPTIONS] <arg>
+Usage: ./ldaptickler [OPTIONS] <arg>
 
 DESCRIPTION
     A tool to simplify LDAP queries because it sucks and is not fun
@@ -65,8 +63,9 @@ OPTIONS
     -b, --basedn=STRING        Specify baseDN for query, ex. ad.sostup.id would
                                be dc=ad,dc=sostup,dc=id
     -c, --collectors=STRING    Comma-separated list of collectors to run
-                               (users,computers,groups,domains)
+                               (users,computers,groups,domains,ous,gpos,containers,certtemplates,enterprisecas,aiacas,rootcas,ntauthstores,issuancepolicies)
         --dc=STRING            Identify domain controller
+    -D, --debug                Display LDAP equivalent command
     -d, --domain=STRING        Domain for NTLM bind
     -g, --gssapi               Enable GSSAPI and attempt to authenticate
     -h, --help                 Display this help message.
@@ -75,6 +74,7 @@ OPTIONS
     -o, --output=STRING        Output zip file path for collectors
     -p                         Password to bind with, will prompt
         --password=STRING      Password to bind with, provided on command line
+        --proxy=STRING         SOCKS5 proxy URL (e.g., socks5://127.0.0.1:9050)
         --pth=STRING           Bind with password hash
         --scope=INT            Define scope of search, 0=Base, 1=Single Level,
                                2=Whole Sub Tree, 3=Children, only used by filter
@@ -372,7 +372,27 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 [+] Searching for all Group Managed Service Accounts in LDAP with baseDN DC=spinninglikea,DC=top
 ```
 
+### Socks proxy example
 
+```
+-d = specify the domain
+--dc = specify the domain controller
+-p = prompt for password
+-u = username
+-s = skip cert verification
+--proxy = specify socks5 proxy
+```
+```
+strace -e connect ./ldaptickler --proxy socks5://127.0.0.1:8000 --dc tip.spinninglikea.top -s -d spinninglikea.top -basedn DC=spinninglikea,DC=top -u slacker -p computers
+--- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=99603, si_uid=1000} ---
+--- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=99603, si_uid=1000} ---
+[+] Enter Password: --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=99603, si_uid=1000} ---
+
+[+] Attempting NTLM bind to tip.spinninglikea.top
+connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+[+] Successfully connected to tip.spinninglikea.top
+[+] Searching for all computers in LDAP with baseDN DC=spinninglikea,DC=top
+```
 
 ## Initial features
 - [x] Prompt for user creds  
