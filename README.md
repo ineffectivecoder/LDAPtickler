@@ -364,7 +364,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 - [x] Derive domain from dc so the user doesnt need to provide it
 - [ ] unrolled/effective group membership  
 - [ ] Modify scope to be words instead of numbers, easier to recall  
-- [ ] Provide ldapsearch equivalent for each query  
+- [x] Provide ldapsearch equivalent for each query  
 - [ ] Support more binary fields, DACLs
 - [x] Add/del login scripts
 - [ ] Reading and writing GPOs?
