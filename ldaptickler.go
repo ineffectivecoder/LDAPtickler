@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -131,6 +132,7 @@ func New(url string, basedn string, skipVerify ...bool) *Conn {
 	if len(skipVerify) > 0 {
 		connection.skipVerify = skipVerify[0]
 	}
+
 	return connection
 }
 
@@ -155,6 +157,7 @@ func (c *Conn) bindSetup() error {
 		if err != nil {
 			return fmt.Errorf("invalid proxy URL: %w", err)
 		}
+
 		proxyAddr := proxyURL.Host
 		if proxyAddr == "" {
 			// If no scheme, assume it's already host:port
@@ -208,8 +211,10 @@ func (c *Conn) bindSetup() error {
 			if !strings.HasPrefix(c.url, "ldap:") {
 				c.url = "ldap://" + c.url
 			}
+
 			c.lconn, err = ldap.DialURL(c.url)
 		}
+
 		if err != nil {
 			return err
 		}
@@ -231,21 +236,30 @@ func (c *Conn) createUnicodePasswordRequest(
 		nil,
 	)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+
 	newunicodeEncoded, err := utf16.NewEncoder().
 		String(fmt.Sprintf("%q", password))
 	if err != nil {
 		return nil, err
 	}
+
 	passwordSet.Replace("unicodePwd", []string{newunicodeEncoded})
+
 	return passwordSet, nil
 }
 
 func encodePassword(password string) string {
 	quoted := fmt.Sprintf("\"%s\"", password)
+
 	encoded := ""
+
+	var encodedSb248 strings.Builder
 	for _, r := range quoted {
-		encoded += fmt.Sprintf("%c%c", byte(r), 0)
+		encodedSb248.WriteString(fmt.Sprintf("%c%c", byte(r), 0))
 	}
+
+	encoded += encodedSb248.String()
+
 	return encoded
 }
 
@@ -253,14 +267,17 @@ func encodePassword(password string) string {
 func (c *Conn) BindAnonymous(username string) error {
 	c.username = username
 	var err error
+
 	err = c.bindSetup()
 	if err != nil {
 		return err
 	}
+
 	err = c.lconn.UnauthenticatedBind(username)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -272,14 +289,17 @@ func (c *Conn) BindDomain(
 ) error {
 	c.username = username
 	var err error
+
 	err = c.bindSetup()
 	if err != nil {
 		return err
 	}
+
 	err = c.lconn.NTLMBind(domain, username, password)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -291,14 +311,17 @@ func (c *Conn) BindDomainPTH(
 ) error {
 	c.username = username
 	var err error
+
 	err = c.bindSetup()
 	if err != nil {
 		return err
 	}
+
 	err = c.lconn.NTLMBindWithHash(domain, username, hash)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -311,6 +334,7 @@ func (c *Conn) BindGSSAPI(
 	// GSSAPI Implementation
 	c.username = username
 	var err error
+
 	c.gssClient, err = gssapi.NewClientWithPassword(
 		username,                // Kerberos principal name
 		strings.ToUpper(domain), // Kerberos realm
@@ -328,6 +352,7 @@ func (c *Conn) BindGSSAPI(
 	if err != nil {
 		return err
 	}
+
 	err = c.lconn.GSSAPIBindRequestWithAPOptions(
 		c.gssClient,
 		&ldap.GSSAPIBindRequest{
@@ -347,14 +372,17 @@ func (c *Conn) BindGSSAPI(
 func (c *Conn) BindPassword(username string, password string) error {
 	c.username = username
 	var err error
+
 	err = c.bindSetup()
 	if err != nil {
 		return err
 	}
+
 	err = c.lconn.Bind(username, password)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -369,15 +397,18 @@ func (c *Conn) AddConstrainedDelegation(
 	searchscope := 2
 	var err error
 	var results []map[string][]string
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		if !strings.Contains(err.Error(), "no attributes") {
 			return err
 		}
 	}
+
 	if len(results[0]["msDS-AllowedToDelegateTo"]) > 0 {
 		delegationres = results[0]["msDS-AllowedToDelegateTo"][0]
 	}
+
 	delegationres = strings.TrimSpace(
 		fmt.Sprintf("%s %s", delegationres, spn),
 	)
@@ -389,6 +420,7 @@ func (c *Conn) AddConstrainedDelegation(
 		"msDS-AllowedToDelegateTo",
 		[]string{delegationres},
 	)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -417,8 +449,10 @@ func (c *Conn) AddMachineAccount(
 		"userAccountControl",
 		[]string{"4096"},
 	) // WORKSTATION_TRUST_ACCOUNT
+
 	encodedPassword := encodePassword(machinepass)
 	addReq.Attribute("unicodePWD", []string{encodedPassword})
+
 	return c.lconn.Add(addReq)
 }
 
@@ -439,10 +473,12 @@ func (c *Conn) AddMachineAccountLowPriv(
 	// encoded, _ := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder().String(machinepass)
 	quoted := fmt.Sprintf("\"%s\"", machinepass)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+
 	encodedPwd, err := utf16.NewEncoder().String(quoted)
 	if err != nil {
 		return err
 	}
+
 	dn := fmt.Sprintf("CN=%s,CN=Computers,%s", cn, c.baseDN)
 	addReq := ldap.NewAddRequest(dn, nil)
 	// Required object classes for low-priv creation
@@ -482,6 +518,7 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 	searchscope := 2
 	var err error
 	var results []map[string][]string
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
@@ -494,10 +531,12 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 			delegatingComputer[0],
 		)
 	}
+
 	delegatingComputerSID := results[0]["objectSid"][0]
 
 	filter = "(samaccountname=" + targetmachinename + ")"
 	attributes = []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
@@ -505,7 +544,7 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 
 	dn := results[0]["DN"][0]
 	if !strings.Contains(strings.ToLower(dn), "cn=computers") {
-		return fmt.Errorf("this object is not a computer, go away")
+		return errors.New("this object is not a computer, go away")
 	}
 
 	var allowed string
@@ -521,25 +560,30 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 	if err != nil {
 		return err
 	}
+
 	if sddl.Owner == "" {
 		sddl.Owner = "BA"
 	}
+
 	if sddl.Group == "" {
 		sddl.Group = "BA"
 	}
+
 	if sddl.DiscretionaryAcl == nil {
 		sddl.DiscretionaryAcl = &winsddlconverter.Acl{
 			AclRevision: 2,
 			Aces:        []winsddlconverter.Ace{},
 		}
 	}
+
 	for _, ace := range sddl.DiscretionaryAcl.Aces {
 		if delegatingComputerSID == ace.Sid {
-			return fmt.Errorf(
+			return errors.New(
 				"delegating computer already has RBCD permissions on target computer",
 			)
 		}
 	}
+
 	ace := winsddlconverter.Ace{
 		AceType: winsddlconverter.ACCESS_ALLOWED_ACE_TYPE, Sid: delegatingComputerSID,
 		AccessMask: winsddlconverter.AccessMaskDetail{
@@ -552,6 +596,7 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 		sddl.DiscretionaryAcl.Aces,
 		ace,
 	)
+
 	var b []byte
 	if b, err = sddl.ToBinary(); err != nil {
 		return err
@@ -562,6 +607,7 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 		"msDS-AllowedToActOnBehalfOfOtherIdentity",
 		[]string{string(b)},
 	)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -582,6 +628,7 @@ func (c *Conn) AddServicePrincipalName(
 	if err != nil {
 		return err
 	}
+
 	if len(results) == 0 {
 		return fmt.Errorf("user %s not found", username)
 	}
@@ -591,11 +638,7 @@ func (c *Conn) AddServicePrincipalName(
 	existingSPNs := results[0]["servicePrincipalName"]
 
 	// Check if SPN already exists
-	for _, s := range strings.Fields(spn) {
-		// if !slices.Contains(existingSPNs, s) {
-		existingSPNs = append(existingSPNs, s)
-		//}
-	}
+	existingSPNs = append(existingSPNs, strings.Fields(spn)...)
 
 	// Prepare LDAP modify request to add SPN
 	modReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
@@ -617,14 +660,14 @@ func (c *Conn) AddUserAccount(
 	)
 	addReq.Attribute(
 		"accountExpires",
-		[]string{fmt.Sprintf("%d", 0x00000000)},
+		[]string{strconv.Itoa(0x00000000)},
 	)
 	addReq.Attribute("cn", []string{username})
 	addReq.Attribute("displayName", []string{username})
 	addReq.Attribute("givenName", []string{username})
 	addReq.Attribute(
 		"instanceType",
-		[]string{fmt.Sprintf("%d", 0x00000004)},
+		[]string{strconv.Itoa(0x00000004)},
 	)
 	addReq.Attribute("name", []string{username})
 	addReq.Attribute(
@@ -651,10 +694,12 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"userAccountControl"}
 	searchscope := 2
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
 	if len(results[0]["userAccountControl"]) > 0 {
 		uacstr = results[0]["userAccountControl"][0]
 	}
@@ -671,8 +716,9 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	)
 	enableReq.Replace(
 		"userAccountControl",
-		[]string{fmt.Sprintf("%d", uac)},
+		[]string{strconv.Itoa(uac)},
 	)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -681,9 +727,11 @@ func (c *Conn) Close() error {
 	if c.gssClient != nil {
 		c.gssClient.Close()
 	}
+
 	if c.lconn != nil {
 		c.lconn.Close()
 	}
+
 	return nil
 }
 
@@ -691,6 +739,7 @@ func decodeGUID(guidBytes []byte) string {
 	if len(guidBytes) != 16 {
 		return fmt.Sprintf("Invalid GUID: %0x", guidBytes)
 	}
+
 	return fmt.Sprintf(
 		"%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 		// first 4 bytes (little-endian)
@@ -724,8 +773,9 @@ func decodeSID(sidBytes []byte) (string, error) {
 	// 0 = revision, 1 = sub-authority count, 2-7 identifier authority, each sub authority is 4 bytes
 	// Check # of bytes to ensure proper SID
 	if len(sidBytes) < 8 {
-		return "", fmt.Errorf("invalid SID length")
+		return "", errors.New("invalid SID length")
 	}
+
 	revision := sidBytes[0]
 	subAuthCount := int(sidBytes[1])
 	identifierAuthority := uint64(sidBytes[2])<<40 |
@@ -736,12 +786,13 @@ func decodeSID(sidBytes []byte) (string, error) {
 		uint64(sidBytes[7])
 
 	if len(sidBytes) < 8+subAuthCount*4 {
-		return "", fmt.Errorf(
+		return "", errors.New(
 			"invalid SID length for sub-authorities",
 		)
 	}
+
 	subAuthorities := make([]uint32, subAuthCount)
-	for i := 0; i < subAuthCount; i++ {
+	for i := range subAuthCount {
 		start := 8 + i*4
 		subAuthorities[i] = binary.LittleEndian.Uint32(
 			sidBytes[start : start+4],
@@ -749,9 +800,14 @@ func decodeSID(sidBytes []byte) (string, error) {
 	}
 
 	sidStr := fmt.Sprintf("S-%d-%d", revision, identifierAuthority)
+
+	var sidStrSb754 strings.Builder
 	for _, sa := range subAuthorities {
-		sidStr += fmt.Sprintf("-%d", sa)
+		sidStrSb754.WriteString(fmt.Sprintf("-%d", sa))
 	}
+
+	sidStr += sidStrSb754.String()
+
 	return sidStr, nil
 }
 
@@ -766,10 +822,12 @@ func (c *Conn) DeleteObject(
 		// May need to rethink this, some objects actually have the $ in the CN name
 		cn = "Computers"
 	}
+
 	delReq := ldap.NewDelRequest(
 		"CN="+objectname+",CN="+cn+","+c.baseDN,
 		[]ldap.Control{},
 	)
+
 	return c.lconn.Del(delReq)
 }
 
@@ -778,6 +836,7 @@ func (c *Conn) FindUserByDescription(querydescription string) error {
 	filter := "(&(objectCategory=*)(description=" + querydescription + "))"
 	attributes := []string{"samaccountname", "description"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -788,6 +847,7 @@ func (c *Conn) FindUserByName(
 ) error {
 	filter := "(&(objectClass=user)(samaccountname=" + objectquery + "))"
 	attributes := []string{"*"}
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -798,6 +858,7 @@ func flagset(data string, flag int) (int, error) {
 	}
 	// Apply bitmask to disable
 	i = i | flag // 0x2
+
 	return i, nil
 }
 
@@ -808,19 +869,23 @@ func flagunset(data string, flag int) (int, error) {
 	}
 	// Apply bitmask to enable
 	i = i & ^flag // 0x2
+
 	return i, nil
 }
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/6912b338-5472-4f59-b912-0edb536b6ed8?redirectedfrom=MSDN
 func byteReader(br *bytes.Reader, length int) ([]byte, error) {
 	b := make([]byte, length)
+
 	n, err := br.Read(b)
 	if err != nil {
 		return nil, err
 	}
+
 	if n != length {
-		return nil, fmt.Errorf("could not read dnsRecord")
+		return nil, errors.New("could not read dnsRecord")
 	}
+
 	return b, nil
 }
 
@@ -867,6 +932,7 @@ func ParseMSDSManagedPasswordBlob(
 		err.Error() != "EOF" {
 		return nil, err
 	}
+
 	result.Buffer = remaining
 
 	return result, nil
@@ -875,7 +941,7 @@ func ParseMSDSManagedPasswordBlob(
 // GetCurrentPassword extracts the current password from the blob
 func (m *MSDSManagedPasswordBlob) GetCurrentPassword() ([]byte, error) {
 	if m.CurrentPasswordOffset == 0 {
-		return nil, fmt.Errorf("current password offset is 0")
+		return nil, errors.New("current password offset is 0")
 	}
 
 	// Password offset is relative to start of buffer
@@ -892,7 +958,7 @@ func (m *MSDSManagedPasswordBlob) GetCurrentPassword() ([]byte, error) {
 	// Read 256 bytes (standard password length for gMSA)
 	end := offset + 256
 	if end > len(m.Buffer) {
-		return nil, fmt.Errorf("password extends beyond buffer")
+		return nil, errors.New("password extends beyond buffer")
 	}
 
 	return m.Buffer[offset : offset+256], nil
@@ -907,31 +973,39 @@ func (m *MSDSManagedPasswordBlob) GetCurrentPasswordNTLMHash() (string, error) {
 
 	h := md4.New()
 	h.Write(pwd)
+
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func dnsrpcnameToString(b []byte) (string, error) {
 	br := bytes.NewReader(b[1:]) // skip first byte
+
 	b, err := byteReader(br, 1)
 	if err != nil {
 		return "", err
 	}
+
 	sections := int(b[0])
 	data := ""
+
 	for range sections {
 		b, err = byteReader(br, 1)
 		if err != nil {
 			return "", err
 		}
+
 		b, err = byteReader(br, int(b[0]))
 		if err != nil {
 			return "", err
 		}
+
 		if data != "" {
 			data += "."
 		}
+
 		data += string(b)
 	}
+
 	return data, nil
 }
 
@@ -944,6 +1018,7 @@ func (c *Conn) getAllResults(
 	var results []map[string][]string
 	var data string
 	var ldapControls []ldap.Control
+
 	if len(baseDN) == 0 {
 		baseDN = []string{c.baseDN}
 	}
@@ -960,6 +1035,7 @@ func (c *Conn) getAllResults(
 			},
 		)
 	}
+
 	if slices.Contains(attributes, "msDS-ManagedPassword") {
 		ldapControls = append(ldapControls,
 			&ldap.ControlString{
@@ -981,18 +1057,22 @@ func (c *Conn) getAllResults(
 	if err != nil {
 		return nil, err
 	}
+
 	if len(result.Entries) == 0 {
-		return nil, fmt.Errorf(
+		return nil, errors.New(
 			"no entries found",
 		) // custom error result not found
 	}
+
 	for i, entry := range result.Entries {
 		results = append(results, map[string][]string{})
+
 		results[i]["DN"] = []string{entry.DN}
 		for _, attribute := range entry.Attributes {
 			switch strings.ToLower(attribute.Name) {
 			case "dnsrecord":
 				values := []string{}
+
 				for _, v := range attribute.ByteValues {
 					br := bytes.NewReader(v)
 					// reading size
@@ -1000,9 +1080,10 @@ func (c *Conn) getAllResults(
 					if err != nil {
 						return nil, err
 					}
+
 					datalength, n := binary.Uvarint(b)
 					if n == 0 {
-						return nil, fmt.Errorf(
+						return nil, errors.New(
 							"could not read record type",
 						)
 					}
@@ -1011,6 +1092,7 @@ func (c *Conn) getAllResults(
 					if err != nil {
 						return nil, err
 					}
+
 					rectype := binary.LittleEndian.Uint64(
 						append(b, []byte{0, 0, 0, 0, 0, 0}...),
 					)
@@ -1022,6 +1104,7 @@ func (c *Conn) getAllResults(
 								rectype,
 							),
 						)
+
 						continue
 					}
 					// read and skip version(1 byte), rank(1 byte) , flags (2 byte), serial(4 byte)
@@ -1034,6 +1117,7 @@ func (c *Conn) getAllResults(
 					if err != nil {
 						return nil, err
 					}
+
 					ttl := binary.BigEndian.Uint64(
 						append([]byte{0, 0, 0, 0}, b...),
 					)
@@ -1047,6 +1131,7 @@ func (c *Conn) getAllResults(
 					if err != nil {
 						return nil, err
 					}
+
 					switch recTypes[rectype] {
 					case "A":
 						data = net.IP(b).String()
@@ -1076,16 +1161,20 @@ func (c *Conn) getAllResults(
 						if err != nil {
 							return nil, err
 						}
+
 						port := binary.BigEndian.Uint16(b)
 						b = make([]byte, br2.Len())
+
 						_, err := br2.Read(b)
 						if err != nil {
 							return nil, err
 						}
+
 						data, err = dnsrpcnameToString(b)
 						if err != nil {
 							return nil, err
 						}
+
 						data = fmt.Sprintf("%s:%d", data, port)
 					case "SOA":
 						// Skipping serial, refresh, retry, expire, minimum (4 bytes each = 20 bytes )
@@ -1097,6 +1186,7 @@ func (c *Conn) getAllResults(
 					default:
 						data = "Unsupported:" + hex.EncodeToString(b)
 					}
+
 					_ = ttl
 					val := fmt.Sprintf(
 						"%s(%s)",
@@ -1105,6 +1195,7 @@ func (c *Conn) getAllResults(
 					)
 					values = append(values, val)
 				}
+
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
 			case "objectguid":
@@ -1112,28 +1203,36 @@ func (c *Conn) getAllResults(
 				for _, v := range attribute.ByteValues {
 					values = append(values, decodeGUID(v))
 				}
+
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
 			case "objectsid":
 				values := []string{}
+
 				for _, v := range attribute.ByteValues {
 					v, _ := decodeSID(v)
 					values = append(values, v)
 				}
+
 				results[i][attribute.Name] = values
 			case "msds-allowedtoactonbehalfofotheridentity":
 				values := []string{}
-				for _, v := range attribute.ByteValues {
 
+				for _, v := range attribute.ByteValues {
 					sddl, err := sddlparse.SDDLFromBinary(v)
 					if err != nil {
 						return nil, err
 					}
+
 					value := ""
 
+					var valueSb1136 strings.Builder
 					for _, ace := range sddl.DACL {
-						value += ace.String()
+						valueSb1136.WriteString(ace.String())
 					}
+
+					value += valueSb1136.String()
+
 					values = append(
 						values,
 						reSDDL.ReplaceAllString(
@@ -1142,21 +1241,27 @@ func (c *Conn) getAllResults(
 						),
 					)
 				}
+
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
 			case "msds-groupmsamembership":
 				values := []string{}
-				for _, v := range attribute.ByteValues {
 
+				for _, v := range attribute.ByteValues {
 					sddl, err := sddlparse.SDDLFromBinary(v)
 					if err != nil {
 						return nil, err
 					}
+
 					value := ""
 
+					var valueSb1159 strings.Builder
 					for _, ace := range sddl.DACL {
-						value += ace.String()
+						valueSb1159.WriteString(ace.String())
 					}
+
+					value += valueSb1159.String()
+
 					values = append(
 						values,
 						reSDDL.ReplaceAllString(
@@ -1165,6 +1270,7 @@ func (c *Conn) getAllResults(
 						),
 					)
 				}
+
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
 
@@ -1182,6 +1288,7 @@ func (c *Conn) getAllResults(
 								err,
 							),
 						)
+
 						continue
 					}
 
@@ -1194,12 +1301,13 @@ func (c *Conn) getAllResults(
 								err,
 							),
 						)
+
 						continue
 					}
 
 					values = append(
 						values,
-						fmt.Sprintf("NTLM Hash: %s", ntlmHash),
+						"NTLM Hash: "+ntlmHash,
 					)
 				}
 
@@ -1208,19 +1316,26 @@ func (c *Conn) getAllResults(
 
 			case "ntsecuritydescriptor":
 				values := []string{}
-				for _, v := range attribute.ByteValues {
 
+				for _, v := range attribute.ByteValues {
 					sddl, err := sddlparse.SDDLFromBinary(v)
 					if err != nil {
 						return nil, err
 					}
+
 					value := ""
+
 					writemasks := sddlparse.ACCESS_MASK_GENERIC_ALL | sddlparse.ACCESS_MASK_GENERIC_WRITE | sddlparse.ACCESS_MASK_WRITE_OWNER | sddlparse.ACCESS_MASK_WRITE_DACL
+					var valueSb1221 strings.Builder
+
 					for _, ace := range sddl.DACL {
 						if ace.AccessMask&writemasks > 0 {
-							value += ace.String()
+							valueSb1221.WriteString(ace.String())
 						}
 					}
+
+					value += valueSb1221.String()
+
 					values = append(
 						values,
 						reSDDL.ReplaceAllString(
@@ -1229,6 +1344,7 @@ func (c *Conn) getAllResults(
 						),
 					)
 				}
+
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
 
@@ -1238,6 +1354,7 @@ func (c *Conn) getAllResults(
 			}
 		}
 	}
+
 	return results, nil
 }
 
@@ -1273,6 +1390,7 @@ func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return result, err
 }
 
@@ -1284,8 +1402,9 @@ func (c *Conn) ldapSearch(
 	controls ...ldap.Control,
 ) (*ldap.SearchResult, error) {
 	if c.lconn == nil {
-		return nil, fmt.Errorf("you must bind before searching")
+		return nil, errors.New("you must bind before searching")
 	}
+
 	if Debug {
 		if c.username != "" {
 			log.Printf(
@@ -1313,10 +1432,12 @@ func (c *Conn) ldapSearch(
 		attributes,
 		controls,
 	)
+
 	result, err = c.lconn.Search(searchReq)
 	if err != nil {
 		return nil, err
 	}
+
 	return result, err
 }
 
@@ -1330,6 +1451,7 @@ func (c *Conn) LDAPSearch(
 	var keys []string
 	var err error
 	var results []map[string][]string
+
 	results, err = c.getAllResults(
 		searchscope,
 		filter,
@@ -1338,28 +1460,36 @@ func (c *Conn) LDAPSearch(
 	if err != nil {
 		return err
 	}
+
 	for _, result := range results {
 		fmt.Printf("  DN: %s\n", result["DN"][0])
+
 		keys = []string{}
 		for key := range result {
 			keys = append(keys, key)
 		}
+
 		slices.Sort(keys)
+
 		for _, key := range keys {
 			if strings.HasSuffix(key, "_raw") {
 				continue
 			}
+
 			values := result[key]
 			if key == "DN" {
 				continue // Skip DN key as it is already printed
 			}
+
 			if len(values) == 0 {
 				fmt.Printf("    %s: No values found\n", key)
 				continue
 			}
+
 			fmt.Printf("    %s: %v\n", key, values)
 		}
 	}
+
 	return nil
 }
 
@@ -1368,6 +1498,7 @@ func (c *Conn) ListCAs() error {
 	filter := "(&(samaccountname=Cert Publishers)(member=*) "
 	attributes := []string{"member"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1379,6 +1510,7 @@ func (c *Conn) ListConstrainedDelegation() error {
 		"msDS-AllowedToDelegateTo",
 	}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1387,6 +1519,7 @@ func (c *Conn) ListComputers() error {
 	filter := "(&(objectClass=computer)(!(objectClass=msDS-GroupManagedServiceAccount)))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1395,6 +1528,7 @@ func (c *Conn) ListDCs() error {
 	filter := "(&(objectCategory=Computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1403,10 +1537,12 @@ func (c *Conn) ListDNS() error {
 	filter := "(&(objectClass=dnsNode)(dnsRecord=*))"
 	attributes := []string{"name", "dnsRecord", "dnsHostName"}
 	searchscope := 2
+
 	var err error = c.LDAPSearch(searchscope, filter, attributes, "DC=DomainDnsZones,"+c.baseDN)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -1415,6 +1551,7 @@ func (c *Conn) ListFSMORoles() error {
 	filter := "(fsmoroleOwner=*)"
 	attributes := []string{"distinguishedName", "fsmoroleOwner"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1428,6 +1565,7 @@ func (c *Conn) ListGMSAaccounts() error {
 		"msDS-ManagedPassword",
 	}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1436,6 +1574,7 @@ func (c *Conn) ListGroups() error {
 	filter := "(objectCategory=group)"
 	attributes := []string{"sAMAccountName"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1444,6 +1583,7 @@ func (c *Conn) ListGroupswithMembers() error {
 	filter := "(&(objectCategory=group)(samaccountname=*)(member=*))"
 	attributes := []string{"member"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1452,6 +1592,7 @@ func (c *Conn) ListKerberoastable() error {
 	filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
 	attributes := []string{"samaccountname", "serviceprincipalname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1460,6 +1601,7 @@ func (c *Conn) ListMachineAccountQuota() error {
 	filter := "(objectClass=*)"
 	attributes := []string{"ms-DS-MachineAccountQuota"}
 	searchscope := 0
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1468,6 +1610,7 @@ func (c *Conn) ListMachineCreationDACL() error {
 	filter := "(objectClass=domainDNS)"
 	attributes := []string{"nTSecurityDescriptor"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1476,6 +1619,7 @@ func (c *Conn) ListNoPassword() error {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1484,6 +1628,7 @@ func (c *Conn) ListPasswordChangeNextLogin() error {
 	filter := "(&(objectCategory=person)(objectClass=user)(pwdLastSet=0)(!(useraccountcontrol:1.2.840.113556.1.4.803:=2)))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1492,6 +1637,7 @@ func (c *Conn) ListPasswordDontExpire() error {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=65536))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1500,6 +1646,7 @@ func (c *Conn) ListPreAuthDisabled() error {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=4194304))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1508,6 +1655,7 @@ func (c *Conn) ListProtectedUsers() error {
 	filter := "(&(samaccountname=Protected Users)(member=*))"
 	attributes := []string{"member"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1521,6 +1669,7 @@ func (c *Conn) ListRBCD() error {
 		"msDS-AllowedToActOnBehalfOfOtherIdentity",
 	}
 	searchscope := 2
+
 	err = c.LDAPSearch(searchscope, filter, attributes)
 	if err != nil {
 		return err
@@ -1534,10 +1683,12 @@ func (c *Conn) ListSchema() error {
 	filter := "(objectClass=*)"
 	attributes := []string{}
 	searchscope := 0
+
 	var err error = c.LDAPSearch(searchscope, filter, attributes, "cn=Schema,cn=Configuration,"+c.baseDN)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -1546,6 +1697,7 @@ func (c *Conn) ListShadowCredentials() error {
 	filter := "(msDS-KeyCredentialLink=*)"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1555,17 +1707,20 @@ func (c *Conn) ListUnconstrainedDelegation() error {
 	filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
 	attributes := []string{"samaccountname", "useraccountcontrol"}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
 // ListUsers will identify all user objects. This may be overridden with multiple attributes changing the functionality.
 func (c *Conn) ListUsers(attributes ...string) error {
 	filter := "(&(objectCategory=person)(objectClass=user))"
+
 	if len(attributes) == 0 {
 		attributes = []string{"samaccountname"}
 	}
 
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1578,6 +1733,7 @@ func (c *Conn) ListLoginScripts() error {
 		"userAccountControl",
 	}
 	searchscope := 2
+
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
@@ -1592,14 +1748,18 @@ func (c *Conn) RemoveConstrainedDelegation(
 	searchscope := 2
 	var err error
 	var results []map[string][]string
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
 	if len(results[0]["msDS-AllowedToDelegateTo"]) > 0 {
 		delegationres = results[0]["msDS-AllowedToDelegateTo"][0]
 	}
+
 	spns := strings.Fields(delegationres)
+
 	var updatedSPNs []string
 	if strings.ToLower(spn) == "all" {
 		updatedSPNs = []string{}
@@ -1617,6 +1777,7 @@ func (c *Conn) RemoveConstrainedDelegation(
 		[]ldap.Control{},
 	)
 	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -1643,6 +1804,7 @@ func (c *Conn) RemoveResourceBasedConstrainedDelegation(
 	filter := "(samaccountname=" + targetmachinename + ")"
 	attributes := []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
 	searchscope := 2
+
 	results, err := c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
@@ -1651,6 +1813,7 @@ func (c *Conn) RemoveResourceBasedConstrainedDelegation(
 	dn := results[0]["DN"][0]
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
 	enableReq.Delete("msDS-AllowedToActOnBehalfOfOtherIdentity", nil)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -1664,6 +1827,7 @@ func (c *Conn) RemoveSPNs(username string, spn string) error {
 	if err != nil {
 		return err
 	}
+
 	if len(results) == 0 {
 		return fmt.Errorf("user %s not found", username)
 	}
@@ -1704,10 +1868,12 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"userAccountControl"}
 	searchscope := 2
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
 	if len(results[0]["userAccountControl"]) > 0 {
 		uacstr = results[0]["userAccountControl"][0]
 	}
@@ -1723,8 +1889,9 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 	)
 	enableReq.Replace(
 		"userAccountControl",
-		[]string{fmt.Sprintf("%d", uac)},
+		[]string{strconv.Itoa(uac)},
 	)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -1736,10 +1903,12 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
 	if len(results[0]["userAccountControl"]) > 0 {
 		uacstr = results[0]["userAccountControl"][0]
 	}
@@ -1758,8 +1927,9 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 	)
 	disableReq.Replace(
 		"userAccountControl",
-		[]string{fmt.Sprintf("%d", uac)},
+		[]string{strconv.Itoa(uac)},
 	)
+
 	return c.lconn.Modify(disableReq)
 }
 
@@ -1771,13 +1941,16 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
 	if len(results[0]["userAccountControl"]) > 0 {
 		uacstr = results[0]["userAccountControl"][0]
 	}
+
 	uac, err := flagunset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
@@ -1792,8 +1965,9 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 	)
 	enableReq.Replace(
 		"userAccountControl",
-		[]string{fmt.Sprintf("%d", uac)},
+		[]string{strconv.Itoa(uac)},
 	)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -1805,10 +1979,12 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
 	if len(results[0]["userAccountControl"]) > 0 {
 		uacstr = results[0]["userAccountControl"][0]
 	}
@@ -1817,14 +1993,16 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
+
 	disableReq := ldap.NewModifyRequest(
 		"CN="+username+",CN=Users,"+c.baseDN,
 		[]ldap.Control{},
 	)
 	disableReq.Replace(
 		"userAccountControl",
-		[]string{fmt.Sprintf("%d", uac)},
+		[]string{strconv.Itoa(uac)},
 	)
+
 	return c.lconn.Modify(disableReq)
 }
 
@@ -1836,10 +2014,12 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
 	searchscope := 2
+
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
+
 	if len(results[0]["userAccountControl"]) > 0 {
 		uacstr = results[0]["userAccountControl"][0]
 	}
@@ -1848,14 +2028,16 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
+
 	enableReq := ldap.NewModifyRequest(
 		"CN="+username+",CN=Users,"+c.baseDN,
 		[]ldap.Control{},
 	)
 	enableReq.Replace(
 		"userAccountControl",
-		[]string{fmt.Sprintf("%d", uac)},
+		[]string{strconv.Itoa(uac)},
 	)
+
 	return c.lconn.Modify(enableReq)
 }
 
@@ -1891,6 +2073,7 @@ func (c *Conn) SetUserPassword(
 	if err != nil {
 		return err
 	}
+
 	return c.lconn.Modify(passwordReq)
 }
 
@@ -1909,6 +2092,7 @@ func (c *Conn) RemoveShadowCredentials(username string) error {
 			ldapErr.ResultCode == ldap.LDAPResultNoSuchAttribute {
 			return nil
 		}
+
 		return fmt.Errorf(
 			"failed to remove shadow credential(s) from LDAP: %w",
 			err,
@@ -1982,6 +2166,7 @@ func (c *Conn) AddShadowCredentialWithPFX(
 			err,
 		)
 	}
+
 	pubKeyPEM := string(
 		pem.EncodeToMemory(
 			&pem.Block{Type: "PUBLIC KEY", Bytes: pubKeyBytes},
@@ -1996,6 +2181,7 @@ func (c *Conn) AddShadowCredentialWithPFX(
 			err,
 		)
 	}
+
 	password := hex.EncodeToString(passwordBytes)
 
 	// Generate PFX
@@ -2009,6 +2195,7 @@ func (c *Conn) AddShadowCredentialWithPFX(
 
 	// Save PFX file
 	filename := fmt.Sprintf("%s/%s.pfx", outputPath, username)
+
 	err = SaveBytesToFile(filename, pfxBytes)
 	if err != nil {
 		return "", "", "", fmt.Errorf(
@@ -2153,6 +2340,7 @@ func buildKeyCredentialEntry(entryType uint8, value []byte) []byte {
 	binary.Write(buf, binary.LittleEndian, length)
 	buf.WriteByte(entryType)
 	buf.Write(value)
+
 	return buf.Bytes()
 }
 
@@ -2163,10 +2351,11 @@ func CreateKeyCredentialBlob(
 	// Parse PEM
 	block, _ := pem.Decode([]byte(publicKeyPEM))
 	if block == nil {
-		return "", nil, "", fmt.Errorf(
+		return "", nil, "", errors.New(
 			"failed to parse public key PEM",
 		)
 	}
+
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return "", nil, "", fmt.Errorf(
@@ -2179,7 +2368,7 @@ func CreateKeyCredentialBlob(
 	rsaKey, isRSA := pub.(*rsa.PublicKey)
 	if !isRSA {
 		// Could also support ECDSA if needed
-		return "", nil, "", fmt.Errorf(
+		return "", nil, "", errors.New(
 			"public key type not supported: must be RSA",
 		)
 	}
@@ -2275,6 +2464,7 @@ func CreateKeyCredentialBlob(
 	for _, entry := range hashedEntries {
 		hashInput.Write(entry)
 	}
+
 	keyHashSum := sha256.Sum256(hashInput.Bytes())
 	keyHashEntry := buildKeyCredentialEntry(
 		KeyCredentialEntryKeyHash,
@@ -2300,6 +2490,7 @@ func CreateKeyCredentialBlob(
 	// Order: KeyID, KeyHash, then the hashed entries
 	finalBuf.Write(keyIDEntry)
 	finalBuf.Write(keyHashEntry)
+
 	for _, entry := range hashedEntries {
 		finalBuf.Write(entry)
 	}
@@ -2449,5 +2640,6 @@ func createPKCS12RSA(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pkcs12: %w", err)
 	}
+
 	return pfxBytes, nil
 }

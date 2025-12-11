@@ -62,6 +62,7 @@ TRUSTS (9+ attributes):
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -261,6 +262,7 @@ func (c *Conn) CollectBloodHound(
 
 	// normalize requested collectors
 	var toRun []string
+
 	if len(collectors) == 0 {
 		for k := range supported {
 			toRun = append(toRun, k)
@@ -275,7 +277,7 @@ func (c *Conn) CollectBloodHound(
 	}
 
 	if len(toRun) == 0 {
-		return "", fmt.Errorf("no valid collectors requested")
+		return "", errors.New("no valid collectors requested")
 	}
 
 	// Create temp dir
@@ -287,8 +289,10 @@ func (c *Conn) CollectBloodHound(
 
 	// If dryRun, skip file writes
 	files := []string{}
+
 	for _, name := range toRun {
 		fn := supported[name]
+
 		data, err := fn(baseDN)
 		if err != nil {
 			return "", fmt.Errorf(
@@ -301,18 +305,24 @@ func (c *Conn) CollectBloodHound(
 		if dryRun {
 			continue
 		}
-		fname := filepath.Join(tmpdir, fmt.Sprintf("%s.json", name))
+
+		fname := filepath.Join(tmpdir, name+".json")
+
 		f, err := os.Create(fname)
 		if err != nil {
 			return "", err
 		}
+
 		enc := json.NewEncoder(f)
 		enc.SetIndent("", "  ")
+
 		if err := enc.Encode(data); err != nil {
 			f.Close()
 			return "", err
 		}
+
 		f.Close()
+
 		files = append(files, fname)
 	}
 
@@ -357,7 +367,9 @@ func addFileToZip(zw *zip.Writer, path string) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = io.Copy(w, f)
+
 	return err
 }
 
@@ -389,6 +401,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 		// Shadow credentials
 		"msDS-KeyCredentialLink",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil {
 		return nil, err
@@ -396,6 +409,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 
 	// Also search for GMSA accounts in Managed Service Accounts container
 	msaContainerDN := "CN=Managed Service Accounts," + baseDN
+
 	msaRes, msaErr := c.getAllResults(
 		1,
 		"(objectClass=*)",
@@ -412,6 +426,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 
 	for _, e := range res {
 		dn := firstOrEmpty(e, "DN")
+
 		sid := firstOrEmpty(e, "objectSid")
 		if sid == "" {
 			continue // Skip if no SID
@@ -423,6 +438,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 
 		// Get primary group SID
 		var primaryGroupSID *string
+
 		if pgid := firstOrEmpty(e, "primaryGroupID"); pgid != "" {
 			if domainSID != "" {
 				pgSID := domainSID + "-" + pgid
@@ -445,6 +461,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 
 		// Parse SID History
 		var sidHistory []string
+
 		for _, sidHist := range e["sIDHistory"] {
 			if sidHist != "" {
 				sidHistory = append(sidHistory, sidHist)
@@ -583,6 +600,7 @@ func (c *Conn) collectComputersBloodHound(
 		// Security
 		"nTSecurityDescriptor", "msDS-Behavior-Version",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil {
 		return nil, err
@@ -594,6 +612,7 @@ func (c *Conn) collectComputersBloodHound(
 
 	for _, e := range res {
 		dn := firstOrEmpty(e, "DN")
+
 		sid := firstOrEmpty(e, "objectSid")
 		if sid == "" {
 			continue
@@ -603,6 +622,7 @@ func (c *Conn) collectComputersBloodHound(
 
 		// Get primary group SID
 		var primaryGroupSID *string
+
 		if pgid := firstOrEmpty(e, "primaryGroupID"); pgid != "" {
 			if domainSID != "" {
 				pgSID := domainSID + "-" + pgid
@@ -633,6 +653,7 @@ func (c *Conn) collectComputersBloodHound(
 
 		// Parse SID History
 		var sidHistory []string
+
 		for _, sidHist := range e["sIDHistory"] {
 			if sidHist != "" {
 				sidHistory = append(sidHistory, sidHist)
@@ -784,6 +805,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 		// Security
 		"nTSecurityDescriptor",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil {
 		return nil, err
@@ -791,6 +813,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 
 	// Also search for built-in groups in the BUILTIN container
 	builtinContainerDN := "CN=BUILTIN," + baseDN
+
 	builtinRes, builtinErr := c.getAllResults(
 		1,
 		filter,
@@ -807,12 +830,14 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 
 	for _, e := range res {
 		dn := firstOrEmpty(e, "DN")
+
 		sid := firstOrEmpty(e, "objectSid")
 		if sid == "" {
 			continue
 		}
 
 		members := []BHMember{}
+
 		for _, memberDN := range e["member"] {
 			// For each member, we need to resolve its SID and type
 			memberSID := c.resolveSIDFromDN(memberDN)
@@ -840,6 +865,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 		// Parse group type to determine scope
 		groupType := firstOrEmpty(e, "groupType")
 		var groupScope string
+
 		if groupType != "" {
 			// Extract scope from group type bitmask
 			if strings.Contains(groupType, "-2147483646") ||
@@ -856,6 +882,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 
 		// Parse SID History
 		var sidHistory []string
+
 		for _, sidHist := range e["sIDHistory"] {
 			if sidHist != "" {
 				sidHistory = append(sidHistory, sidHist)
@@ -932,6 +959,7 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (any, error) {
 		// Security and replication
 		"nTSecurityDescriptor", "objectVersion",
 	}
+
 	res, err := c.getAllResults(
 		0,
 		filter,
@@ -958,10 +986,12 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (any, error) {
 			if dn == "" {
 				dn = baseDN // Fallback to baseDN if not found
 			}
+
 			domain := strings.ToUpper(extractDomainFromDN(dn))
 			if domain == "" {
 				domain = strings.ToUpper(extractDomainFromDN(baseDN))
 			}
+
 			description := firstOrEmpty(e, "description")
 			whenCreated := parseLDAPGeneralizedTime(
 				firstOrEmpty(e, "whenCreated"),
@@ -1128,6 +1158,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 		// Security
 		"nTSecurityDescriptor",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil {
 		return nil, err
@@ -1139,6 +1170,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 
 	for _, e := range res {
 		dn := firstOrEmpty(e, "DN")
+
 		guid := firstOrEmpty(e, "objectGUID")
 		if guid == "" {
 			guid = dn
@@ -1146,6 +1178,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 
 		// Check if GP inheritance is blocked (gPOptions bit)
 		blockInheritance := false
+
 		gpOptions := firstOrEmpty(e, "gPOptions")
 		if gpOptions == "1" {
 			blockInheritance = true
@@ -1165,6 +1198,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 
 		gpLink := firstOrEmpty(e, "gPLink")
 		linkedGPOs := []string{}
+
 		if gpLink != "" {
 			parts := strings.Split(gpLink, "[LDAP://")
 			for i := 1; i < len(parts); i++ {
@@ -1184,6 +1218,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 		if len(linkedGPOs) > 0 {
 			ou["LinkedGPOs"] = linkedGPOs
 		}
+
 		out = append(out, ou)
 	}
 
@@ -1210,6 +1245,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (any, error) {
 		// Metadata
 		"description", "whenCreated", "whenChanged",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil {
 		return nil, err
@@ -1221,6 +1257,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (any, error) {
 
 	for _, e := range res {
 		dn := firstOrEmpty(e, "DN")
+
 		name := firstOrEmpty(e, "displayName")
 		if name == "" {
 			name = firstOrEmpty(e, "cn")
@@ -1228,6 +1265,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (any, error) {
 
 		// Parse GPO status from versionNumber
 		gpcPath := firstOrEmpty(e, "gPCFileSysPath")
+
 		gpoStatus := "Unknown"
 		if gpcPath != "" {
 			gpoStatus = "Enabled"
@@ -1287,6 +1325,7 @@ func (c *Conn) collectContainersBloodHound(
 	// Also search Configuration partition for containers
 	// SharpHound searches the entire Configuration partition with subtree scope
 	configDN := "CN=Configuration," + baseDN
+
 	configRes, err := c.getAllResults(2, filter, attrs, configDN)
 	if err != nil {
 		fmt.Printf(
@@ -1305,6 +1344,7 @@ func (c *Conn) collectContainersBloodHound(
 
 	for _, e := range res {
 		dn := firstOrEmpty(e, "DN")
+
 		guid := firstOrEmpty(e, "objectGUID")
 		if guid == "" {
 			guid = dn
@@ -1345,9 +1385,11 @@ func firstOrEmpty(m map[string][]string, k string) string {
 	if v, ok := m[k]; ok && len(v) > 0 {
 		return v[0]
 	}
+
 	if v, ok := m[strings.ToLower(k)]; ok && len(v) > 0 {
 		return v[0]
 	}
+
 	return ""
 }
 
@@ -1356,10 +1398,12 @@ func toInt(s string) any {
 	if s == "" {
 		return nil
 	}
+
 	var val int64
 	if _, err := fmt.Sscanf(s, "%d", &val); err != nil {
 		return nil
 	}
+
 	return int(val)
 }
 
@@ -1367,6 +1411,7 @@ func toStringOrNil(s string) any {
 	if s == "" {
 		return nil
 	}
+
 	return s
 }
 
@@ -1374,6 +1419,7 @@ func nilIfEmpty(slice []string) any {
 	if len(slice) == 0 {
 		return nil
 	}
+
 	return slice
 }
 
@@ -1381,6 +1427,7 @@ func sliceOrNil(slice []string) []string {
 	if len(slice) == 0 {
 		return nil
 	}
+
 	return slice
 }
 
@@ -1409,6 +1456,7 @@ func parseUAC(uacStr string) map[string]any {
 
 	// Parse the UAC value (already a numeric string from LDAP)
 	var uac uint32
+
 	_, err := fmt.Sscanf(uacStr, "%d", &uac)
 	if err != nil {
 		return result
@@ -1458,12 +1506,14 @@ func parseLDAPTimestamp(timeStr string) int64 {
 	}
 	// Parse as 64-bit integer
 	var ft int64
+
 	_, err := fmt.Sscanf(timeStr, "%d", &ft)
 	if err != nil {
 		return 0
 	}
 	// 116444736000000000 is the number of 100-nanosecond intervals from 1601-01-01 to 1970-01-01
 	unixTime := (ft - 116444736000000000) / 10000000
+
 	return unixTime
 }
 
@@ -1481,6 +1531,7 @@ func parseLDAPGeneralizedTime(timeStr string) int64 {
 		return 0
 	}
 	var year, month, day, hour, min, sec int
+
 	_, err := fmt.Sscanf(
 		timeStr[:14],
 		"%4d%2d%2d%2d%2d%2d",
@@ -1506,6 +1557,7 @@ func parseLDAPGeneralizedTime(timeStr string) int64 {
 		0,
 		time.UTC,
 	)
+
 	return t.Unix()
 }
 
@@ -1513,6 +1565,7 @@ func parseLDAPGeneralizedTime(timeStr string) int64 {
 func (c *Conn) getDomainSID(baseDN string) string {
 	filter := "(objectClass=domain)"
 	attrs := []string{"objectSid"}
+
 	res, err := c.getAllResults(
 		0,
 		filter,
@@ -1522,6 +1575,7 @@ func (c *Conn) getDomainSID(baseDN string) string {
 	if err != nil || len(res) == 0 {
 		return ""
 	}
+
 	return firstOrEmpty(res[0], "objectSid")
 }
 
@@ -1533,6 +1587,7 @@ func (c *Conn) resolveSIDFromDN(dn string) string {
 	// Search for the object by its DN
 	filter := "(distinguishedName=" + dn + ")"
 	attrs := []string{"objectSid"}
+
 	res, err := c.getAllResults(
 		0,
 		filter,
@@ -1542,6 +1597,7 @@ func (c *Conn) resolveSIDFromDN(dn string) string {
 	if err != nil || len(res) == 0 {
 		return ""
 	}
+
 	return firstOrEmpty(res[0], "objectSid")
 }
 
@@ -1550,12 +1606,15 @@ func (c *Conn) isGroup(dn string) bool {
 	if dn == "" {
 		return false
 	}
+
 	filter := "(&(distinguishedName=" + dn + ")(objectCategory=group))"
 	attrs := []string{"cn"}
+
 	res, err := c.getAllResults(0, filter, attrs, dn)
 	if err != nil || len(res) == 0 {
 		return false
 	}
+
 	return true
 }
 
@@ -1563,18 +1622,21 @@ func (c *Conn) isGroup(dn string) bool {
 func (c *Conn) collectDomainsForObject(baseDN string) []string {
 	filter := "(objectClass=trustedDomain)"
 	attrs := []string{"cn", "objectSid"}
+
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
 	if err != nil || len(res) == 0 {
 		return []string{}
 	}
 
 	var trusts []string
+
 	for _, trust := range res {
 		sid := firstOrEmpty(trust, "objectSid")
 		if sid != "" {
 			trusts = append(trusts, sid)
 		}
 	}
+
 	return trusts
 }
 
@@ -1582,15 +1644,18 @@ func extractDomainFromDN(dn string) string {
 	// Convert DN like "CN=user,CN=Users,DC=domain,DC=com" to "domain.com"
 	parts := strings.Split(dn, ",")
 	var dcParts []string
+
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if strings.HasPrefix(part, "DC=") {
 			dcParts = append(dcParts, part[3:])
 		}
 	}
+
 	if len(dcParts) > 0 {
 		return strings.ToLower(strings.Join(dcParts, "."))
 	}
+
 	return ""
 }
 
@@ -1614,6 +1679,7 @@ func (c *Conn) getCertTemplateContainerGUID(baseDN string) *string {
 	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
 		return &guid
 	}
+
 	return nil
 }
 
@@ -1630,6 +1696,7 @@ func (c *Conn) findRootCAForEnterprise(baseDN string) *string {
 	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
 		return &guid
 	}
+
 	return nil
 }
 
@@ -1649,6 +1716,7 @@ func (c *Conn) getCertificationAuthoritiesContainerGUID(
 	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
 		return &guid
 	}
+
 	return nil
 }
 
@@ -1665,6 +1733,7 @@ func (c *Conn) getPKIContainerGUID(baseDN string) *string {
 	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
 		return &guid
 	}
+
 	return nil
 }
 
@@ -1683,17 +1752,20 @@ func (c *Conn) findCertTemplateGUIDsByCA(baseDN string) []string {
 	}
 
 	var guids []string
+
 	for _, entry := range res {
 		if guid := firstOrEmpty(entry, "objectGUID"); guid != "" {
 			guids = append(guids, guid)
 		}
 	}
+
 	return guids
 }
 
 // getContainerGUIDByDN retrieves the objectGUID of a container by its DN
 func (c *Conn) getContainerGUIDByDN(dn string) string {
 	attrs := []string{"objectGUID"}
+
 	result, err := c.ldapSearch(dn, 0, "(objectClass=*)", attrs)
 	if err != nil || len(result.Entries) == 0 {
 		return ""
@@ -1704,6 +1776,7 @@ func (c *Conn) getContainerGUIDByDN(dn string) string {
 			return decodeGUID(attr.ByteValues[0])
 		}
 	}
+
 	return ""
 }
 
@@ -1729,6 +1802,7 @@ func (c *Conn) findComputerByDNSName(
 	if guid := firstOrEmpty(res[0], "objectGUID"); guid != "" {
 		return &guid
 	}
+
 	return nil
 }
 
@@ -1742,6 +1816,7 @@ func escapeFilterValue(value string) string {
 		"/", "\\2f",
 		"\x00", "\\00",
 	)
+
 	return replacer.Replace(value)
 }
 
@@ -1757,6 +1832,7 @@ func (c *Conn) collectCertTemplatesBloodHound(
 		"msPKI-RA-Application-Policies", "msPKI-Certificate-Application-Policy",
 		"msPKI-Enrollment-Flag", "pKIExpirationPeriod", "msPKI-Certificate-Policy",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
@@ -1862,6 +1938,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(
 	attrs := []string{
 		"objectGUID", "cn", "distinguishedName", "dNSHostName", "whenCreated",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
@@ -1886,6 +1963,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(
 		name := firstOrEmpty(entry, "cn")
 		guid := firstOrEmpty(entry, "objectGUID")
 		dnsHostnameStr := firstOrEmpty(entry, "dNSHostName")
+
 		var dnsHostname *string
 		if dnsHostnameStr != "" {
 			dnsHostname = &dnsHostnameStr
@@ -1906,6 +1984,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(
 
 		// Find certificate templates published by this CA
 		templateGUIDs := c.findCertTemplateGUIDsByCA(baseDN)
+
 		enabledTemplates := []BHMember{}
 		for _, guid := range templateGUIDs {
 			enabledTemplates = append(enabledTemplates, BHMember{
@@ -1916,9 +1995,11 @@ func (c *Conn) collectEnterpriseCAsBloodHound(
 
 		// Find parent container (Enrollment Services) for ContainedBy relationship
 		var containedBy *BHContainedBy
+
 		parts := strings.Split(dn, ",")
 		if len(parts) > 1 {
 			parentDN := strings.Join(parts[1:], ",")
+
 			parentGUID := c.getContainerGUIDByDN(parentDN)
 			if parentGUID != "" {
 				containedBy = &BHContainedBy{
@@ -1993,14 +2074,16 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (any, error) {
 	}
 	// Filter out the AIA container itself if it was returned
 	filtered := make([]map[string][]string, 0)
+
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
 		cn := firstOrEmpty(entry, "cn")
 		// Skip the AIA container itself (where cn=AIA and dn matches the container)
-		if !(cn == "AIA" && dn == aiaContainerDN) {
+		if cn != "AIA" || dn != aiaContainerDN {
 			filtered = append(filtered, entry)
 		}
 	}
+
 	res = filtered
 
 	var out []BHAIACA
@@ -2063,6 +2146,7 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (any, error) {
 	attrs := []string{
 		"objectGUID", "cn", "distinguishedName", "whenCreated",
 	}
+
 	res, err := c.getAllResults(1, filter, attrs, rootCAsContainerDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
@@ -2145,6 +2229,7 @@ func (c *Conn) collectNTAuthStoresBloodHound(
 	attrs := []string{
 		"objectGUID", "cn", "distinguishedName", "whenCreated",
 	}
+
 	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
@@ -2243,6 +2328,7 @@ func (c *Conn) collectIssuancePoliciesBloodHound(
 			oidContainerDN,
 		)
 	}
+
 	if err != nil || len(res) == 0 {
 		// Last attempt: search whole PKI base
 		res, err = c.getAllResults(
@@ -2252,6 +2338,7 @@ func (c *Conn) collectIssuancePoliciesBloodHound(
 			pkiBaseDN,
 		)
 	}
+
 	if err != nil {
 		// Return empty result instead of error if no entries found
 		return map[string]any{
@@ -2271,10 +2358,12 @@ func (c *Conn) collectIssuancePoliciesBloodHound(
 
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
+
 		name := firstOrEmpty(entry, "displayName")
 		if name == "" {
 			name = firstOrEmpty(entry, "cn")
 		}
+
 		guid := firstOrEmpty(entry, "objectGUID")
 
 		if name == "" {

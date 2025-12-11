@@ -1,12 +1,9 @@
 .vscode/
-.exe
-.dll
-.so
+*.exe
 .dylib
 local/
 test/
-.pfx
-.ccache
+*.ccache
 *.json
 *.zip
 *.out
