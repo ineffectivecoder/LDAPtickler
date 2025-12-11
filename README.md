@@ -1,26 +1,26 @@
 
 # LDAPtickler
 
-![LDAPtickler](ldaptickler.png)  
+![LDAPtickler](ldaptickler.png)
 Tickler of LDAP
 
 ## What's it for?
 
-This tool is intended to simplify searching LDAP for various objects.  
-It will support multiple operating systems out of the box, thanks to it being written in Go.  
-Using ldapsearch is somewhat of a drag and I was hoping to provide a tool  
-for those so inclined to perform raw ldapsearches that isn't a complete nightmare to use.  
-The user of the tool will need to know certain details to use it of course, like the ldap server,  
+This tool is intended to simplify searching LDAP for various objects.
+It will support multiple operating systems out of the box, thanks to it being written in Go.
+Using ldapsearch is somewhat of a drag and I was hoping to provide a tool
+for those so inclined to perform raw ldapsearches that isn't a complete nightmare to use.
+The user of the tool will need to know certain details to use it of course, like the ldap server,
 have an understanding of what bind methods are supported on the endpoint, basedn,and knowledge of valid creds,etc.
 
 This tool has grown significantly to also allow for modification of certain fields that may be useful to a Red Team operator,
-as well as the incorporation of many queries for spot checking the configuration of many AD attributes.  
-This has been tested extensively against Windows 2025 Server running Active Directory.  
+as well as the incorporation of many queries for spot checking the configuration of many AD attributes.
+This has been tested extensively against Windows 2025 Server running Active Directory.
 Be extremely careful when arbitrarily modifying or deleting entries in AD, it can lead to all sorts of unexpected behavior.
-I personally have destroyed my domain a few times now leveraging this tool.  
+I personally have destroyed my domain a few times now leveraging this tool.
 
-This was mainly a research project to better understand AD internals in an LDAP directory.  
-Also attempts at learning how to manipulate specific fields and trying to understand some of the more esoteric parts of AD.  
+This was mainly a research project to better understand AD internals in an LDAP directory.
+Also attempts at learning how to manipulate specific fields and trying to understand some of the more esoteric parts of AD.
 
 ## Installation
 
@@ -47,7 +47,7 @@ $Env:GOOS = "windows"
 or
 $Env:GOOS = "linux"
 go build .\cmd\ldaptickler\
-.\ldaptickler.exe 
+.\ldaptickler.exe
 or
 ./ldaptickler
 ```
@@ -149,7 +149,7 @@ Supported Utility Commands
                                                            account
     enableuser <username>                                  Enables a user
                                                            account
-                                                           
+
 
 Supported LDAP Queries
     certpublishers             Returns all Certificate Publishers in the domain
@@ -193,7 +193,7 @@ Supported LDAP Queries
     users                      Lists all user accounts in the domain
     whoami                     Runs a whoami-style LDAP query for the current
                                user
-                               
+
 
 AUTHORS
     Chris Hodson r2d2@sostup.id
@@ -304,7 +304,7 @@ users = query users in LDAP
 ```
 
 ```text
-go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p search "(&(samaccountname=Cert Publishers)(member=*))" 
+go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p search "(&(samaccountname=Cert Publishers)(member=*))"
 [+] Enter Password:
 [+] Attempting bind with credentials to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
@@ -323,7 +323,7 @@ go run ./cmd/ldaptickler/ --dc tip.spinninglikea.top  -s -u lowprivguy  -p searc
 
 ```text
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p collectbh
-[+] Enter Password: 
+[+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
 [+] Running SharpHound-style collectors (collectors=[] dry-run=false) baseDN=DC=spinninglikea,DC=top
@@ -342,7 +342,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 
 ```text
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p addshadowcredential slacker
-[+] Enter Password: 
+[+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
 [+] Generating shadow credential PFX for account slacker
@@ -379,7 +379,7 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 
 ```text
 go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p disableshadowcredential slacker
-[+] Enter Password: 
+[+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
 [+] Disabling shadow credentials for account slacker
@@ -397,8 +397,8 @@ go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u 
 ```
 
 ```text
-go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p gmsaaccounts                   
-[+] Enter Password: 
+go run ./cmd/ldaptickler/ -d spinninglikea.top --dc tip.spinninglikea.top -s -u slacker -p gmsaaccounts
+[+] Enter Password:
 [+] Attempting NTLM bind to tip.spinninglikea.top
 [+] Successfully connected to tip.spinninglikea.top
 [+] Searching for all Group Managed Service Accounts in LDAP with baseDN DC=spinninglikea,DC=top
@@ -429,32 +429,32 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 
 ## Initial features
 
-- [x] Prompt for user creds  
-- [x] Changing a user's password  
+- [x] Prompt for user creds
+- [x] Changing a user's password
 - [x] Creation of user accounts
 - [x] Modification of Service Principal Names
 - [x] Creation of machine accounts
-  - [x] Research why only my DA can do this. This is now sorted out. This very much depended on the specific entries being created for the machine account.  
+  - [x] Research why only my DA can do this. This is now sorted out. This very much depended on the specific entries being created for the machine account.
 - [x] Deletion of User and Machine accounts
-- [x] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope  
-- [ ] Store creds in environment variable  
+- [x] Expand ldapsearch function to take all supported parameters, currently just filter, attributes, basedn, and scope
+- [ ] Store creds in environment variable
 - [x] Refactor
   - [x] Create Library
-- [ ] Support Adding and removing of all delegation attributes  
+- [ ] Support Adding and removing of all delegation attributes
   - [x] Unconstrained - Refactored
   - [x] Constrained  - Refactored
-  - [x] Resource Based Constrained Delegation, support has been added for validation, adding and removing. Remove only supports all for now. Need to fix.  
-- [x] Support modification of msds-keycredentiallink for shadow credentials  
-  - [x] Create self signed cert  
-  - [x] Prepare blob for placement in msds-keycredentiallink field  
-  - [x] Modify msds-keycredentiallink field  
+  - [x] Resource Based Constrained Delegation, support has been added for validation, adding and removing. Remove only supports all for now. Need to fix.
+- [x] Support modification of msds-keycredentiallink for shadow credentials
+  - [x] Create self signed cert
+  - [x] Prepare blob for placement in msds-keycredentiallink field
+  - [x] Modify msds-keycredentiallink field
 - [ ] Support creation of DNS entries
-- [x] Search and list specific types of objects  
+- [x] Search and list specific types of objects
   - [x] Partial support for most useful DNS entries, many other types need work
   - [x] Domain Controllers
   - [x] DNS entries
-  - [x] Computers  
-  - [x] Users  
+  - [x] Computers
+  - [x] Users
   - [x] Groups
   - [x] kerberoastable users
   - [x] User specified
@@ -472,27 +472,27 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
   - [x] Query ms-DS-MachineAccountQuota
   - [x] Query nTSecurityDescriptor field to check top level permissions
 
-- [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL  
-  - [x] anonymous  
-  - [x] simple  
-  - [x] ntlm  
-  - [x] ntlm with PTH  
-  - [x] GSSAPI  
-  - [ ] SASL  
-- [ ] Support dumping the entire database  
-- [x] Support ldaps and ldap  
+- [ ] Support different bind types, Anonymous, Simple Bind, GSSAPI, and SASL
+  - [x] anonymous
+  - [x] simple
+  - [x] ntlm
+  - [x] ntlm with PTH
+  - [x] GSSAPI
+  - [ ] SASL
+- [ ] Support dumping the entire database
+- [x] Support ldaps and ldap
 
 ## Stretch goals
 
-- [x] Allow for deletion, and modification of existing LDAP entries  
+- [x] Allow for deletion, and modification of existing LDAP entries
 - [x] Bloodhound support, collector has equivalent output as sharphound in my test domain, still testing
-- [x] Accept plain text password at the command line  
+- [x] Accept plain text password at the command line
 - [ ] Leverage existing users TGT in Windows environment for authentication
 - [ ] Local password storage options
 - [x] Derive domain from dc so the user doesnt need to provide it
-- [ ] Unrolled/effective group membership  
-- [ ] Modify scope to be words instead of numbers, easier to recall  
-- [x] Provide ldapsearch equivalent for each query  
+- [ ] Unrolled/effective group membership
+- [ ] Modify scope to be words instead of numbers, easier to recall
+- [x] Provide ldapsearch equivalent for each query
 - [ ] Support more binary fields, DACLs
 - [x] Add/del login scripts
 - [x] Reading GPOs(supported by collectbh)
@@ -507,25 +507,26 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 ## Updates
 
 - GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
-- BloodHound collector has been implemented  
-- Shadowcredential creation and removal is now supported  
-- We can read GMSA passwords assuming you are the correct privileged user  
-- Deriving basedn from the name of the DC is now supported  
-- Adding and deleting login scripts is now supported  
-- Plain text password command line support  
-- Providing LDAP search equivalent command if you pass -D  
+- BloodHound collector has been implemented
+- Shadowcredential creation and removal is now supported
+- We can read GMSA passwords assuming you are the correct privileged user
+- Deriving basedn from the name of the DC is now supported
+- Adding and deleting login scripts is now supported
+- Plain text password command line support
+- Providing LDAP search equivalent command if you pass -D
 - Socks Proxy 5 support(tested through CobaltStrike beacon)
+- First pass at linting
 
 ## Thanks
 
 ### Thank you for testing and letting me bounce ideas off of you
 
-- [mjwhitta](https://github.com/mjwhitta/)  
-- [dumpst3rfir3](https://github.com/dumpst3rfir3/)  
-- [sludgework](https://github.com/sludgework)  
-- [mayyhem](https://github.com/Mayyhem)  
+- [mjwhitta](https://github.com/mjwhitta/)
+- [dumpst3rfir3](https://github.com/dumpst3rfir3/)
+- [sludgework](https://github.com/sludgework)
+- [mayyhem](https://github.com/Mayyhem)
 
 ### Without the below packages none of this would be possible
 
-- [go-ldap](https://github.com/go-ldap/ldap)  
+- [go-ldap](https://github.com/go-ldap/ldap)
 - [gokrb5](https://github.com/jcmturner/gokrb5)
