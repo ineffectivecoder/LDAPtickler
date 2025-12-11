@@ -1,3 +1,4 @@
+//nolint:tagliatelle // JSON tags are required to match BloodHound schema
 package ldaptickler
 
 /*

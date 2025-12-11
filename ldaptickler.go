@@ -1416,7 +1416,13 @@ func (c *Conn) ldapSearch(
 				strings.Join(attributes, " "),
 			)
 		} else {
-			log.Printf("[+] ldapsearch -H %s -b %s -o tls_reqcert=allow '%s' %s\n", c.url, basedn, filter, strings.Join(attributes, " "))
+			log.Printf(
+				"[+] ldapsearch -H %s -b %s -o tls_reqcert=allow '%s' %s\n",
+				c.url,
+				basedn,
+				filter,
+				strings.Join(attributes, " "),
+			)
 		}
 	}
 	var err error
@@ -2282,9 +2288,12 @@ const (
 	KeyTypeRSAPublic = 0x31415352 // "RSA1" in little endian
 )
 
-// MarshalRSAPublicKeyBcrypt serializes an RSA public key in bcrypt RSA key blob format
-// This is the Windows-specific format required for msDS-KeyCredentialLink
+// MarshalRSAPublicKeyBcrypt serializes an RSA public key in bcrypt
+// RSA key blob format. This is the Windows-specific format required
+// for msDS-KeyCredentialLink.
 // https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_rsakey_blob
+//
+//nolint:lll // url
 func MarshalRSAPublicKeyBcrypt(key *rsa.PublicKey) ([]byte, error) {
 	modulusBytes := key.N.Bytes()
 	exponentBytes := big.NewInt(int64(key.E)).Bytes()
