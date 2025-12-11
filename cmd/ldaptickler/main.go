@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 
@@ -31,55 +32,196 @@ type action struct {
 
 var lookupTable map[string]action = map[string]action{
 	// Todo add usages across the board
-	"addloginscript":                 {call: addloginscript, numargs: 2, usage: "<username> <loginscript>"},
-	"addmachine":                     {call: addmachine, numargs: 2, usage: "<machinename> <password>"},
-	"addmachinelp":                   {call: addmachinelp, numargs: 3, usage: "<machinename> <password> <domain>"},
-	"addshadowcredential":            {call: addshadowcredential, numargs: 1, usage: "<username>"},
-	"disableshadowcredential":        {call: disableshadowcredential, numargs: 1, usage: "<username>"},
-	"addspn":                         {call: addspn, numargs: 2, usage: "<machinename> <spn>"},
-	"adduser":                        {call: adduser, numargs: 3, usage: "<username> <principalname> <password>"},
-	"certpublishers":                 {call: certpublishers, numargs: 0},
-	"changepassword":                 {call: changepassword, numargs: 2, usage: "<username> <password>"},
-	"collectbh":                      {call: collectbh, numargs: 0},
-	"computers":                      {call: computers, numargs: 0},
-	"constraineddelegation":          {call: constraineddelegation, numargs: 0},
-	"deleteobject":                   {call: deleteobject, numargs: 2, usage: "<objectname> <objecttype m or u>"},
-	"disableconstraineddelegation":   {call: disablecd, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
-	"disableloginscript":             {call: disableloginscript, numargs: 1, usage: "<username>"},
-	"disablemachine":                 {call: disablemachine, numargs: 1, usage: "<machinename>"},
-	"disablerbcd":                    {call: disablerbcd, numargs: 1, usage: "<samaccountname>"},
-	"disablespn":                     {call: disablespn, numargs: 2, usage: "<samaccountname> <spnstoremove> or <all> to remove all"},
-	"disableunconstraineddelegation": {call: disableud, numargs: 1, usage: "<samaccountname>"},
-	"disableuser":                    {call: disableuser, numargs: 1, usage: "<username>"},
-	"dnsrecords":                     {call: dnsrecords, numargs: 0},
-	"domaincontrollers":              {call: domaincontrollers, numargs: 0},
-	"enablemachine":                  {call: enablemachine, numargs: 1, usage: "<machinename>"},
-	"enableconstraineddelegation":    {call: enablecd, numargs: 2, usage: "<samaccountname> <spn>"},
-	"enablerbcd":                     {call: enablerbcd, numargs: 2, usage: "<samaccountname> <delegatingcomputer>"},
-	"enableuser":                     {call: enableuser, numargs: 1, usage: "<username>"},
-	"fsmoroles":                      {call: fsmoroles, numargs: 0},
-	"enableunconstraineddelegation":  {call: enableud, numargs: 1, usage: "<samaccountname>"},
-	"search":                         {call: filter, numargs: 1, usage: "<filter>"},
-	"gmsaaccounts":                   {call: gmsaaccounts, numargs: 0},
-	"groups":                         {call: groups, numargs: 0},
-	"groupswithmembers":              {call: groupswithmembers, numargs: 0},
-	"kerberoastable":                 {call: kerberoastable, numargs: 0},
-	"loginscripts":                   {call: loginscripts, numargs: 0},
-	"machineaccountquota":            {call: machineaccountquota, numargs: 0},
-	"machinecreationdacl":            {call: machinecreationdacl, numargs: 0},
-	"nopassword":                     {call: nopassword, numargs: 0},
-	"objectquery":                    {call: objectquery, numargs: 1, usage: "<objectname>"},
-	"passworddontexpire":             {call: passworddontexpire, numargs: 0},
-	"passwordchangenextlogin":        {call: passwordchangenextlogin, numargs: 0},
-	"protectedusers":                 {call: protectedusers, numargs: 0},
-	"preauthdisabled":                {call: preauthdisabled, numargs: 0},
-	"querydescription":               {call: querydescription, numargs: 1, usage: "<description>"},
-	"rbcd":                           {call: rbcd, numargs: 0},
-	"schema":                         {call: schema, numargs: 0},
-	"shadowcredentials":              {call: shadowcredentials, numargs: 0},
-	"unconstraineddelegation":        {call: unconstraineddelegation, numargs: 0},
-	"users":                          {call: users, numargs: 0},
-	"whoami":                         {call: whoami, numargs: 0},
+	"addloginscript": {
+		call:    addloginscript,
+		numargs: 2,
+		usage:   "<username> <loginscript>",
+	},
+	"addmachine": {
+		call:    addmachine,
+		numargs: 2,
+		usage:   "<machinename> <password>",
+	},
+	"addmachinelp": {
+		call:    addmachinelp,
+		numargs: 3,
+		usage:   "<machinename> <password> <domain>",
+	},
+	"addshadowcredential": {
+		call:    addshadowcredential,
+		numargs: 1,
+		usage:   "<username>",
+	},
+	"disableshadowcredential": {
+		call:    disableshadowcredential,
+		numargs: 1,
+		usage:   "<username>",
+	},
+	"addspn": {
+		call:    addspn,
+		numargs: 2,
+		usage:   "<machinename> <spn>",
+	},
+	"adduser": {
+		call:    adduser,
+		numargs: 3,
+		usage:   "<username> <principalname> <password>",
+	},
+	"certpublishers": {
+		call:    certpublishers,
+		numargs: 0,
+	},
+	"changepassword": {
+		call:    changepassword,
+		numargs: 2,
+		usage:   "<username> <password>",
+	},
+	"collectbh": {call: collectbh, numargs: 0},
+	"computers": {call: computers, numargs: 0},
+	"constraineddelegation": {
+		call:    constraineddelegation,
+		numargs: 0,
+	},
+	"deleteobject": {
+		call:    deleteobject,
+		numargs: 2,
+		usage:   "<objectname> <objecttype m or u>",
+	},
+	"disableconstraineddelegation": {
+		call:    disablecd,
+		numargs: 2,
+		usage:   "<samaccountname> <spnstoremove> or <all> to remove all",
+	},
+	"disableloginscript": {
+		call:    disableloginscript,
+		numargs: 1,
+		usage:   "<username>",
+	},
+	"disablemachine": {
+		call:    disablemachine,
+		numargs: 1,
+		usage:   "<machinename>",
+	},
+	"disablerbcd": {
+		call:    disablerbcd,
+		numargs: 1,
+		usage:   "<samaccountname>",
+	},
+	"disablespn": {
+		call:    disablespn,
+		numargs: 2,
+		usage:   "<samaccountname> <spnstoremove> or <all> to remove all",
+	},
+	"disableunconstraineddelegation": {
+		call:    disableud,
+		numargs: 1,
+		usage:   "<samaccountname>",
+	},
+	"disableuser": {
+		call:    disableuser,
+		numargs: 1,
+		usage:   "<username>",
+	},
+	"dnsrecords": {call: dnsrecords, numargs: 0},
+	"domaincontrollers": {
+		call:    domaincontrollers,
+		numargs: 0,
+	},
+	"enablemachine": {
+		call:    enablemachine,
+		numargs: 1,
+		usage:   "<machinename>",
+	},
+	"enableconstraineddelegation": {
+		call:    enablecd,
+		numargs: 2,
+		usage:   "<samaccountname> <spn>",
+	},
+	"enablerbcd": {
+		call:    enablerbcd,
+		numargs: 2,
+		usage:   "<samaccountname> <delegatingcomputer>",
+	},
+	"enableuser": {
+		call:    enableuser,
+		numargs: 1,
+		usage:   "<username>",
+	},
+	"fsmoroles": {call: fsmoroles, numargs: 0},
+	"enableunconstraineddelegation": {
+		call:    enableud,
+		numargs: 1,
+		usage:   "<samaccountname>",
+	},
+	"search": {
+		call:    filter,
+		numargs: 1,
+		usage:   "<filter>",
+	},
+	"gmsaaccounts": {
+		call:    gmsaaccounts,
+		numargs: 0,
+	},
+	"groups": {call: groups, numargs: 0},
+	"groupswithmembers": {
+		call:    groupswithmembers,
+		numargs: 0,
+	},
+	"kerberoastable": {
+		call:    kerberoastable,
+		numargs: 0,
+	},
+	"loginscripts": {
+		call:    loginscripts,
+		numargs: 0,
+	},
+	"machineaccountquota": {
+		call:    machineaccountquota,
+		numargs: 0,
+	},
+	"machinecreationdacl": {
+		call:    machinecreationdacl,
+		numargs: 0,
+	},
+	"nopassword": {call: nopassword, numargs: 0},
+	"objectquery": {
+		call:    objectquery,
+		numargs: 1,
+		usage:   "<objectname>",
+	},
+	"passworddontexpire": {
+		call:    passworddontexpire,
+		numargs: 0,
+	},
+	"passwordchangenextlogin": {
+		call:    passwordchangenextlogin,
+		numargs: 0,
+	},
+	"protectedusers": {
+		call:    protectedusers,
+		numargs: 0,
+	},
+	"preauthdisabled": {
+		call:    preauthdisabled,
+		numargs: 0,
+	},
+	"querydescription": {
+		call:    querydescription,
+		numargs: 1,
+		usage:   "<description>",
+	},
+	"rbcd":   {call: rbcd, numargs: 0},
+	"schema": {call: schema, numargs: 0},
+	"shadowcredentials": {
+		call:    shadowcredentials,
+		numargs: 0,
+	},
+	"unconstraineddelegation": {
+		call:    unconstraineddelegation,
+		numargs: 0,
+	},
+	"users":  {call: users, numargs: 0},
+	"whoami": {call: whoami, numargs: 0},
 }
 
 // Global state
@@ -127,9 +269,13 @@ func init() {
 	cli.Align = true // Defaults to false
 	cli.Authors = []string{"Chris Hodson r2d2@sostup.id"}
 	cli.Banner = fmt.Sprintf("%s [OPTIONS] <arg>", os.Args[0])
-	cli.Info("A tool to simplify LDAP queries because it sucks and is not fun")
+	cli.Info(
+		"A tool to simplify LDAP queries because it sucks and is not fun",
+	)
 
-	cli.SectionAligned("Supported Utility Commands", "::",
+	cli.SectionAligned(
+		"Supported Utility Commands",
+		"::",
 		"addloginscript <username> <scriptname>:: Adds a login script to an account\n",
 		"addmachine <machinename> <machinepass>::Adds a new machine to the domain\n",
 		"addmachinelp <machinename> <machinepass>::Adds a new machine using low-priv credentials\n",
@@ -154,7 +300,9 @@ func init() {
 		"enableuser <username>::Enables a user account\n",
 	)
 
-	cli.SectionAligned("Supported LDAP Queries", "::",
+	cli.SectionAligned(
+		"Supported LDAP Queries",
+		"::",
 		"certpublishers::Returns all Certificate Publishers in the domain\n",
 		"computers::Lists all computer objects in the domain\n",
 		"collectbh::Runs SharpHound-style collectors and packages results into ZIP (use --collectors, --null, --output flags)\n",
@@ -186,24 +334,108 @@ func init() {
 	)
 
 	// Parse cli flags
-	cli.Flag(&flags.attributes, "a", "attributes", "Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname. Usage of this may break things")
-	cli.Flag(&flags.basedn, "b", "basedn", "", "Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id")
-	cli.Flag(&flags.collectors, "c", "collectors", "", "Comma-separated list of collectors to run (users,computers,groups,domains,ous,gpos,containers,certtemplates,enterprisecas,aiacas,rootcas,ntauthstores,issuancepolicies)")
+	cli.Flag(
+		&flags.attributes,
+		"a",
+		"attributes",
+		"Specify attributes for LDAPSearch, ex samaccountname,serviceprincipalname. Usage of this may break things",
+	)
+	cli.Flag(
+		&flags.basedn,
+		"b",
+		"basedn",
+		"",
+		"Specify baseDN for query, ex. ad.sostup.id would be dc=ad,dc=sostup,dc=id",
+	)
+	cli.Flag(
+		&flags.collectors,
+		"c",
+		"collectors",
+		"",
+		"Comma-separated list of collectors to run (users,computers,groups,domains,ous,gpos,containers,certtemplates,enterprisecas,aiacas,rootcas,ntauthstores,issuancepolicies)",
+	)
 	cli.Flag(&flags.dc, "dc", "", "Identify domain controller")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
-	cli.Flag(&flags.gssapi, "g", "gssapi", false, "Enable GSSAPI and attempt to authenticate")
-	cli.Flag(&flags.insecure, "insecure", false, "Use ldap:// instead of ldaps://")
-	cli.Flag(&flags.null, "n", "null", false, "Run collectors without writing files")
-	cli.Flag(&flags.output, "o", "output", "", "Output zip file path for collectors")
-	cli.Flag(&flags.password, "p", false, "Password to bind with, will prompt")
-	cli.Flag(&flags.passwordcli, "password", "", "Password to bind with, provided on command line")
-	cli.Flag(&flags.proxy, "proxy", "", "SOCKS5 proxy URL (e.g., socks5://127.0.0.1:9050)")
+	cli.Flag(
+		&flags.gssapi,
+		"g",
+		"gssapi",
+		false,
+		"Enable GSSAPI and attempt to authenticate",
+	)
+	cli.Flag(
+		&flags.insecure,
+		"insecure",
+		false,
+		"Use ldap:// instead of ldaps://",
+	)
+	cli.Flag(
+		&flags.null,
+		"n",
+		"null",
+		false,
+		"Run collectors without writing files",
+	)
+	cli.Flag(
+		&flags.output,
+		"o",
+		"output",
+		"",
+		"Output zip file path for collectors",
+	)
+	cli.Flag(
+		&flags.password,
+		"p",
+		false,
+		"Password to bind with, will prompt",
+	)
+	cli.Flag(
+		&flags.passwordcli,
+		"password",
+		"",
+		"Password to bind with, provided on command line",
+	)
+	cli.Flag(
+		&flags.proxy,
+		"proxy",
+		"",
+		"SOCKS5 proxy URL (e.g., socks5://127.0.0.1:9050)",
+	)
 	cli.Flag(&flags.pth, "pth", "", "Bind with password hash")
-	cli.Flag(&flags.searchscope, "scope", 2, "Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery")
-	cli.Flag(&flags.skipVerify, "s", "skip", false, "Skip SSL verification")
-	cli.Flag(&flags.username, "u", "user", "", "Username to bind with")
-	cli.Flag(&flags.verbose, "v", "verbose", false, "Enable verbose output")
-	cli.Flag(&ldaptickler.Debug, "D", "debug", false, "Display LDAP equivalent command")
+	cli.Flag(
+		&flags.searchscope,
+		"scope",
+		2,
+		"Define scope of search, 0=Base, 1=Single Level, 2=Whole Sub Tree, 3=Children, only used by filter and objectquery",
+	)
+	cli.Flag(
+		&flags.skipVerify,
+		"s",
+		"skip",
+		false,
+		"Skip SSL verification",
+	)
+	cli.Flag(
+		&flags.username,
+		"u",
+		"user",
+		"",
+		"Username to bind with",
+	)
+	cli.Flag(
+		&flags.verbose,
+		"v",
+		"verbose",
+		false,
+		"Enable verbose output",
+	)
+	cli.Flag(
+		&ldaptickler.Debug,
+		"D",
+		"debug",
+		false,
+		"Display LDAP equivalent command",
+	)
 
 	cli.Parse()
 
@@ -231,11 +463,15 @@ func init() {
 	*/
 
 	if flags.password && flags.pth != "" {
-		log.Fatal("[-] Silly Goose detected, you can't PTH and provide a password")
+		log.Fatal(
+			"[-] Silly Goose detected, you can't PTH and provide a password",
+		)
 	}
 
 	if flags.passwordcli != "" && flags.pth != "" {
-		log.Fatal("[-] Silly Goose detected, you can't PTH and provide a password")
+		log.Fatal(
+			"[-] Silly Goose detected, you can't PTH and provide a password",
+		)
 	}
 	// Parse flags to determine bind mode
 	switch {
@@ -252,7 +488,9 @@ func init() {
 	}
 	// Based on mode prompt for password
 	switch state.mode {
-	case ldaptickler.MethodBindGSSAPI, ldaptickler.MethodBindDomain, ldaptickler.MethodBindPassword:
+	case ldaptickler.MethodBindGSSAPI,
+		ldaptickler.MethodBindDomain,
+		ldaptickler.MethodBindPassword:
 
 		if flags.username == "" {
 			log.Fatal("[-] Username is empty, unable to continue")
@@ -272,7 +510,9 @@ func init() {
 	}
 	// Based on mode ensure we have the domain and username
 	switch state.mode {
-	case ldaptickler.MethodBindDomain, ldaptickler.MethodBindDomainPTH, ldaptickler.MethodBindGSSAPI:
+	case ldaptickler.MethodBindDomain,
+		ldaptickler.MethodBindDomainPTH,
+		ldaptickler.MethodBindGSSAPI:
 		if flags.domain == "" {
 			log.Fatal("[-] Domain is empty, unable to continue\n")
 		} else if flags.username == "" {
@@ -287,10 +527,12 @@ func init() {
 	}
 	// Deriving the basedn from the dc hostname
 	if strings.Contains(flags.dc, ".") && flags.basedn == "" {
-		flags.basedn = "DC=" + strings.Join(
-			strings.Split(flags.dc, ".")[1:],
-			",DC=",
-		)
+		if net.ParseIP(flags.dc) == nil {
+			flags.basedn = "DC=" + strings.Join(
+				strings.Split(flags.dc, ".")[1:],
+				",DC=",
+			)
+		}
 	}
 	if flags.basedn == "" {
 		log.Fatal("[-] A basedn will be required for any action")
@@ -300,7 +542,6 @@ func init() {
 	} else {
 		ldaptickler.LDAPDebug = false
 	}
-
 }
 
 func main() {
@@ -309,7 +550,7 @@ func main() {
 		proto = "ldap://"
 	}
 	// add flag dbag
-	//ldaptickler.LDAPDebug = false
+	// ldaptickler.LDAPDebug = false
 	var c *ldaptickler.Conn = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
 	if flags.proxy != "" {
 		c.SetProxy(flags.proxy)
@@ -323,27 +564,44 @@ func main() {
 
 	case ldaptickler.MethodBindDomain:
 		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.dc)
-		err = c.BindDomain(flags.domain, flags.username, state.password)
+		err = c.BindDomain(
+			flags.domain,
+			flags.username,
+			state.password,
+		)
 
 	case ldaptickler.MethodBindDomainPTH:
-		fmt.Printf("[+] Attempting NTLM Pass The Hash bind to %s\n", flags.dc)
+		fmt.Printf(
+			"[+] Attempting NTLM Pass The Hash bind to %s\n",
+			flags.dc,
+		)
 		err = c.BindDomainPTH(flags.domain, flags.username, flags.pth)
 
 	case ldaptickler.MethodBindPassword:
-		fmt.Printf("[+] Attempting bind with credentials to %s\n", flags.dc)
+		fmt.Printf(
+			"[+] Attempting bind with credentials to %s\n",
+			flags.dc,
+		)
 		err = c.BindPassword(flags.username, state.password)
 
 	case ldaptickler.MethodBindGSSAPI:
 		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.dc)
-		err = c.BindGSSAPI(flags.domain, flags.username, state.password, "ldap/"+flags.dc)
+		err = c.BindGSSAPI(
+			flags.domain,
+			flags.username,
+			state.password,
+			"ldap/"+flags.dc,
+		)
 	}
 	check(err)
 	defer c.Close()
 	fmt.Printf("[+] Successfully connected to %s\n", flags.dc)
-	err = lookupTable[strings.ToLower(cli.Arg(0))].call(c, cli.Args()[1:]...)
+	err = lookupTable[strings.ToLower(cli.Arg(0))].call(
+		c,
+		cli.Args()[1:]...)
 	check(err)
-
 }
+
 func addloginscript(c *ldaptickler.Conn, args ...string) error {
 	username := args[0]
 	loginscript := args[1]
@@ -351,9 +609,14 @@ func addloginscript(c *ldaptickler.Conn, args ...string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("[+] Added login script to account %s  with name %s\n", username, loginscript)
+	fmt.Printf(
+		"[+] Added login script to account %s  with name %s\n",
+		username,
+		loginscript,
+	)
 	return nil
 }
+
 func addmachine(c *ldaptickler.Conn, args ...string) error {
 	machinename := args[0]
 	machinepass := args[1]
@@ -362,7 +625,11 @@ func addmachine(c *ldaptickler.Conn, args ...string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
+	fmt.Printf(
+		"[+] Added machine account %s successfully with password %s\n",
+		machinename,
+		machinepass,
+	)
 	return nil
 }
 
@@ -371,11 +638,19 @@ func addmachinelp(c *ldaptickler.Conn, args ...string) error {
 	machinepass := args[1]
 	domain := args[2]
 
-	err := c.AddMachineAccountLowPriv(machinename, machinepass, domain)
+	err := c.AddMachineAccountLowPriv(
+		machinename,
+		machinepass,
+		domain,
+	)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("[+] Added machine account %s successfully with password %s\n", machinename, machinepass)
+	fmt.Printf(
+		"[+] Added machine account %s successfully with password %s\n",
+		machinename,
+		machinepass,
+	)
 	return nil
 }
 
@@ -383,24 +658,45 @@ func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
 	username := args[0]
 	outputDir := "."
 
-	fmt.Printf("[+] Generating shadow credential PFX for account %s\n", username)
-	pfxFile, pfxPass, credentialID, err := c.AddShadowCredentialWithPFX(username, outputDir)
+	fmt.Printf(
+		"[+] Generating shadow credential PFX for account %s\n",
+		username,
+	)
+	pfxFile, pfxPass, credentialID, err := c.AddShadowCredentialWithPFX(
+		username,
+		outputDir,
+	)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("[+] Successfully added shadow credential to account %s\n", username)
+	fmt.Printf(
+		"[+] Successfully added shadow credential to account %s\n",
+		username,
+	)
 	fmt.Printf("[+] Credential ID: %s\n", credentialID)
 	fmt.Printf("[+] PFX file saved to: %s\n", pfxFile)
 	fmt.Printf("[+] PFX password: %s\n\n", pfxPass)
 
 	// Display ready-to-use command
 	fmt.Printf("[*] Ready to use with gettgtpkinit.py:\n")
-	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' %s/%s output.ccache\n\n", pfxFile, pfxPass, flags.domain, username)
+	fmt.Printf(
+		"    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' %s/%s output.ccache\n\n",
+		pfxFile,
+		pfxPass,
+		flags.domain,
+		username,
+	)
 
 	// Alternative with DC specification
 	fmt.Printf("[*] With specific DC:\n")
-	fmt.Printf("    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' -dc-ip <DC_IP> %s/%s output.ccache\n\n", pfxFile, pfxPass, flags.domain, username)
+	fmt.Printf(
+		"    python3 gettgtpkinit.py -cert-pfx %s -pfx-pass '%s' -dc-ip <DC_IP> %s/%s output.ccache\n\n",
+		pfxFile,
+		pfxPass,
+		flags.domain,
+		username,
+	)
 	// After obtaining TGT
 	fmt.Printf("[*] After obtaining the TGT:\n")
 	fmt.Printf("    export KRB5CCNAME=output.ccache\n")
@@ -408,20 +704,38 @@ func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
 
 	// Use the TGT
 	fmt.Printf("[*] Use the TGT with impacket tools:\n")
-	fmt.Printf("    psexec.py -k -no-pass %s/<HOSTNAME>\n", flags.domain)
-	fmt.Printf("    secretsdump.py -k -no-pass %s/<HOSTNAME>\n", flags.domain)
-	fmt.Printf("    wmiexec.py -k -no-pass %s/<HOSTNAME>\n\n", flags.domain)
+	fmt.Printf(
+		"    psexec.py -k -no-pass %s/<HOSTNAME>\n",
+		flags.domain,
+	)
+	fmt.Printf(
+		"    secretsdump.py -k -no-pass %s/<HOSTNAME>\n",
+		flags.domain,
+	)
+	fmt.Printf(
+		"    wmiexec.py -k -no-pass %s/<HOSTNAME>\n\n",
+		flags.domain,
+	)
 
 	return nil
 }
 
-func disableshadowcredential(c *ldaptickler.Conn, args ...string) error {
+func disableshadowcredential(
+	c *ldaptickler.Conn,
+	args ...string,
+) error {
 	username := args[0]
-	fmt.Printf("[+] Disabling shadow credentials for account %s\n", username)
+	fmt.Printf(
+		"[+] Disabling shadow credentials for account %s\n",
+		username,
+	)
 	if err := c.RemoveShadowCredentials(username); err != nil {
 		return err
 	}
-	fmt.Printf("[+] Successfully disabled shadow credentials for account %s\n", username)
+	fmt.Printf(
+		"[+] Successfully disabled shadow credentials for account %s\n",
+		username,
+	)
 
 	return nil
 }
@@ -429,10 +743,18 @@ func disableshadowcredential(c *ldaptickler.Conn, args ...string) error {
 func addspn(c *ldaptickler.Conn, args ...string) error {
 	machinename := args[0]
 	spn := args[1]
-	fmt.Printf("[+] Adding spn %s to machine account %s\n", spn, machinename)
+	fmt.Printf(
+		"[+] Adding spn %s to machine account %s\n",
+		spn,
+		machinename,
+	)
 	err := c.AddServicePrincipalName(machinename, spn)
 	check(err)
-	fmt.Printf("[+] Successfully added spn %s to machine account %s\n", spn, machinename)
+	fmt.Printf(
+		"[+] Successfully added spn %s to machine account %s\n",
+		spn,
+		machinename,
+	)
 	return nil
 }
 
@@ -440,23 +762,37 @@ func adduser(c *ldaptickler.Conn, args ...string) error {
 	username := args[0]
 	principalname := args[1]
 	userpasswd := args[2]
-	fmt.Printf("[+] Adding username %s with serviceprincipal %s with password %s\n", username, principalname, userpasswd)
+	fmt.Printf(
+		"[+] Adding username %s with serviceprincipal %s with password %s\n",
+		username,
+		principalname,
+		userpasswd,
+	)
 	err := c.AddUserAccount(username, principalname)
 	check(err)
 	fmt.Printf("[+] Successfully added user account %s\n", username)
 	fmt.Printf("[+] Now setting password...\n")
 	err = c.SetUserPassword(username, userpasswd)
 	check(err)
-	fmt.Printf("[+] Password set successfully for user %s\n", username)
+	fmt.Printf(
+		"[+] Password set successfully for user %s\n",
+		username,
+	)
 	fmt.Printf("[+] Now enabling account for user %s\n", username)
 	err = c.SetEnableUserAccount(username)
 	check(err)
-	fmt.Printf("[+] Successfully added and enabled user account %s\n", username)
+	fmt.Printf(
+		"[+] Successfully added and enabled user account %s\n",
+		username,
+	)
 	return nil
 }
 
 func certpublishers(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListCAs()
 	check(err)
 	return nil
@@ -466,10 +802,17 @@ func changepassword(c *ldaptickler.Conn, args ...string) error {
 	username := args[0]
 	userpasswd := args[1]
 
-	fmt.Printf("[+] Changing password for user %s with password supplied in LDAP with baseDN %s\n", username, flags.basedn)
+	fmt.Printf(
+		"[+] Changing password for user %s with password supplied in LDAP with baseDN %s\n",
+		username,
+		flags.basedn,
+	)
 	err := c.SetUserPassword(username, userpasswd)
 	check(err)
-	fmt.Printf("[+] Password change successful for user %s\n", username)
+	fmt.Printf(
+		"[+] Password change successful for user %s\n",
+		username,
+	)
 	return nil
 }
 
@@ -488,13 +831,25 @@ func collectbh(c *ldaptickler.Conn, args ...string) error {
 		collectors = expandlist(flags.collectors)
 	}
 
-	fmt.Printf("[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n", collectors, flags.null, flags.basedn)
-	zipPath, err := c.CollectBloodHound(collectors, out, flags.basedn, flags.null)
+	fmt.Printf(
+		"[+] Running SharpHound-style collectors (collectors=%v dry-run=%v) baseDN=%s\n",
+		collectors,
+		flags.null,
+		flags.basedn,
+	)
+	zipPath, err := c.CollectBloodHound(
+		collectors,
+		out,
+		flags.basedn,
+		flags.null,
+	)
 	if err != nil {
 		return err
 	}
 	if flags.null {
-		fmt.Printf("[+] Traffic sent successfully, not outputting files\n")
+		fmt.Printf(
+			"[+] Traffic sent successfully, not outputting files\n",
+		)
 	} else {
 		fmt.Printf("[+] Successfully wrote collector output to %s\n", zipPath)
 	}
@@ -502,14 +857,23 @@ func collectbh(c *ldaptickler.Conn, args ...string) error {
 }
 
 func computers(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all computers in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all computers in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListComputers()
 	check(err)
 	return nil
 }
 
-func constraineddelegation(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
+func constraineddelegation(
+	c *ldaptickler.Conn,
+	args ...string,
+) error {
+	fmt.Printf(
+		"[+] Searching for all Constrained Delegation objects in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListConstrainedDelegation()
 	check(err)
 	return nil
@@ -554,7 +918,11 @@ func disablemachine(c *ldaptickler.Conn, args ...string) error {
 func disablecd(c *ldaptickler.Conn, args ...string) error {
 	samaccountname := args[0]
 	spn := args[1]
-	fmt.Printf("[+] Removing constrained delegation spn %s from %s \n", spn, samaccountname)
+	fmt.Printf(
+		"[+] Removing constrained delegation spn %s from %s \n",
+		spn,
+		samaccountname,
+	)
 	err := c.RemoveConstrainedDelegation(samaccountname, spn)
 	check(err)
 	return nil
@@ -570,7 +938,10 @@ func disablerbcd(c *ldaptickler.Conn, args ...string) error {
 
 func disableud(c *ldaptickler.Conn, args ...string) error {
 	samaccountname := args[0]
-	fmt.Printf("[+] Removing unconstrained delegation from %s\n", samaccountname)
+	fmt.Printf(
+		"[+] Removing unconstrained delegation from %s\n",
+		samaccountname,
+	)
 	err := c.RemoveUnconstrainedDelegation(samaccountname)
 	check(err)
 	return nil
@@ -580,7 +951,10 @@ func disablespn(c *ldaptickler.Conn, args ...string) error {
 	samaccountname := args[0]
 	spn := args[1]
 	if strings.ToLower(spn) == "all" {
-		fmt.Printf("[+] Removing all service principal names from %s\n", samaccountname)
+		fmt.Printf(
+			"[+] Removing all service principal names from %s\n",
+			samaccountname,
+		)
 		err := c.RemoveSPNs(samaccountname, spn)
 		check(err)
 	} else {
@@ -600,14 +974,20 @@ func disableuser(c *ldaptickler.Conn, args ...string) error {
 }
 
 func dnsrecords(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all DNS records in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all DNS records in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListDNS()
 	check(err)
 	return nil
 }
 
 func domaincontrollers(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Domain Controllers in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all Domain Controllers in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListDCs()
 	check(err)
 	return nil
@@ -624,7 +1004,11 @@ func enablemachine(c *ldaptickler.Conn, args ...string) error {
 func enablecd(c *ldaptickler.Conn, args ...string) error {
 	samaccountname := args[0]
 	spn := args[1]
-	fmt.Printf("[+] Adding constrained delegation spn %s to %s\n", spn, samaccountname)
+	fmt.Printf(
+		"[+] Adding constrained delegation spn %s to %s\n",
+		spn,
+		samaccountname,
+	)
 	err := c.AddConstrainedDelegation(samaccountname, spn)
 	check(err)
 	return nil
@@ -632,7 +1016,10 @@ func enablecd(c *ldaptickler.Conn, args ...string) error {
 
 func enableud(c *ldaptickler.Conn, args ...string) error {
 	samaccountname := args[0]
-	fmt.Printf("[+] Adding unconstrained delegation to %s\n", samaccountname)
+	fmt.Printf(
+		"[+] Adding unconstrained delegation to %s\n",
+		samaccountname,
+	)
 	err := c.AddUnconstrainedDelegation(samaccountname)
 	check(err)
 	return nil
@@ -641,8 +1028,15 @@ func enableud(c *ldaptickler.Conn, args ...string) error {
 func enablerbcd(c *ldaptickler.Conn, args ...string) error {
 	samaccountname := args[0]
 	delegatingcomputer := args[1]
-	fmt.Printf("[+] Adding RBCD to %s setting delegation for %s\n", samaccountname, delegatingcomputer)
-	err := c.AddResourceBasedConstrainedDelegation(samaccountname, delegatingcomputer)
+	fmt.Printf(
+		"[+] Adding RBCD to %s setting delegation for %s\n",
+		samaccountname,
+		delegatingcomputer,
+	)
+	err := c.AddResourceBasedConstrainedDelegation(
+		samaccountname,
+		delegatingcomputer,
+	)
 	check(err)
 	return nil
 }
@@ -665,63 +1059,95 @@ func expandlist(in []string) []string {
 
 func filter(c *ldaptickler.Conn, args ...string) error {
 	filter := cli.Arg(1)
-	fmt.Printf("[+] Searching with specified filter: %s in LDAP with baseDN %s\n", filter, flags.basedn)
-	err := c.LDAPSearch(flags.searchscope, filter, expandlist(flags.attributes))
+	fmt.Printf(
+		"[+] Searching with specified filter: %s in LDAP with baseDN %s\n",
+		filter,
+		flags.basedn,
+	)
+	err := c.LDAPSearch(
+		flags.searchscope,
+		filter,
+		expandlist(flags.attributes),
+	)
 	check(err)
 	return nil
 }
 
 func fsmoroles(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all FSMO role holders in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all FSMO role holders in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListFSMORoles()
 	check(err)
 	return nil
 }
 
 func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Group Managed Service Accounts in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all Group Managed Service Accounts in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListGMSAaccounts()
 	check(err)
 	return nil
 }
 
 func groups(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all groups in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all groups in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListGroups()
 	check(err)
 	return nil
 }
 
 func groupswithmembers(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all groups and their members in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all groups and their members in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListGroupswithMembers()
 	check(err)
 	return nil
 }
 
 func kerberoastable(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Kerberoastable users in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all Kerberoastable users in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListKerberoastable()
 	check(err)
 	return nil
 }
 
 func machineaccountquota(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for ms-DS-MachineAccountQuota in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for ms-DS-MachineAccountQuota in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListMachineAccountQuota()
 	check(err)
 	return nil
 }
 
 func machinecreationdacl(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for ms-DS-MachineCreationRestrictedToDACL in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for ms-DS-MachineCreationRestrictedToDACL in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListMachineCreationDACL()
 	check(err)
 	return nil
 }
 
 func nopassword(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all users not required to have a password in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all users not required to have a password in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListNoPassword()
 	check(err)
 	return nil
@@ -729,35 +1155,54 @@ func nopassword(c *ldaptickler.Conn, args ...string) error {
 
 func objectquery(c *ldaptickler.Conn, args ...string) error {
 	objectname := cli.Arg(1)
-	fmt.Printf("[+] Searching for attributes of object %s in LDAP with baseDN %s\n", objectname, flags.basedn)
+	fmt.Printf(
+		"[+] Searching for attributes of object %s in LDAP with baseDN %s\n",
+		objectname,
+		flags.basedn,
+	)
 	err := c.FindUserByName(objectname, flags.searchscope)
 	check(err)
 	return nil
 }
 
 func passworddontexpire(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all users all objects where the password doesn't expire in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all users all objects where the password doesn't expire in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListPasswordDontExpire()
 	check(err)
 	return nil
 }
 
-func passwordchangenextlogin(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all users all objects where the password is set to change at next login in LDAP with baseDN %s\n", flags.basedn)
+func passwordchangenextlogin(
+	c *ldaptickler.Conn,
+	args ...string,
+) error {
+	fmt.Printf(
+		"[+] Searching for all users all objects where the password is set to change at next login in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListPasswordChangeNextLogin()
 	check(err)
 	return nil
 }
 
 func protectedusers(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all users in Protected Users group in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all users in Protected Users group in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListProtectedUsers()
 	check(err)
 	return nil
 }
 
 func preauthdisabled(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListPreAuthDisabled()
 	check(err)
 	return nil
@@ -765,58 +1210,89 @@ func preauthdisabled(c *ldaptickler.Conn, args ...string) error {
 
 func querydescription(c *ldaptickler.Conn, args ...string) error {
 	querydescription := cli.Arg(1)
-	fmt.Printf("[+] Searching all objects for a description of %s in LDAP with baseDN %s\n", querydescription, flags.basedn)
+	fmt.Printf(
+		"[+] Searching all objects for a description of %s in LDAP with baseDN %s\n",
+		querydescription,
+		flags.basedn,
+	)
 	err := c.FindUserByDescription(querydescription)
 	check(err)
 	return nil
 }
 
 func rbcd(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListRBCD()
 	check(err)
 	return nil
 }
 
 func schema(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Listing schema for LDAP database with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Listing schema for LDAP database with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListSchema()
 	check(err)
 	return nil
 }
 
 func shadowcredentials(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Shadow Credentials in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all Shadow Credentials in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListShadowCredentials()
 	check(err)
 	return nil
 }
 
-func unconstraineddelegation(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all Unconstrained Delegation objects in LDAP with baseDN %s\n", flags.basedn)
+func unconstraineddelegation(
+	c *ldaptickler.Conn,
+	args ...string,
+) error {
+	fmt.Printf(
+		"[+] Searching for all Unconstrained Delegation objects in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListUnconstrainedDelegation()
 	check(err)
 	return nil
 }
 
 func users(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all users in LDAP with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all users in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListUsers(expandlist(flags.attributes)...)
 	check(err)
 	return nil
 }
 
 func loginscripts(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Searching for all login scripts with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Searching for all login scripts with baseDN %s\n",
+		flags.basedn,
+	)
 	err := c.ListLoginScripts()
 	check(err)
 	return nil
 }
 
 func whoami(c *ldaptickler.Conn, args ...string) error {
-	fmt.Printf("[+] Querying the LDAP server for WhoAmI with baseDN %s\n", flags.basedn)
+	fmt.Printf(
+		"[+] Querying the LDAP server for WhoAmI with baseDN %s\n",
+		flags.basedn,
+	)
 	result, err := c.GetWhoAmI()
 	check(err)
-	fmt.Printf("[+] You are currently authenticated as %+v\n", *result)
+	fmt.Printf(
+		"[+] You are currently authenticated as %+v\n",
+		*result,
+	)
 	return nil
 }

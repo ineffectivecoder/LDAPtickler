@@ -72,18 +72,18 @@ import (
 
 // BloodHound JSON schemas
 type BHUser struct {
-	ObjectID                string                 `json:"ObjectIdentifier"`
-	PrimaryGroupSID         *string                `json:"PrimaryGroupSID"`
-	AllowedToDelegate       []string               `json:"AllowedToDelegate"`
-	Properties              map[string]interface{} `json:"Properties"`
-	Aces                    []BHAce                `json:"Aces"`
-	SPNTargets              []string               `json:"SPNTargets"`
-	HasSIDHistory           []string               `json:"HasSIDHistory"`
-	IsDeleted               bool                   `json:"IsDeleted"`
-	DomainSID               string                 `json:"DomainSID"`
-	UnconstrainedDelegation bool                   `json:"UnconstrainedDelegation"`
-	IsACLProtected          bool                   `json:"IsACLProtected"`
-	ContainedBy             *BHContainedBy         `json:"ContainedBy"`
+	ObjectID                string         `json:"ObjectIdentifier"`
+	PrimaryGroupSID         *string        `json:"PrimaryGroupSID"`
+	AllowedToDelegate       []string       `json:"AllowedToDelegate"`
+	Properties              map[string]any `json:"Properties"`
+	Aces                    []BHAce        `json:"Aces"`
+	SPNTargets              []string       `json:"SPNTargets"`
+	HasSIDHistory           []string       `json:"HasSIDHistory"`
+	IsDeleted               bool           `json:"IsDeleted"`
+	DomainSID               string         `json:"DomainSID"`
+	UnconstrainedDelegation bool           `json:"UnconstrainedDelegation"`
+	IsACLProtected          bool           `json:"IsACLProtected"`
+	ContainedBy             *BHContainedBy `json:"ContainedBy"`
 }
 
 type BHContainedBy struct {
@@ -92,27 +92,27 @@ type BHContainedBy struct {
 }
 
 type BHComputer struct {
-	ObjectID                string                 `json:"ObjectIdentifier"`
-	AllowedToAct            []string               `json:"AllowedToAct"`
-	PrimaryGroupSID         *string                `json:"PrimaryGroupSID"`
-	LocalAdmins             BHCollectionResult     `json:"LocalAdmins"`
-	PSRemoteUsers           BHCollectionResult     `json:"PSRemoteUsers"`
-	Properties              map[string]interface{} `json:"Properties"`
-	RemoteDesktopUsers      BHCollectionResult     `json:"RemoteDesktopUsers"`
-	DcomUsers               BHCollectionResult     `json:"DcomUsers"`
-	AllowedToDelegate       []string               `json:"AllowedToDelegate"`
-	Sessions                BHCollectionResult     `json:"Sessions"`
-	PrivilegedSessions      BHCollectionResult     `json:"PrivilegedSessions"`
-	RegistrySessions        BHCollectionResult     `json:"RegistrySessions"`
-	Aces                    []BHAce                `json:"Aces"`
-	HasSIDHistory           []string               `json:"HasSIDHistory"`
-	IsDeleted               bool                   `json:"IsDeleted"`
-	Status                  *string                `json:"Status"`
-	IsDC                    bool                   `json:"IsDC"`
-	UnconstrainedDelegation bool                   `json:"UnconstrainedDelegation"`
-	DomainSID               string                 `json:"DomainSID"`
-	IsACLProtected          bool                   `json:"IsACLProtected"`
-	ContainedBy             *BHContainedBy         `json:"ContainedBy"`
+	ObjectID                string             `json:"ObjectIdentifier"`
+	AllowedToAct            []string           `json:"AllowedToAct"`
+	PrimaryGroupSID         *string            `json:"PrimaryGroupSID"`
+	LocalAdmins             BHCollectionResult `json:"LocalAdmins"`
+	PSRemoteUsers           BHCollectionResult `json:"PSRemoteUsers"`
+	Properties              map[string]any     `json:"Properties"`
+	RemoteDesktopUsers      BHCollectionResult `json:"RemoteDesktopUsers"`
+	DcomUsers               BHCollectionResult `json:"DcomUsers"`
+	AllowedToDelegate       []string           `json:"AllowedToDelegate"`
+	Sessions                BHCollectionResult `json:"Sessions"`
+	PrivilegedSessions      BHCollectionResult `json:"PrivilegedSessions"`
+	RegistrySessions        BHCollectionResult `json:"RegistrySessions"`
+	Aces                    []BHAce            `json:"Aces"`
+	HasSIDHistory           []string           `json:"HasSIDHistory"`
+	IsDeleted               bool               `json:"IsDeleted"`
+	Status                  *string            `json:"Status"`
+	IsDC                    bool               `json:"IsDC"`
+	UnconstrainedDelegation bool               `json:"UnconstrainedDelegation"`
+	DomainSID               string             `json:"DomainSID"`
+	IsACLProtected          bool               `json:"IsACLProtected"`
+	ContainedBy             *BHContainedBy     `json:"ContainedBy"`
 }
 
 type BHCollectionResult struct {
@@ -122,29 +122,29 @@ type BHCollectionResult struct {
 }
 
 type BHGroup struct {
-	ObjectID       string                 `json:"ObjectIdentifier"`
-	Properties     map[string]interface{} `json:"Properties"`
-	Members        []BHMember             `json:"Members"`
-	Aces           []BHAce                `json:"Aces"`
-	IsDeleted      bool                   `json:"IsDeleted"`
-	IsACLProtected bool                   `json:"IsACLProtected"`
-	ContainedBy    *BHContainedBy         `json:"ContainedBy"`
-	HasSIDHistory  []string               `json:"HasSIDHistory"`
+	ObjectID       string         `json:"ObjectIdentifier"`
+	Properties     map[string]any `json:"Properties"`
+	Members        []BHMember     `json:"Members"`
+	Aces           []BHAce        `json:"Aces"`
+	IsDeleted      bool           `json:"IsDeleted"`
+	IsACLProtected bool           `json:"IsACLProtected"`
+	ContainedBy    *BHContainedBy `json:"ContainedBy"`
+	HasSIDHistory  []string       `json:"HasSIDHistory"`
 }
 
 type BHDomain struct {
-	ObjectID             string                 `json:"ObjectIdentifier"`
-	Properties           map[string]interface{} `json:"Properties"`
-	Trusts               []string               `json:"Trusts"`
-	Aces                 []BHAce                `json:"Aces"`
-	Links                []string               `json:"Links"`
-	ChildObjects         []string               `json:"ChildObjects"`
-	GPOChanges           BHGPOChanges           `json:"GPOChanges"`
-	IsDeleted            bool                   `json:"IsDeleted"`
-	ContainedBy          *BHContainedBy         `json:"ContainedBy"`
-	ForestRootIdentifier *string                `json:"ForestRootIdentifier"`
-	InheritanceHashes    []interface{}          `json:"InheritanceHashes"`
-	IsACLProtected       bool                   `json:"IsACLProtected"`
+	ObjectID             string         `json:"ObjectIdentifier"`
+	Properties           map[string]any `json:"Properties"`
+	Trusts               []string       `json:"Trusts"`
+	Aces                 []BHAce        `json:"Aces"`
+	Links                []string       `json:"Links"`
+	ChildObjects         []string       `json:"ChildObjects"`
+	GPOChanges           BHGPOChanges   `json:"GPOChanges"`
+	IsDeleted            bool           `json:"IsDeleted"`
+	ContainedBy          *BHContainedBy `json:"ContainedBy"`
+	ForestRootIdentifier *string        `json:"ForestRootIdentifier"`
+	InheritanceHashes    []any          `json:"InheritanceHashes"`
+	IsACLProtected       bool           `json:"IsACLProtected"`
 }
 
 type BHGPOChanges struct {
@@ -161,65 +161,65 @@ type BHMember struct {
 }
 
 type BHCertTemplate struct {
-	ObjectID       string                 `json:"ObjectIdentifier"`
-	Properties     map[string]interface{} `json:"Properties"`
-	Aces           []BHAce                `json:"Aces"`
-	IsDeleted      bool                   `json:"IsDeleted"`
-	IsACLProtected bool                   `json:"IsACLProtected"`
-	ContainedBy    *BHContainedBy         `json:"ContainedBy"`
+	ObjectID       string         `json:"ObjectIdentifier"`
+	Properties     map[string]any `json:"Properties"`
+	Aces           []BHAce        `json:"Aces"`
+	IsDeleted      bool           `json:"IsDeleted"`
+	IsACLProtected bool           `json:"IsACLProtected"`
+	ContainedBy    *BHContainedBy `json:"ContainedBy"`
 }
 
 type BHEnterpriseCA struct {
-	ObjectID                string                 `json:"ObjectIdentifier"`
-	Properties              map[string]interface{} `json:"Properties"`
-	HostingComputer         *string                `json:"HostingComputer"`
-	CARegistryData          interface{}            `json:"CARegistryData"`
-	EnabledCertTemplates    []BHMember             `json:"EnabledCertTemplates"`
-	HttpEnrollmentEndpoints []string               `json:"HttpEnrollmentEndpoints"`
-	IssuedBy                *string                `json:"IssuedBy"`
-	Aces                    []BHAce                `json:"Aces"`
-	IsDeleted               bool                   `json:"IsDeleted"`
-	IsACLProtected          bool                   `json:"IsACLProtected"`
-	ContainedBy             *BHContainedBy         `json:"ContainedBy"`
+	ObjectID                string         `json:"ObjectIdentifier"`
+	Properties              map[string]any `json:"Properties"`
+	HostingComputer         *string        `json:"HostingComputer"`
+	CARegistryData          any            `json:"CARegistryData"`
+	EnabledCertTemplates    []BHMember     `json:"EnabledCertTemplates"`
+	HttpEnrollmentEndpoints []string       `json:"HttpEnrollmentEndpoints"`
+	IssuedBy                *string        `json:"IssuedBy"`
+	Aces                    []BHAce        `json:"Aces"`
+	IsDeleted               bool           `json:"IsDeleted"`
+	IsACLProtected          bool           `json:"IsACLProtected"`
+	ContainedBy             *BHContainedBy `json:"ContainedBy"`
 }
 
 type BHAIACA struct {
-	ObjectID       string                 `json:"ObjectIdentifier"`
-	Properties     map[string]interface{} `json:"Properties"`
-	Aces           []BHAce                `json:"Aces"`
-	IsDeleted      bool                   `json:"IsDeleted"`
-	IsACLProtected bool                   `json:"IsACLProtected"`
-	ContainedBy    *BHContainedBy         `json:"ContainedBy"`
+	ObjectID       string         `json:"ObjectIdentifier"`
+	Properties     map[string]any `json:"Properties"`
+	Aces           []BHAce        `json:"Aces"`
+	IsDeleted      bool           `json:"IsDeleted"`
+	IsACLProtected bool           `json:"IsACLProtected"`
+	ContainedBy    *BHContainedBy `json:"ContainedBy"`
 }
 
 type BHRootCA struct {
-	ObjectID       string                 `json:"ObjectIdentifier"`
-	Properties     map[string]interface{} `json:"Properties"`
-	DomainSID      *string                `json:"DomainSID"`
-	Aces           []BHAce                `json:"Aces"`
-	IsDeleted      bool                   `json:"IsDeleted"`
-	IsACLProtected bool                   `json:"IsACLProtected"`
-	ContainedBy    *BHContainedBy         `json:"ContainedBy"`
+	ObjectID       string         `json:"ObjectIdentifier"`
+	Properties     map[string]any `json:"Properties"`
+	DomainSID      *string        `json:"DomainSID"`
+	Aces           []BHAce        `json:"Aces"`
+	IsDeleted      bool           `json:"IsDeleted"`
+	IsACLProtected bool           `json:"IsACLProtected"`
+	ContainedBy    *BHContainedBy `json:"ContainedBy"`
 }
 
 type BHNTAuthStore struct {
-	ObjectID       string                 `json:"ObjectIdentifier"`
-	Properties     map[string]interface{} `json:"Properties"`
-	DomainSID      *string                `json:"DomainSID"`
-	Aces           []BHAce                `json:"Aces"`
-	IsDeleted      bool                   `json:"IsDeleted"`
-	IsACLProtected bool                   `json:"IsACLProtected"`
-	ContainedBy    *BHContainedBy         `json:"ContainedBy"`
+	ObjectID       string         `json:"ObjectIdentifier"`
+	Properties     map[string]any `json:"Properties"`
+	DomainSID      *string        `json:"DomainSID"`
+	Aces           []BHAce        `json:"Aces"`
+	IsDeleted      bool           `json:"IsDeleted"`
+	IsACLProtected bool           `json:"IsACLProtected"`
+	ContainedBy    *BHContainedBy `json:"ContainedBy"`
 }
 
 type BHIssuancePolicy struct {
-	ObjectID       string                 `json:"ObjectIdentifier"`
-	Properties     map[string]interface{} `json:"Properties"`
-	GroupLink      interface{}            `json:"GroupLink"`
-	Aces           []BHAce                `json:"Aces"`
-	IsDeleted      bool                   `json:"IsDeleted"`
-	IsACLProtected bool                   `json:"IsACLProtected"`
-	ContainedBy    *BHContainedBy         `json:"ContainedBy"`
+	ObjectID       string         `json:"ObjectIdentifier"`
+	Properties     map[string]any `json:"Properties"`
+	GroupLink      any            `json:"GroupLink"`
+	Aces           []BHAce        `json:"Aces"`
+	IsDeleted      bool           `json:"IsDeleted"`
+	IsACLProtected bool           `json:"IsACLProtected"`
+	ContainedBy    *BHContainedBy `json:"ContainedBy"`
 }
 
 type BHAce struct {
@@ -237,8 +237,13 @@ type BHMetadata struct {
 }
 
 // CollectSharpHound runs LDAP collectors and writes BloodHound-compatible JSON into a zip archive.
-func (c *Conn) CollectBloodHound(collectors []string, outputPath string, baseDN string, dryRun bool) (string, error) {
-	supported := map[string]func(string) (interface{}, error){
+func (c *Conn) CollectBloodHound(
+	collectors []string,
+	outputPath string,
+	baseDN string,
+	dryRun bool,
+) (string, error) {
+	supported := map[string]func(string) (any, error){
 		"users":            c.collectUsersBloodHound,
 		"computers":        c.collectComputersBloodHound,
 		"groups":           c.collectGroupsBloodHound,
@@ -286,7 +291,11 @@ func (c *Conn) CollectBloodHound(collectors []string, outputPath string, baseDN 
 		fn := supported[name]
 		data, err := fn(baseDN)
 		if err != nil {
-			return "", fmt.Errorf("collector %s failed: %w", name, err)
+			return "", fmt.Errorf(
+				"collector %s failed: %w",
+				name,
+				err,
+			)
 		}
 
 		if dryRun {
@@ -312,7 +321,10 @@ func (c *Conn) CollectBloodHound(collectors []string, outputPath string, baseDN 
 	}
 
 	if outputPath == "" {
-		outputPath = fmt.Sprintf("ldaptickler-%s.zip", time.Now().Format("20060102-150405"))
+		outputPath = fmt.Sprintf(
+			"ldaptickler-%s.zip",
+			time.Now().Format("20060102-150405"),
+		)
 	}
 
 	// Create zip
@@ -351,7 +363,7 @@ func addFileToZip(zw *zip.Writer, path string) error {
 
 // BloodHound-compatible collector implementations
 
-func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 	// Get regular users
 	filter := "(objectCategory=person)"
 	attrs := []string{
@@ -384,7 +396,12 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
 
 	// Also search for GMSA accounts in Managed Service Accounts container
 	msaContainerDN := "CN=Managed Service Accounts," + baseDN
-	msaRes, msaErr := c.getAllResults(1, "(objectClass=*)", attrs, msaContainerDN)
+	msaRes, msaErr := c.getAllResults(
+		1,
+		"(objectClass=*)",
+		attrs,
+		msaContainerDN,
+	)
 	if msaErr == nil && len(msaRes) > 0 {
 		res = append(res, msaRes...)
 	}
@@ -434,49 +451,82 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
 			}
 		}
 
-		props := map[string]interface{}{
-			"name":                     userName,
-			"domain":                   strings.ToUpper(domain),
-			"domainsid":                domainSID,
-			"distinguishedname":        dn,
-			"samaccountname":           samAccountName,
-			"description":              toStringOrNil(firstOrEmpty(e, "description")),
-			"displayname":              toStringOrNil(firstOrEmpty(e, "displayName")),
-			"title":                    toStringOrNil(firstOrEmpty(e, "title")),
-			"email":                    toStringOrNil(firstOrEmpty(e, "mail")),
-			"homedirectory":            toStringOrNil(firstOrEmpty(e, "homeDirectory")),
-			"profilepath":              toStringOrNil(firstOrEmpty(e, "profilePath")),
-			"logonscript":              toStringOrNil(firstOrEmpty(e, "scriptPath")),
-			"whencreated":              parseLDAPGeneralizedTime(firstOrEmpty(e, "whenCreated")),
-			"unconstraineddelegation":  uacProps["unconstraineddelegation"],
-			"trustedtoauth":            uacProps["trustedtoauth"],
-			"passwordnotreqd":          uacProps["passwordnotreqd"],
-			"enabled":                  uacProps["enabled"],
-			"dontreqpreauth":           uacProps["dontreqpreauth"],
-			"pwdneverexpires":          uacProps["pwdneverexpires"],
-			"sensitive":                uacProps["sensitive"],
-			"smartcardrequired":        uacProps["smartcardrequired"],
-			"encryptedtextpwdallowed":  uacProps["encryptedtextpwdallowed"],
-			"usedeskeyonly":            uacProps["usedeskeyonly"],
-			"logonscriptenabled":       uacProps["logonscriptenabled"],
-			"lockedout":                uacProps["lockedout"],
-			"passwordcantchange":       uacProps["passwordcantchange"],
-			"passwordexpired":          uacProps["passwordexpired"],
-			"hasspn":                   hasSPN,
-			"lastlogon":                parseLDAPTimestamp(firstOrEmpty(e, "lastLogon")),
-			"lastlogontimestamp":       parseLDAPGeneralizedTime(firstOrEmpty(e, "lastLogonTimestamp")),
-			"pwdlastset":               parseLDAPTimestamp(firstOrEmpty(e, "pwdLastSet")),
-			"shadowcredentials":        hasShadowCreds,
-			"allowedtodelegate":        nilIfEmpty(e["msDS-AllowedToDelegateTo"]),
-			"serviceprincipalnames":    nilIfEmpty(e["servicePrincipalName"]),
-			"sidhistory":               nilIfEmpty(sidHistory),
-			"supportedencryptiontypes": toStringOrNil(firstOrEmpty(e, "msDS-SupportedEncryptionTypes")),
-			"useraccountcontrol":       toInt(firstOrEmpty(e, "userAccountControl")),
-			"admincount":               firstOrEmpty(e, "adminCount") == "1",
-			"sfupassword":              nil,
-			"unicodepassword":          nil,
-			"unixpassword":             nil,
-			"userpassword":             nil,
+		props := map[string]any{
+			"name":              userName,
+			"domain":            strings.ToUpper(domain),
+			"domainsid":         domainSID,
+			"distinguishedname": dn,
+			"samaccountname":    samAccountName,
+			"description": toStringOrNil(
+				firstOrEmpty(e, "description"),
+			),
+			"displayname": toStringOrNil(
+				firstOrEmpty(e, "displayName"),
+			),
+			"title": toStringOrNil(
+				firstOrEmpty(e, "title"),
+			),
+			"email": toStringOrNil(
+				firstOrEmpty(e, "mail"),
+			),
+			"homedirectory": toStringOrNil(
+				firstOrEmpty(e, "homeDirectory"),
+			),
+			"profilepath": toStringOrNil(
+				firstOrEmpty(e, "profilePath"),
+			),
+			"logonscript": toStringOrNil(
+				firstOrEmpty(e, "scriptPath"),
+			),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "whenCreated"),
+			),
+			"unconstraineddelegation": uacProps["unconstraineddelegation"],
+			"trustedtoauth":           uacProps["trustedtoauth"],
+			"passwordnotreqd":         uacProps["passwordnotreqd"],
+			"enabled":                 uacProps["enabled"],
+			"dontreqpreauth":          uacProps["dontreqpreauth"],
+			"pwdneverexpires":         uacProps["pwdneverexpires"],
+			"sensitive":               uacProps["sensitive"],
+			"smartcardrequired":       uacProps["smartcardrequired"],
+			"encryptedtextpwdallowed": uacProps["encryptedtextpwdallowed"],
+			"usedeskeyonly":           uacProps["usedeskeyonly"],
+			"logonscriptenabled":      uacProps["logonscriptenabled"],
+			"lockedout":               uacProps["lockedout"],
+			"passwordcantchange":      uacProps["passwordcantchange"],
+			"passwordexpired":         uacProps["passwordexpired"],
+			"hasspn":                  hasSPN,
+			"lastlogon": parseLDAPTimestamp(
+				firstOrEmpty(e, "lastLogon"),
+			),
+			"lastlogontimestamp": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "lastLogonTimestamp"),
+			),
+			"pwdlastset": parseLDAPTimestamp(
+				firstOrEmpty(e, "pwdLastSet"),
+			),
+			"shadowcredentials": hasShadowCreds,
+			"allowedtodelegate": nilIfEmpty(
+				e["msDS-AllowedToDelegateTo"],
+			),
+			"serviceprincipalnames": nilIfEmpty(
+				e["servicePrincipalName"],
+			),
+			"sidhistory": nilIfEmpty(sidHistory),
+			"supportedencryptiontypes": toStringOrNil(
+				firstOrEmpty(e, "msDS-SupportedEncryptionTypes"),
+			),
+			"useraccountcontrol": toInt(
+				firstOrEmpty(e, "userAccountControl"),
+			),
+			"admincount": firstOrEmpty(
+				e,
+				"adminCount",
+			) == "1",
+			"sfupassword":     nil,
+			"unicodepassword": nil,
+			"unixpassword":    nil,
+			"userpassword":    nil,
 		}
 
 		user := BHUser{
@@ -496,9 +546,9 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
 		out = append(out, user)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "users",
 			"count":   len(out),
@@ -507,7 +557,9 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectComputersBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectComputersBloodHound(
+	baseDN string,
+) (any, error) {
 	filter := "(&(objectCategory=computer))"
 	attrs := []string{
 		// Identity attributes
@@ -565,7 +617,9 @@ func (c *Conn) collectComputersBloodHound(baseDN string) (interface{}, error) {
 		// Create name field: samaccountname@domain
 		computerName := samAccountName
 		if samAccountName != "" && domain != "" {
-			computerName = samAccountName + "@" + strings.ToUpper(domain)
+			computerName = samAccountName + "@" + strings.ToUpper(
+				domain,
+			)
 		}
 
 		// Check for LAPS
@@ -585,53 +639,110 @@ func (c *Conn) collectComputersBloodHound(baseDN string) (interface{}, error) {
 			}
 		}
 
-		props := map[string]interface{}{
-			"name":                     computerName,
-			"domainsid":                domainSID,
-			"domain":                   strings.ToUpper(domain),
-			"distinguishedname":        dn,
-			"unconstraineddelegation":  uacProps["unconstraineddelegation"],
-			"enabled":                  uacProps["enabled"],
-			"trustedtoauth":            uacProps["trustedtoauth"],
-			"encryptedtextpwdallowed":  uacProps["encryptedtextpwdallowed"],
-			"usedeskeyonly":            uacProps["usedeskeyonly"],
-			"logonscriptenabled":       uacProps["logonscriptenabled"],
-			"lockedout":                uacProps["lockedout"],
-			"passwordexpired":          uacProps["passwordexpired"],
-			"samaccountname":           samAccountName,
-			"email":                    toStringOrNil(firstOrEmpty(e, "mail")),
-			"lastlogon":                parseLDAPTimestamp(firstOrEmpty(e, "lastLogon")),
-			"lastlogontimestamp":       parseLDAPGeneralizedTime(firstOrEmpty(e, "lastLogonTimestamp")),
-			"pwdlastset":               parseLDAPTimestamp(firstOrEmpty(e, "pwdLastSet")),
-			"operatingsystem":          toStringOrNil(firstOrEmpty(e, "operatingSystem")),
-			"dnshostname":              toStringOrNil(firstOrEmpty(e, "dNSHostName")),
-			"description":              toStringOrNil(firstOrEmpty(e, "description")),
-			"whencreated":              parseLDAPGeneralizedTime(firstOrEmpty(e, "whenCreated")),
-			"objectguid":               firstOrEmpty(e, "objectGUID"),
-			"haslaps":                  hasLAPS,
-			"isdc":                     isDC,
-			"isreadonlydc":             false,
-			"admincount":               firstOrEmpty(e, "adminCount") == "1",
-			"serviceprincipalnames":    nilIfEmpty(e["servicePrincipalName"]),
-			"sidhistory":               nilIfEmpty(sidHistory),
-			"supportedencryptiontypes": nilIfEmpty(e["msDS-SupportedEncryptionTypes"]),
-			"allowedtodelegate":        nilIfEmpty(e["msDS-AllowedToDelegateTo"]),
-			"useraccountcontrol":       toInt(firstOrEmpty(e, "userAccountControl")),
+		props := map[string]any{
+			"name":                    computerName,
+			"domainsid":               domainSID,
+			"domain":                  strings.ToUpper(domain),
+			"distinguishedname":       dn,
+			"unconstraineddelegation": uacProps["unconstraineddelegation"],
+			"enabled":                 uacProps["enabled"],
+			"trustedtoauth":           uacProps["trustedtoauth"],
+			"encryptedtextpwdallowed": uacProps["encryptedtextpwdallowed"],
+			"usedeskeyonly":           uacProps["usedeskeyonly"],
+			"logonscriptenabled":      uacProps["logonscriptenabled"],
+			"lockedout":               uacProps["lockedout"],
+			"passwordexpired":         uacProps["passwordexpired"],
+			"samaccountname":          samAccountName,
+			"email": toStringOrNil(
+				firstOrEmpty(e, "mail"),
+			),
+			"lastlogon": parseLDAPTimestamp(
+				firstOrEmpty(e, "lastLogon"),
+			),
+			"lastlogontimestamp": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "lastLogonTimestamp"),
+			),
+			"pwdlastset": parseLDAPTimestamp(
+				firstOrEmpty(e, "pwdLastSet"),
+			),
+			"operatingsystem": toStringOrNil(
+				firstOrEmpty(e, "operatingSystem"),
+			),
+			"dnshostname": toStringOrNil(
+				firstOrEmpty(e, "dNSHostName"),
+			),
+			"description": toStringOrNil(
+				firstOrEmpty(e, "description"),
+			),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "whenCreated"),
+			),
+			"objectguid":   firstOrEmpty(e, "objectGUID"),
+			"haslaps":      hasLAPS,
+			"isdc":         isDC,
+			"isreadonlydc": false,
+			"admincount": firstOrEmpty(
+				e,
+				"adminCount",
+			) == "1",
+			"serviceprincipalnames": nilIfEmpty(
+				e["servicePrincipalName"],
+			),
+			"sidhistory": nilIfEmpty(sidHistory),
+			"supportedencryptiontypes": nilIfEmpty(
+				e["msDS-SupportedEncryptionTypes"],
+			),
+			"allowedtodelegate": nilIfEmpty(
+				e["msDS-AllowedToDelegateTo"],
+			),
+			"useraccountcontrol": toInt(
+				firstOrEmpty(e, "userAccountControl"),
+			),
 		}
 
 		computer := BHComputer{
-			ObjectID:                sid,
-			AllowedToAct:            []string{},
-			PrimaryGroupSID:         primaryGroupSID,
-			LocalAdmins:             BHCollectionResult{Collected: false, FailureReason: nil, Results: []string{}},
-			PSRemoteUsers:           BHCollectionResult{Collected: false, FailureReason: nil, Results: []string{}},
-			Properties:              props,
-			RemoteDesktopUsers:      BHCollectionResult{Collected: false, FailureReason: nil, Results: []string{}},
-			DcomUsers:               BHCollectionResult{Collected: false, FailureReason: nil, Results: []string{}},
-			AllowedToDelegate:       sliceOrNil(e["msDS-AllowedToDelegateTo"]),
-			Sessions:                BHCollectionResult{Collected: false, FailureReason: nil, Results: []string{}},
-			PrivilegedSessions:      BHCollectionResult{Collected: false, FailureReason: nil, Results: []string{}},
-			RegistrySessions:        BHCollectionResult{Collected: false, FailureReason: nil, Results: []string{}},
+			ObjectID:        sid,
+			AllowedToAct:    []string{},
+			PrimaryGroupSID: primaryGroupSID,
+			LocalAdmins: BHCollectionResult{
+				Collected:     false,
+				FailureReason: nil,
+				Results:       []string{},
+			},
+			PSRemoteUsers: BHCollectionResult{
+				Collected:     false,
+				FailureReason: nil,
+				Results:       []string{},
+			},
+			Properties: props,
+			RemoteDesktopUsers: BHCollectionResult{
+				Collected:     false,
+				FailureReason: nil,
+				Results:       []string{},
+			},
+			DcomUsers: BHCollectionResult{
+				Collected:     false,
+				FailureReason: nil,
+				Results:       []string{},
+			},
+			AllowedToDelegate: sliceOrNil(
+				e["msDS-AllowedToDelegateTo"],
+			),
+			Sessions: BHCollectionResult{
+				Collected:     false,
+				FailureReason: nil,
+				Results:       []string{},
+			},
+			PrivilegedSessions: BHCollectionResult{
+				Collected:     false,
+				FailureReason: nil,
+				Results:       []string{},
+			},
+			RegistrySessions: BHCollectionResult{
+				Collected:     false,
+				FailureReason: nil,
+				Results:       []string{},
+			},
 			Aces:                    []BHAce{},
 			HasSIDHistory:           sliceOrNil(sidHistory),
 			IsDeleted:               false,
@@ -645,9 +756,9 @@ func (c *Conn) collectComputersBloodHound(baseDN string) (interface{}, error) {
 		out = append(out, computer)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "computers",
 			"count":   len(out),
@@ -656,7 +767,7 @@ func (c *Conn) collectComputersBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 	filter := "(objectCategory=group)"
 	attrs := []string{
 		// Identity attributes
@@ -680,7 +791,12 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 
 	// Also search for built-in groups in the BUILTIN container
 	builtinContainerDN := "CN=BUILTIN," + baseDN
-	builtinRes, builtinErr := c.getAllResults(1, filter, attrs, builtinContainerDN)
+	builtinRes, builtinErr := c.getAllResults(
+		1,
+		filter,
+		attrs,
+		builtinContainerDN,
+	)
 	if builtinErr == nil && len(builtinRes) > 0 {
 		res = append(res, builtinRes...)
 	}
@@ -706,7 +822,10 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 
 			// Determine object type from DN
 			objType := "User" // Default
-			if strings.Contains(strings.ToLower(memberDN), "cn=computers") {
+			if strings.Contains(
+				strings.ToLower(memberDN),
+				"cn=computers",
+			) {
 				objType = "Computer"
 			} else if strings.Contains(strings.ToLower(memberDN), "objectClass=group") || c.isGroup(memberDN) {
 				objType = "Group"
@@ -723,7 +842,8 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 		var groupScope string
 		if groupType != "" {
 			// Extract scope from group type bitmask
-			if strings.Contains(groupType, "-2147483646") || strings.Contains(groupType, "2147483650") {
+			if strings.Contains(groupType, "-2147483646") ||
+				strings.Contains(groupType, "2147483650") {
 				groupScope = "Universal"
 			} else if strings.Contains(groupType, "4") || strings.Contains(groupType, "-2147483644") {
 				groupScope = "Domain Local"
@@ -742,11 +862,16 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 			}
 		}
 
-		props := map[string]interface{}{
-			"domain":            strings.ToUpper(domain),
-			"domainsid":         domainSID,
-			"highvalue":         false,
-			"name":              firstOrEmpty(e, "sAMAccountName") + "@" + strings.ToUpper(domain),
+		props := map[string]any{
+			"domain":    strings.ToUpper(domain),
+			"domainsid": domainSID,
+			"highvalue": false,
+			"name": firstOrEmpty(
+				e,
+				"sAMAccountName",
+			) + "@" + strings.ToUpper(
+				domain,
+			),
 			"distinguishedname": dn,
 			"samaccountname":    firstOrEmpty(e, "sAMAccountName"),
 			"mail":              firstOrEmpty(e, "mail"),
@@ -755,7 +880,9 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 			"displayname":       firstOrEmpty(e, "cn"),
 			"groupscope":        groupScope,
 			"sidhistory":        sidHistory,
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(e, "whenCreated")),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "whenCreated"),
+			),
 		}
 
 		group := BHGroup{
@@ -768,9 +895,9 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 		out = append(out, group)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "groups",
 			"count":   len(out),
@@ -779,7 +906,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectDomainsBloodHound(baseDN string) (any, error) {
 	// Match the domain object at the baseDN
 	// First try with scope 0 (base), then fall back to scope 2 (subtree) if needed
 	filter := "(objectClass=domain)"
@@ -805,7 +932,12 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
 		// Security and replication
 		"nTSecurityDescriptor", "objectVersion",
 	}
-	res, err := c.getAllResults(0, filter, attrs, baseDN) // Base scope - query exactly at baseDN
+	res, err := c.getAllResults(
+		0,
+		filter,
+		attrs,
+		baseDN,
+	) // Base scope - query exactly at baseDN
 	if err != nil || len(res) == 0 {
 		// Fallback to subtree scope if base scope didn't work
 		res, err = c.getAllResults(2, filter, attrs, baseDN)
@@ -831,30 +963,63 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
 				domain = strings.ToUpper(extractDomainFromDN(baseDN))
 			}
 			description := firstOrEmpty(e, "description")
-			whenCreated := parseLDAPGeneralizedTime(firstOrEmpty(e, "whenCreated"))
+			whenCreated := parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "whenCreated"),
+			)
 
-			props := map[string]interface{}{
-				"name":                                   strings.ToUpper(domain),
-				"domain":                                 strings.ToUpper(domain),
-				"domainsid":                              sid,
-				"distinguishedname":                      dn,
-				"description":                            toStringOrNil(description),
-				"functionallevel":                        "Unknown",
-				"highvalue":                              true,
-				"whencreated":                            whenCreated,
-				"collected":                              true,
-				"netbios":                                toStringOrNil(firstOrEmpty(e, "nETBIOSName")),
-				"dsheuristics":                           toStringOrNil(firstOrEmpty(e, "dSHeuristics")),
-				"pwdproperties":                          toInt(firstOrEmpty(e, "pwdProperties")),
-				"maxpwdage":                              toStringOrNil(firstOrEmpty(e, "maxPwdAge")),
-				"minpwdage":                              toStringOrNil(firstOrEmpty(e, "minPwdAge")),
-				"minpwdlength":                           toInt(firstOrEmpty(e, "minPwdLength")),
-				"pwdhistorylength":                       toInt(firstOrEmpty(e, "pwdHistoryLength")),
-				"lockoutduration":                        toStringOrNil(firstOrEmpty(e, "lockoutDuration")),
-				"lockoutobservationwindow":               toInt(firstOrEmpty(e, "lockoutObservationWindow")),
-				"lockoutthreshold":                       toInt(firstOrEmpty(e, "lockoutThreshold")),
-				"machineaccountquota":                    toInt(firstOrEmpty(e, "ms-DS-MachineAccountQuota")),
-				"expirepasswordsonsmartcardonlyaccounts": firstOrEmpty(e, "ms-DS-ExpirePasswordsOnSmartCardOnlyAccounts") == "1",
+			props := map[string]any{
+				"name": strings.ToUpper(
+					domain,
+				),
+				"domain": strings.ToUpper(
+					domain,
+				),
+				"domainsid":         sid,
+				"distinguishedname": dn,
+				"description": toStringOrNil(
+					description,
+				),
+				"functionallevel": "Unknown",
+				"highvalue":       true,
+				"whencreated":     whenCreated,
+				"collected":       true,
+				"netbios": toStringOrNil(
+					firstOrEmpty(e, "nETBIOSName"),
+				),
+				"dsheuristics": toStringOrNil(
+					firstOrEmpty(e, "dSHeuristics"),
+				),
+				"pwdproperties": toInt(
+					firstOrEmpty(e, "pwdProperties"),
+				),
+				"maxpwdage": toStringOrNil(
+					firstOrEmpty(e, "maxPwdAge"),
+				),
+				"minpwdage": toStringOrNil(
+					firstOrEmpty(e, "minPwdAge"),
+				),
+				"minpwdlength": toInt(
+					firstOrEmpty(e, "minPwdLength"),
+				),
+				"pwdhistorylength": toInt(
+					firstOrEmpty(e, "pwdHistoryLength"),
+				),
+				"lockoutduration": toStringOrNil(
+					firstOrEmpty(e, "lockoutDuration"),
+				),
+				"lockoutobservationwindow": toInt(
+					firstOrEmpty(e, "lockoutObservationWindow"),
+				),
+				"lockoutthreshold": toInt(
+					firstOrEmpty(e, "lockoutThreshold"),
+				),
+				"machineaccountquota": toInt(
+					firstOrEmpty(e, "ms-DS-MachineAccountQuota"),
+				),
+				"expirepasswordsonsmartcardonlyaccounts": firstOrEmpty(
+					e,
+					"ms-DS-ExpirePasswordsOnSmartCardOnlyAccounts",
+				) == "1",
 			}
 
 			// Collect trusts for this domain
@@ -877,7 +1042,7 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
 				IsDeleted:            false,
 				ContainedBy:          nil,
 				ForestRootIdentifier: nil,
-				InheritanceHashes:    []interface{}{},
+				InheritanceHashes:    []any{},
 				IsACLProtected:       false,
 			}
 			out = append(out, domainObj)
@@ -893,7 +1058,7 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
 			domainSID = "S-1-5-21-0-0-0"
 		}
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"name":                                   strings.ToUpper(domain),
 			"domain":                                 strings.ToUpper(domain),
 			"domainsid":                              domainSID,
@@ -934,15 +1099,15 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
 			IsDeleted:            false,
 			ContainedBy:          nil,
 			ForestRootIdentifier: nil,
-			InheritanceHashes:    []interface{}{},
+			InheritanceHashes:    []any{},
 			IsACLProtected:       false,
 		}
 		out = append(out, domainObj)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "domains",
 			"count":   len(out),
@@ -951,7 +1116,7 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 	filter := "(objectClass=organizationalUnit)"
 	attrs := []string{
 		// Identity and basic info
@@ -968,7 +1133,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
 		return nil, err
 	}
 
-	out := []map[string]interface{}{}
+	out := []map[string]any{}
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
 
@@ -986,14 +1151,16 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
 			blockInheritance = true
 		}
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"name":              firstOrEmpty(e, "name"),
 			"domain":            strings.ToUpper(domain),
 			"domainsid":         domainSID,
 			"distinguishedname": dn,
 			"description":       firstOrEmpty(e, "description"),
 			"blocksinheritance": blockInheritance,
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(e, "whenCreated")),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "whenCreated"),
+			),
 		}
 
 		gpLink := firstOrEmpty(e, "gPLink")
@@ -1002,12 +1169,15 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
 			parts := strings.Split(gpLink, "[LDAP://")
 			for i := 1; i < len(parts); i++ {
 				if idx := strings.Index(parts[i], ";"); idx > 0 {
-					linkedGPOs = append(linkedGPOs, "LDAP://"+parts[i][:idx])
+					linkedGPOs = append(
+						linkedGPOs,
+						"LDAP://"+parts[i][:idx],
+					)
 				}
 			}
 		}
 
-		ou := map[string]interface{}{
+		ou := map[string]any{
 			"ObjectIdentifier": guid,
 			"Properties":       props,
 		}
@@ -1017,9 +1187,9 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
 		out = append(out, ou)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "ous",
 			"count":   len(out),
@@ -1028,7 +1198,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectGPOsBloodHound(baseDN string) (any, error) {
 	filter := "(objectClass=groupPolicyContainer)"
 	attrs := []string{
 		// Identity and naming
@@ -1045,7 +1215,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
 		return nil, err
 	}
 
-	out := []map[string]interface{}{}
+	out := []map[string]any{}
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
 
@@ -1063,26 +1233,28 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
 			gpoStatus = "Enabled"
 		}
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"name":              name,
 			"domain":            strings.ToUpper(domain),
 			"domainsid":         domainSID,
 			"distinguishedname": dn,
 			"gpcpath":           gpcPath,
 			"gpostatus":         gpoStatus,
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(e, "whenCreated")),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "whenCreated"),
+			),
 		}
 
-		gpo := map[string]interface{}{
+		gpo := map[string]any{
 			"ObjectIdentifier": dn,
 			"Properties":       props,
 		}
 		out = append(out, gpo)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "gpos",
 			"count":   len(out),
@@ -1091,7 +1263,9 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectContainersBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectContainersBloodHound(
+	baseDN string,
+) (any, error) {
 	// Collect all container objects from both domain and configuration partitions
 	filter := "(|(objectClass=container)(objectClass=organizationalUnit))"
 	attrs := []string{
@@ -1115,14 +1289,17 @@ func (c *Conn) collectContainersBloodHound(baseDN string) (interface{}, error) {
 	configDN := "CN=Configuration," + baseDN
 	configRes, err := c.getAllResults(2, filter, attrs, configDN)
 	if err != nil {
-		fmt.Printf("[!] Configuration partition search error: %v\n", err)
+		fmt.Printf(
+			"[!] Configuration partition search error: %v\n",
+			err,
+		)
 	} else if len(configRes) > 0 {
 		res = append(res, configRes...)
 	} else {
 		fmt.Printf("[!] Configuration partition search returned 0 results\n")
 	}
 
-	out := []map[string]interface{}{}
+	out := []map[string]any{}
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
 
@@ -1133,25 +1310,27 @@ func (c *Conn) collectContainersBloodHound(baseDN string) (interface{}, error) {
 			guid = dn
 		}
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"name":              firstOrEmpty(e, "name"),
 			"domain":            strings.ToUpper(domain),
 			"domainsid":         domainSID,
 			"distinguishedname": dn,
 			"description":       firstOrEmpty(e, "description"),
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(e, "whenCreated")),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(e, "whenCreated"),
+			),
 		}
 
-		container := map[string]interface{}{
+		container := map[string]any{
 			"ObjectIdentifier": guid,
 			"Properties":       props,
 		}
 		out = append(out, container)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "containers",
 			"count":   len(out),
@@ -1173,7 +1352,7 @@ func firstOrEmpty(m map[string][]string, k string) string {
 }
 
 // Helper functions for type conversion
-func toInt(s string) interface{} {
+func toInt(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -1184,14 +1363,14 @@ func toInt(s string) interface{} {
 	return int(val)
 }
 
-func toStringOrNil(s string) interface{} {
+func toStringOrNil(s string) any {
 	if s == "" {
 		return nil
 	}
 	return s
 }
 
-func nilIfEmpty(slice []string) interface{} {
+func nilIfEmpty(slice []string) any {
 	if len(slice) == 0 {
 		return nil
 	}
@@ -1206,8 +1385,8 @@ func sliceOrNil(slice []string) []string {
 }
 
 // parseUAC decodes userAccountControl flags
-func parseUAC(uacStr string) map[string]interface{} {
-	result := map[string]interface{}{
+func parseUAC(uacStr string) map[string]any {
+	result := map[string]any{
 		"unconstraineddelegation": false,
 		"trustedtoauth":           false,
 		"passwordnotreqd":         false,
@@ -1302,13 +1481,31 @@ func parseLDAPGeneralizedTime(timeStr string) int64 {
 		return 0
 	}
 	var year, month, day, hour, min, sec int
-	_, err := fmt.Sscanf(timeStr[:14], "%4d%2d%2d%2d%2d%2d", &year, &month, &day, &hour, &min, &sec)
+	_, err := fmt.Sscanf(
+		timeStr[:14],
+		"%4d%2d%2d%2d%2d%2d",
+		&year,
+		&month,
+		&day,
+		&hour,
+		&min,
+		&sec,
+	)
 	if err != nil {
 		return 0
 	}
 
 	// Create a time value
-	t := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC)
+	t := time.Date(
+		year,
+		time.Month(month),
+		day,
+		hour,
+		min,
+		sec,
+		0,
+		time.UTC,
+	)
 	return t.Unix()
 }
 
@@ -1316,7 +1513,12 @@ func parseLDAPGeneralizedTime(timeStr string) int64 {
 func (c *Conn) getDomainSID(baseDN string) string {
 	filter := "(objectClass=domain)"
 	attrs := []string{"objectSid"}
-	res, err := c.getAllResults(0, filter, attrs, baseDN) // Base scope for domain object
+	res, err := c.getAllResults(
+		0,
+		filter,
+		attrs,
+		baseDN,
+	) // Base scope for domain object
 	if err != nil || len(res) == 0 {
 		return ""
 	}
@@ -1331,7 +1533,12 @@ func (c *Conn) resolveSIDFromDN(dn string) string {
 	// Search for the object by its DN
 	filter := "(distinguishedName=" + dn + ")"
 	attrs := []string{"objectSid"}
-	res, err := c.getAllResults(0, filter, attrs, dn) // Base scope search at the DN
+	res, err := c.getAllResults(
+		0,
+		filter,
+		attrs,
+		dn,
+	) // Base scope search at the DN
 	if err != nil || len(res) == 0 {
 		return ""
 	}
@@ -1426,7 +1633,9 @@ func (c *Conn) findRootCAForEnterprise(baseDN string) *string {
 	return nil
 }
 
-func (c *Conn) getCertificationAuthoritiesContainerGUID(baseDN string) *string {
+func (c *Conn) getCertificationAuthoritiesContainerGUID(
+	baseDN string,
+) *string {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	containerDN := "CN=Certification Authorities," + pkiBaseDN
 	filter := "(objectClass=container)"
@@ -1499,12 +1708,17 @@ func (c *Conn) getContainerGUIDByDN(dn string) string {
 }
 
 // findComputerByDNSName finds a computer GUID by matching its dNSHostName
-func (c *Conn) findComputerByDNSName(dnsHostname string, baseDN string) *string {
+func (c *Conn) findComputerByDNSName(
+	dnsHostname string,
+	baseDN string,
+) *string {
 	if dnsHostname == "" {
 		return nil
 	}
 
-	filter := "(&(objectClass=computer)(dNSHostName=" + escapeFilterValue(dnsHostname) + "))"
+	filter := "(&(objectClass=computer)(dNSHostName=" + escapeFilterValue(
+		dnsHostname,
+	) + "))"
 	attrs := []string{"objectGUID"}
 
 	res, err := c.getAllResults(2, filter, attrs, baseDN)
@@ -1533,7 +1747,9 @@ func escapeFilterValue(value string) string {
 
 // ADCS Collectors - Active Directory Certificate Services collection
 
-func (c *Conn) collectCertTemplatesBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectCertTemplatesBloodHound(
+	baseDN string,
+) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	filter := "(objectClass=pKICertificateTemplate)"
 	attrs := []string{
@@ -1544,9 +1760,9 @@ func (c *Conn) collectCertTemplatesBloodHound(baseDN string) (interface{}, error
 	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
-		return map[string]interface{}{
+		return map[string]any{
 			"data": []BHCertTemplate{},
-			"meta": map[string]interface{}{
+			"meta": map[string]any{
 				"methods": 0,
 				"type":    "certtemplates",
 				"count":   0,
@@ -1569,24 +1785,42 @@ func (c *Conn) collectCertTemplatesBloodHound(baseDN string) (interface{}, error
 			name = dn
 		}
 
-		props := map[string]interface{}{
-			"distinguishedname":             dn,
-			"domain":                        strings.ToUpper(domain),
-			"domainsid":                     domainSID,
-			"name":                          name + "@" + strings.ToUpper(domain),
-			"displayname":                   toStringOrNil(firstOrEmpty(entry, "displayName")),
-			"whencreated":                   parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
-			"oid":                           "",
-			"validityperiod":                "",
-			"renewalperiod":                 "",
-			"ekus":                          nilIfEmpty(entry["msPKI-RA-Application-Policies"]),
-			"effectiveekus":                 nilIfEmpty(entry["msPKI-Certificate-Application-Policy"]),
+		props := map[string]any{
+			"distinguishedname": dn,
+			"domain":            strings.ToUpper(domain),
+			"domainsid":         domainSID,
+			"name": name + "@" + strings.ToUpper(
+				domain,
+			),
+			"displayname": toStringOrNil(
+				firstOrEmpty(entry, "displayName"),
+			),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(entry, "whenCreated"),
+			),
+			"oid":            "",
+			"validityperiod": "",
+			"renewalperiod":  "",
+			"ekus": nilIfEmpty(
+				entry["msPKI-RA-Application-Policies"],
+			),
+			"effectiveekus": nilIfEmpty(
+				entry["msPKI-Certificate-Application-Policy"],
+			),
 			"authenticationenabled":         true,
 			"schannelauthenticationenabled": false,
-			"certificatepolicy":             toStringOrNil(firstOrEmpty(entry, "msPKI-Certificate-Policy")),
-			"certificateapplicationpolicy":  nilIfEmpty(entry["msPKI-RA-Application-Policies"]),
-			"applicationpolicies":           nilIfEmpty(entry["msPKI-RA-Application-Policies"]),
-			"issuancepolicies":              nilIfEmpty(entry["msPKI-Certificate-Policy"]),
+			"certificatepolicy": toStringOrNil(
+				firstOrEmpty(entry, "msPKI-Certificate-Policy"),
+			),
+			"certificateapplicationpolicy": nilIfEmpty(
+				entry["msPKI-RA-Application-Policies"],
+			),
+			"applicationpolicies": nilIfEmpty(
+				entry["msPKI-RA-Application-Policies"],
+			),
+			"issuancepolicies": nilIfEmpty(
+				entry["msPKI-Certificate-Policy"],
+			),
 		}
 
 		// Set ContainedBy if we found the container
@@ -1609,9 +1843,9 @@ func (c *Conn) collectCertTemplatesBloodHound(baseDN string) (interface{}, error
 		out = append(out, certObj)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "certtemplates",
 			"count":   len(out),
@@ -1620,7 +1854,9 @@ func (c *Conn) collectCertTemplatesBloodHound(baseDN string) (interface{}, error
 	}, nil
 }
 
-func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectEnterpriseCAsBloodHound(
+	baseDN string,
+) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	filter := "(objectClass=pKIEnrollmentService)"
 	attrs := []string{
@@ -1629,9 +1865,9 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
-		return map[string]interface{}{
+		return map[string]any{
 			"data": []BHEnterpriseCA{},
-			"meta": map[string]interface{}{
+			"meta": map[string]any{
 				"methods": 0,
 				"type":    "enterprisecas",
 				"count":   0,
@@ -1662,7 +1898,10 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 		// Find hosting computer by DNS hostname
 		var hostingComputer *string
 		if dnsHostnameStr != "" {
-			hostingComputer = c.findComputerByDNSName(dnsHostnameStr, baseDN)
+			hostingComputer = c.findComputerByDNSName(
+				dnsHostnameStr,
+				baseDN,
+			)
 		}
 
 		// Find certificate templates published by this CA
@@ -1689,15 +1928,17 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 			}
 		}
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"distinguishedname": dn,
 			"domain":            strings.ToUpper(domain),
 			"domainsid":         domainSID,
 			"name":              name + "@" + strings.ToUpper(domain),
 			"dnshostname":       dnsHostname,
 			"caname":            name,
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
-			"flags":             0,
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(entry, "whenCreated"),
+			),
+			"flags": 0,
 		}
 
 		caObj := BHEnterpriseCA{
@@ -1716,9 +1957,9 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 		out = append(out, caObj)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "enterprisecas",
 			"count":   len(out),
@@ -1727,7 +1968,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(baseDN string) (interface{}, error
 	}, nil
 }
 
-func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectAIACAsBloodHound(baseDN string) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	aiaContainerDN := "CN=AIA," + pkiBaseDN
 	attrs := []string{
@@ -1735,10 +1976,20 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
 		"crossCertificatePair",
 	}
 	// Search in AIA container for all objects (looking for CA objects)
-	res, err := c.getAllResults(1, "(objectClass=*)", attrs, aiaContainerDN)
+	res, err := c.getAllResults(
+		1,
+		"(objectClass=*)",
+		attrs,
+		aiaContainerDN,
+	)
 	if err != nil || len(res) == 0 {
 		// If that doesn't work, try searching whole PKI base for anything in AIA
-		res, _ = c.getAllResults(2, "(|(objectClass=pkiAIA)(cn=*))", attrs, aiaContainerDN)
+		res, _ = c.getAllResults(
+			2,
+			"(|(objectClass=pkiAIA)(cn=*))",
+			attrs,
+			aiaContainerDN,
+		)
 	}
 	// Filter out the AIA container itself if it was returned
 	filtered := make([]map[string][]string, 0)
@@ -1766,14 +2017,20 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
 			name = dn
 		}
 
-		props := map[string]interface{}{
-			"distinguishedname":       dn,
-			"domain":                  strings.ToUpper(domain),
-			"domainsid":               domainSID,
-			"name":                    name + "@" + strings.ToUpper(domain),
-			"whencreated":             parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
+		props := map[string]any{
+			"distinguishedname": dn,
+			"domain":            strings.ToUpper(domain),
+			"domainsid":         domainSID,
+			"name": name + "@" + strings.ToUpper(
+				domain,
+			),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(entry, "whenCreated"),
+			),
 			"hascrosscertificatepair": hasCrossCert,
-			"crosscertificatepair":    nilIfEmpty(entry["crossCertificatePair"]),
+			"crosscertificatepair": nilIfEmpty(
+				entry["crossCertificatePair"],
+			),
 		}
 
 		aiaObj := BHAIACA{
@@ -1787,9 +2044,9 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
 		out = append(out, aiaObj)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "aiacas",
 			"count":   len(out),
@@ -1798,7 +2055,7 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectRootCAsBloodHound(baseDN string) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	// Search only in the Certification Authorities container to exclude NTAuthCertificates
 	rootCAsContainerDN := "CN=Certification Authorities," + pkiBaseDN
@@ -1809,9 +2066,9 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 	res, err := c.getAllResults(1, filter, attrs, rootCAsContainerDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
-		return map[string]interface{}{
+		return map[string]any{
 			"data": []BHRootCA{},
-			"meta": map[string]interface{}{
+			"meta": map[string]any{
 				"methods": 0,
 				"type":    "rootcas",
 				"count":   0,
@@ -1823,7 +2080,9 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 	var out []BHRootCA
 	domainSID := c.getDomainSID(baseDN)
 	domain := extractDomainFromDN(baseDN)
-	rootCAContainerGUID := c.getCertificationAuthoritiesContainerGUID(baseDN)
+	rootCAContainerGUID := c.getCertificationAuthoritiesContainerGUID(
+		baseDN,
+	)
 
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
@@ -1836,12 +2095,14 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 
 		dsid := domainSID
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"distinguishedname": dn,
 			"domain":            strings.ToUpper(domain),
 			"domainsid":         dsid,
 			"name":              name + "@" + strings.ToUpper(domain),
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(entry, "whenCreated"),
+			),
 		}
 
 		// Set ContainedBy if we found the container
@@ -1865,9 +2126,9 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 		out = append(out, rootObj)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "rootcas",
 			"count":   len(out),
@@ -1876,7 +2137,9 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (interface{}, error) {
 	}, nil
 }
 
-func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectNTAuthStoresBloodHound(
+	baseDN string,
+) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	filter := "(cn=NTAuthCertificates)"
 	attrs := []string{
@@ -1885,9 +2148,9 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 	res, err := c.getAllResults(2, filter, attrs, pkiBaseDN)
 	if err != nil {
 		// Return empty result instead of error if no entries found
-		return map[string]interface{}{
+		return map[string]any{
 			"data": []BHNTAuthStore{},
-			"meta": map[string]interface{}{
+			"meta": map[string]any{
 				"methods": 0,
 				"type":    "ntauthstores",
 				"count":   0,
@@ -1912,12 +2175,14 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 
 		dsid := domainSID
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"distinguishedname": dn,
 			"domain":            strings.ToUpper(domain),
 			"domainsid":         dsid,
 			"name":              name + "@" + strings.ToUpper(domain),
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(entry, "whenCreated"),
+			),
 		}
 
 		// Set ContainedBy to Public Key Services container
@@ -1941,9 +2206,9 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 		out = append(out, ntObj)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "ntauthstores",
 			"count":   len(out),
@@ -1952,7 +2217,9 @@ func (c *Conn) collectNTAuthStoresBloodHound(baseDN string) (interface{}, error)
 	}, nil
 }
 
-func (c *Conn) collectIssuancePoliciesBloodHound(baseDN string) (interface{}, error) {
+func (c *Conn) collectIssuancePoliciesBloodHound(
+	baseDN string,
+) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	// Issuance Policies are typically under CN=OID
 	oidContainerDN := "CN=OID," + pkiBaseDN
@@ -1961,20 +2228,35 @@ func (c *Conn) collectIssuancePoliciesBloodHound(baseDN string) (interface{}, er
 		"msPKI-OIDCertTemplate-OID",
 	}
 	// Search in OID container for issuance policy objects
-	res, err := c.getAllResults(1, "(displayName=*Assurance*)", attrs, oidContainerDN)
+	res, err := c.getAllResults(
+		1,
+		"(displayName=*Assurance*)",
+		attrs,
+		oidContainerDN,
+	)
 	if err != nil || len(res) == 0 {
 		// Try searching for msPKI-IssuancePolicy objectClass
-		res, err = c.getAllResults(2, "(objectClass=msPKI-IssuancePolicy)", attrs, oidContainerDN)
+		res, err = c.getAllResults(
+			2,
+			"(objectClass=msPKI-IssuancePolicy)",
+			attrs,
+			oidContainerDN,
+		)
 	}
 	if err != nil || len(res) == 0 {
 		// Last attempt: search whole PKI base
-		res, err = c.getAllResults(2, "(objectClass=msPKI-IssuancePolicy)", attrs, pkiBaseDN)
+		res, err = c.getAllResults(
+			2,
+			"(objectClass=msPKI-IssuancePolicy)",
+			attrs,
+			pkiBaseDN,
+		)
 	}
 	if err != nil {
 		// Return empty result instead of error if no entries found
-		return map[string]interface{}{
+		return map[string]any{
 			"data": []BHIssuancePolicy{},
-			"meta": map[string]interface{}{
+			"meta": map[string]any{
 				"methods": 0,
 				"type":    "issuancepolicies",
 				"count":   0,
@@ -1999,14 +2281,20 @@ func (c *Conn) collectIssuancePoliciesBloodHound(baseDN string) (interface{}, er
 			name = dn
 		}
 
-		props := map[string]interface{}{
+		props := map[string]any{
 			"distinguishedname": dn,
 			"domain":            strings.ToUpper(domain),
 			"domainsid":         domainSID,
 			"name":              name + "@" + strings.ToUpper(domain),
-			"displayname":       toStringOrNil(firstOrEmpty(entry, "displayName")),
-			"whencreated":       parseLDAPGeneralizedTime(firstOrEmpty(entry, "whenCreated")),
-			"certtemplateoid":   toStringOrNil(firstOrEmpty(entry, "msPKI-OIDCertTemplate-OID")),
+			"displayname": toStringOrNil(
+				firstOrEmpty(entry, "displayName"),
+			),
+			"whencreated": parseLDAPGeneralizedTime(
+				firstOrEmpty(entry, "whenCreated"),
+			),
+			"certtemplateoid": toStringOrNil(
+				firstOrEmpty(entry, "msPKI-OIDCertTemplate-OID"),
+			),
 		}
 
 		policyObj := BHIssuancePolicy{
@@ -2021,9 +2309,9 @@ func (c *Conn) collectIssuancePoliciesBloodHound(baseDN string) (interface{}, er
 		out = append(out, policyObj)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"data": out,
-		"meta": map[string]interface{}{
+		"meta": map[string]any{
 			"methods": 0,
 			"type":    "issuancepolicies",
 			"count":   len(out),

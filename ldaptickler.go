@@ -108,9 +108,11 @@ const (
 )
 
 // This will reveal creds in plain text, yay
-var LDAPDebug bool
-var reSDDL *regexp.Regexp = regexp.MustCompile(`(\([^\)]+\))`)
-var Debug bool
+var (
+	LDAPDebug bool
+	reSDDL    *regexp.Regexp = regexp.MustCompile(`(\([^\)]+\))`)
+	Debug     bool
+)
 
 // Conn gives us a structure named lconn linked to *ldap.Conn
 type Conn struct {
@@ -192,7 +194,10 @@ func (c *Conn) bindSetup() error {
 			conn = tlsConn
 		}
 
-		c.lconn = ldap.NewConn(conn, strings.HasPrefix(c.url, "ldaps:"))
+		c.lconn = ldap.NewConn(
+			conn,
+			strings.HasPrefix(c.url, "ldaps:"),
+		)
 		c.lconn.Start()
 	} else {
 		// Original direct connection code
@@ -217,10 +222,17 @@ func (c *Conn) bindSetup() error {
 	return nil
 }
 
-func (c *Conn) createUnicodePasswordRequest(username string, password string) (*ldap.ModifyRequest, error) {
-	passwordSet := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, nil)
+func (c *Conn) createUnicodePasswordRequest(
+	username string,
+	password string,
+) (*ldap.ModifyRequest, error) {
+	passwordSet := ldap.NewModifyRequest(
+		"CN="+username+",CN=Users,"+c.baseDN,
+		nil,
+	)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	newunicodeEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", password))
+	newunicodeEncoded, err := utf16.NewEncoder().
+		String(fmt.Sprintf("%q", password))
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +265,11 @@ func (c *Conn) BindAnonymous(username string) error {
 }
 
 // BindDomain will attempt to bind to the specified URL with a username, password and domain.
-func (c *Conn) BindDomain(domain string, username string, password string) error {
+func (c *Conn) BindDomain(
+	domain string,
+	username string,
+	password string,
+) error {
 	c.username = username
 	var err error
 	err = c.bindSetup()
@@ -268,7 +284,11 @@ func (c *Conn) BindDomain(domain string, username string, password string) error
 }
 
 // BindDomainPTH will attempt to bind to the specified URL with a username, password hash and domain.
-func (c *Conn) BindDomainPTH(domain string, username string, hash string) error {
+func (c *Conn) BindDomainPTH(
+	domain string,
+	username string,
+	hash string,
+) error {
 	c.username = username
 	var err error
 	err = c.bindSetup()
@@ -282,16 +302,23 @@ func (c *Conn) BindDomainPTH(domain string, username string, hash string) error 
 	return nil
 }
 
-func (c *Conn) BindGSSAPI(domain string, username string, password string, spn string) error {
+func (c *Conn) BindGSSAPI(
+	domain string,
+	username string,
+	password string,
+	spn string,
+) error {
 	// GSSAPI Implementation
 	c.username = username
 	var err error
 	c.gssClient, err = gssapi.NewClientWithPassword(
-		username,                     // Kerberos principal name
-		strings.ToUpper(domain),      // Kerberos realm
-		password,                     // Kerberos password
-		"/etc/krb5.conf",             // krb5 configuration file path
-		client.DisablePAFXFAST(true), // Optional: disable FAST if your realm needs it
+		username,                // Kerberos principal name
+		strings.ToUpper(domain), // Kerberos realm
+		password,                // Kerberos password
+		"/etc/krb5.conf",        // krb5 configuration file path
+		client.DisablePAFXFAST(
+			true,
+		), // Optional: disable FAST if your realm needs it
 	)
 	if err != nil {
 		return err
@@ -301,11 +328,14 @@ func (c *Conn) BindGSSAPI(domain string, username string, password string, spn s
 	if err != nil {
 		return err
 	}
-	err = c.lconn.GSSAPIBindRequestWithAPOptions(c.gssClient, &ldap.GSSAPIBindRequest{
-		ServicePrincipalName: spn,
-		AuthZID:              "",
-	},
-		[]int{flags.APOptionMutualRequired})
+	err = c.lconn.GSSAPIBindRequestWithAPOptions(
+		c.gssClient,
+		&ldap.GSSAPIBindRequest{
+			ServicePrincipalName: spn,
+			AuthZID:              "",
+		},
+		[]int{flags.APOptionMutualRequired},
+	)
 	if err != nil {
 		return err
 	}
@@ -329,7 +359,10 @@ func (c *Conn) BindPassword(username string, password string) error {
 }
 
 // AddConstrainedDelegation modifies msds-allowedtodelegateto to configured constrained delegation for specified spn
-func (c *Conn) AddConstrainedDelegation(username string, spn string) error {
+func (c *Conn) AddConstrainedDelegation(
+	username string,
+	spn string,
+) error {
 	var delegationres string
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"msDS-AllowedToDelegateTo"}
@@ -345,26 +378,56 @@ func (c *Conn) AddConstrainedDelegation(username string, spn string) error {
 	if len(results[0]["msDS-AllowedToDelegateTo"]) > 0 {
 		delegationres = results[0]["msDS-AllowedToDelegateTo"][0]
 	}
-	delegationres = strings.TrimSpace(fmt.Sprintf("%s %s", delegationres, spn))
-	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
-	enableReq.Replace("msDS-AllowedToDelegateTo", []string{delegationres})
+	delegationres = strings.TrimSpace(
+		fmt.Sprintf("%s %s", delegationres, spn),
+	)
+	enableReq := ldap.NewModifyRequest(
+		results[0]["DN"][0],
+		[]ldap.Control{},
+	)
+	enableReq.Replace(
+		"msDS-AllowedToDelegateTo",
+		[]string{delegationres},
+	)
 	return c.lconn.Modify(enableReq)
 }
 
 // AddMachineAccount will attempt to add a machine account for the supplied machinename and machinepass
-func (c *Conn) AddMachineAccount(machinename string, machinepass string) error {
-	addReq := ldap.NewAddRequest("CN="+machinename+",CN=Computers,"+c.baseDN, []ldap.Control{})
-	addReq.Attribute("objectClass", []string{"top", "person", "organizationalPerson", "user", "computer"})
+func (c *Conn) AddMachineAccount(
+	machinename string,
+	machinepass string,
+) error {
+	addReq := ldap.NewAddRequest(
+		"CN="+machinename+",CN=Computers,"+c.baseDN,
+		[]ldap.Control{},
+	)
+	addReq.Attribute(
+		"objectClass",
+		[]string{
+			"top",
+			"person",
+			"organizationalPerson",
+			"user",
+			"computer",
+		},
+	)
 	addReq.Attribute("cn", []string{machinename})
 	addReq.Attribute("sAMAccountName", []string{machinename + "$"})
-	addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+	addReq.Attribute(
+		"userAccountControl",
+		[]string{"4096"},
+	) // WORKSTATION_TRUST_ACCOUNT
 	encodedPassword := encodePassword(machinepass)
 	addReq.Attribute("unicodePWD", []string{encodedPassword})
 	return c.lconn.Add(addReq)
 }
 
 // AddMachineAccountLowPriv will attempt to add a machine account with the supplied details as a low privilege user
-func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, domain string) error {
+func (c *Conn) AddMachineAccountLowPriv(
+	machinename string,
+	machinepass string,
+	domain string,
+) error {
 	// AD requires machine SAM to end in $
 	sam := strings.TrimSpace(machinename)
 	if !strings.HasSuffix(sam, "$") {
@@ -373,7 +436,7 @@ func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, 
 	// CN must not include the trailing $
 	cn := strings.TrimSuffix(sam, "$")
 	// Format unicodePwd: UTF-16LE, quoted
-	//encoded, _ := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder().String(machinepass)
+	// encoded, _ := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder().String(machinepass)
 	quoted := fmt.Sprintf("\"%s\"", machinepass)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	encodedPwd, err := utf16.NewEncoder().String(quoted)
@@ -390,7 +453,10 @@ func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, 
 	// DOES THE ORDER MATTER? Aligning with Impacket addcomputer.py
 	fqdn := fmt.Sprintf("%s.%s", cn, domain)
 	addReq.Attribute("dNSHostName", []string{fqdn})
-	addReq.Attribute("userAccountControl", []string{"4096"}) // WORKSTATION_TRUST_ACCOUNT
+	addReq.Attribute(
+		"userAccountControl",
+		[]string{"4096"},
+	) // WORKSTATION_TRUST_ACCOUNT
 	addReq.Attribute("servicePrincipalName", []string{
 		"HOST/" + strings.ToLower(cn),
 		"HOST/" + strings.ToLower(fqdn),
@@ -407,7 +473,10 @@ func (c *Conn) AddMachineAccountLowPriv(machinename string, machinepass string, 
 }
 
 // AddResourceBasedConstrainedDelegation will attempt to add RBCD permissions from delegatingComputer to targetmachinename
-func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, delegatingComputer ...string) error {
+func (c *Conn) AddResourceBasedConstrainedDelegation(
+	targetmachinename string,
+	delegatingComputer ...string,
+) error {
 	filter := "(samaccountname=" + delegatingComputer[0] + ")"
 	attributes := []string{"objectSid"}
 	searchscope := 2
@@ -420,8 +489,10 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 
 	// Getting object sid
 	if len(results[0]["objectSid"]) == 0 {
-		return fmt.Errorf("no objectSid found for %s", delegatingComputer[0])
-
+		return fmt.Errorf(
+			"no objectSid found for %s",
+			delegatingComputer[0],
+		)
 	}
 	delegatingComputerSID := results[0]["objectSid"][0]
 
@@ -440,12 +511,13 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 	var allowed string
 
 	// Getting msDS-AllowedToActOnBehalfOfOtherIdentity
-	if len(results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"]) > 0 {
+	if len(
+		results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"],
+	) > 0 {
 		allowed = results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"][0]
 	}
 	// RBCD setting
 	sddl, err := winsddlconverter.ParseSDDL(allowed)
-
 	if err != nil {
 		return err
 	}
@@ -456,32 +528,53 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(targetmachinename string, d
 		sddl.Group = "BA"
 	}
 	if sddl.DiscretionaryAcl == nil {
-		sddl.DiscretionaryAcl = &winsddlconverter.Acl{AclRevision: 2, Aces: []winsddlconverter.Ace{}}
+		sddl.DiscretionaryAcl = &winsddlconverter.Acl{
+			AclRevision: 2,
+			Aces:        []winsddlconverter.Ace{},
+		}
 	}
 	for _, ace := range sddl.DiscretionaryAcl.Aces {
 		if delegatingComputerSID == ace.Sid {
-			return fmt.Errorf("delegating computer already has RBCD permissions on target computer")
+			return fmt.Errorf(
+				"delegating computer already has RBCD permissions on target computer",
+			)
 		}
 	}
 	ace := winsddlconverter.Ace{
 		AceType: winsddlconverter.ACCESS_ALLOWED_ACE_TYPE, Sid: delegatingComputerSID,
-		AccessMask: winsddlconverter.AccessMaskDetail{Mask: 0xF01FF, Flags: []string{"SD", "RC", "WD", "WO"}, HasUnknown: true},
+		AccessMask: winsddlconverter.AccessMaskDetail{
+			Mask:       0xF01FF,
+			Flags:      []string{"SD", "RC", "WD", "WO"},
+			HasUnknown: true,
+		},
 	}
-	sddl.DiscretionaryAcl.Aces = append(sddl.DiscretionaryAcl.Aces, ace)
+	sddl.DiscretionaryAcl.Aces = append(
+		sddl.DiscretionaryAcl.Aces,
+		ace,
+	)
 	var b []byte
 	if b, err = sddl.ToBinary(); err != nil {
 		return err
 	}
 
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	enableReq.Replace("msDS-AllowedToActOnBehalfOfOtherIdentity", []string{string(b)})
+	enableReq.Replace(
+		"msDS-AllowedToActOnBehalfOfOtherIdentity",
+		[]string{string(b)},
+	)
 	return c.lconn.Modify(enableReq)
 }
 
 // TODO Add filter elsewhere
-func (c *Conn) AddServicePrincipalName(username string, spn string) error {
+func (c *Conn) AddServicePrincipalName(
+	username string,
+	spn string,
+) error {
 	// Escape username for LDAP filter
-	filter := fmt.Sprintf("(samaccountname=%s)", ldap.EscapeFilter(username))
+	filter := fmt.Sprintf(
+		"(samaccountname=%s)",
+		ldap.EscapeFilter(username),
+	)
 	attributes := []string{"servicePrincipalName"}
 
 	// Search for the user
@@ -499,7 +592,7 @@ func (c *Conn) AddServicePrincipalName(username string, spn string) error {
 
 	// Check if SPN already exists
 	for _, s := range strings.Fields(spn) {
-		//if !slices.Contains(existingSPNs, s) {
+		// if !slices.Contains(existingSPNs, s) {
 		existingSPNs = append(existingSPNs, s)
 		//}
 	}
@@ -514,15 +607,30 @@ func (c *Conn) AddServicePrincipalName(username string, spn string) error {
 
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
 // SetEnableAccount to function
-func (c *Conn) AddUserAccount(username string, principalname string) error {
-	addReq := ldap.NewAddRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
-	addReq.Attribute("accountExpires", []string{fmt.Sprintf("%d", 0x00000000)})
+func (c *Conn) AddUserAccount(
+	username string,
+	principalname string,
+) error {
+	addReq := ldap.NewAddRequest(
+		"CN="+username+",CN=Users,"+c.baseDN,
+		[]ldap.Control{},
+	)
+	addReq.Attribute(
+		"accountExpires",
+		[]string{fmt.Sprintf("%d", 0x00000000)},
+	)
 	addReq.Attribute("cn", []string{username})
 	addReq.Attribute("displayName", []string{username})
 	addReq.Attribute("givenName", []string{username})
-	addReq.Attribute("instanceType", []string{fmt.Sprintf("%d", 0x00000004)})
+	addReq.Attribute(
+		"instanceType",
+		[]string{fmt.Sprintf("%d", 0x00000004)},
+	)
 	addReq.Attribute("name", []string{username})
-	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"})
+	addReq.Attribute(
+		"objectClass",
+		[]string{"top", "organizationalPerson", "user", "person"},
+	)
 	addReq.Attribute("sAMAccountName", []string{username})
 	addReq.Attribute("sn", []string{username})
 	// Create the account disabled....
@@ -535,8 +643,8 @@ func (c *Conn) AddUserAccount(username string, principalname string) error {
 // AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
 func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	// THIS WORKS AGAIN!
-	//Machine accounts require $ you dummy.
-	//UAC output is a bit mask which can be deciphered here: https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/useraccountcontrol-manipulate-account-properties
+	// Machine accounts require $ you dummy.
+	// UAC output is a bit mask which can be deciphered here: https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/useraccountcontrol-manipulate-account-properties
 	var err error
 	var results []map[string][]string
 	var uacstr string
@@ -557,8 +665,14 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	}
 
 	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	enableReq := ldap.NewModifyRequest(
+		results[0]["DN"][0],
+		[]ldap.Control{},
+	)
+	enableReq.Replace(
+		"userAccountControl",
+		[]string{fmt.Sprintf("%d", uac)},
+	)
 	return c.lconn.Modify(enableReq)
 }
 
@@ -577,17 +691,32 @@ func decodeGUID(guidBytes []byte) string {
 	if len(guidBytes) != 16 {
 		return fmt.Sprintf("Invalid GUID: %0x", guidBytes)
 	}
-	return fmt.Sprintf("%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+	return fmt.Sprintf(
+		"%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 		// first 4 bytes (little-endian)
-		uint32(guidBytes[3])<<24|uint32(guidBytes[2])<<16|uint32(guidBytes[1])<<8|uint32(guidBytes[0]),
+		uint32(
+			guidBytes[3],
+		)<<24|uint32(
+			guidBytes[2],
+		)<<16|uint32(
+			guidBytes[1],
+		)<<8|uint32(
+			guidBytes[0],
+		),
 		// next 2 bytes (little-endian)
 		uint16(guidBytes[5])<<8|uint16(guidBytes[4]),
 		// next 2 bytes (little-endian)
 		uint16(guidBytes[7])<<8|uint16(guidBytes[6]),
 		// next 2 bytes (big-endian)
-		guidBytes[8], guidBytes[9],
+		guidBytes[8],
+		guidBytes[9],
 		// last 6 bytes (big-endian)
-		guidBytes[10], guidBytes[11], guidBytes[12], guidBytes[13], guidBytes[14], guidBytes[15],
+		guidBytes[10],
+		guidBytes[11],
+		guidBytes[12],
+		guidBytes[13],
+		guidBytes[14],
+		guidBytes[15],
 	)
 }
 
@@ -607,12 +736,16 @@ func decodeSID(sidBytes []byte) (string, error) {
 		uint64(sidBytes[7])
 
 	if len(sidBytes) < 8+subAuthCount*4 {
-		return "", fmt.Errorf("invalid SID length for sub-authorities")
+		return "", fmt.Errorf(
+			"invalid SID length for sub-authorities",
+		)
 	}
 	subAuthorities := make([]uint32, subAuthCount)
 	for i := 0; i < subAuthCount; i++ {
 		start := 8 + i*4
-		subAuthorities[i] = binary.LittleEndian.Uint32(sidBytes[start : start+4])
+		subAuthorities[i] = binary.LittleEndian.Uint32(
+			sidBytes[start : start+4],
+		)
 	}
 
 	sidStr := fmt.Sprintf("S-%d-%d", revision, identifierAuthority)
@@ -620,18 +753,23 @@ func decodeSID(sidBytes []byte) (string, error) {
 		sidStr += fmt.Sprintf("-%d", sa)
 	}
 	return sidStr, nil
-
 }
 
 // DeleteObject will attempt to delete the object specified, currently supports users and computers
 // REDO THIS, change to deletemachine and deleteuser, deletegpo?
-func (c *Conn) DeleteObject(objectname string, objecttype string) error {
+func (c *Conn) DeleteObject(
+	objectname string,
+	objecttype string,
+) error {
 	var cn string = "Users"
 	if objecttype == "m" {
 		// May need to rethink this, some objects actually have the $ in the CN name
 		cn = "Computers"
 	}
-	delReq := ldap.NewDelRequest("CN="+objectname+",CN="+cn+","+c.baseDN, []ldap.Control{})
+	delReq := ldap.NewDelRequest(
+		"CN="+objectname+",CN="+cn+","+c.baseDN,
+		[]ldap.Control{},
+	)
 	return c.lconn.Del(delReq)
 }
 
@@ -644,7 +782,10 @@ func (c *Conn) FindUserByDescription(querydescription string) error {
 }
 
 // FindUserByName will search the directory for a specified username
-func (c *Conn) FindUserByName(objectquery string, searchscope int) error {
+func (c *Conn) FindUserByName(
+	objectquery string,
+	searchscope int,
+) error {
 	filter := "(&(objectClass=user)(samaccountname=" + objectquery + "))"
 	attributes := []string{"*"}
 	return c.LDAPSearch(searchscope, filter, attributes)
@@ -684,9 +825,14 @@ func byteReader(br *bytes.Reader, length int) ([]byte, error) {
 }
 
 // ParseMSDSManagedPasswordBlob parses the binary blob from msDS-ManagedPassword attribute
-func ParseMSDSManagedPasswordBlob(blob []byte) (*MSDSManagedPasswordBlob, error) {
+func ParseMSDSManagedPasswordBlob(
+	blob []byte,
+) (*MSDSManagedPasswordBlob, error) {
 	if len(blob) < 16 {
-		return nil, fmt.Errorf("blob too short: expected at least 16 bytes, got %d", len(blob))
+		return nil, fmt.Errorf(
+			"blob too short: expected at least 16 bytes, got %d",
+			len(blob),
+		)
 	}
 
 	br := bytes.NewReader(blob)
@@ -698,16 +844,27 @@ func ParseMSDSManagedPasswordBlob(blob []byte) (*MSDSManagedPasswordBlob, error)
 	}
 
 	result := &MSDSManagedPasswordBlob{
-		Version:                binary.LittleEndian.Uint32(header[0:4]),
-		Length:                 binary.LittleEndian.Uint32(header[4:8]),
-		CurrentPasswordOffset:  binary.LittleEndian.Uint32(header[8:12]),
-		PreviousPasswordOffset: binary.LittleEndian.Uint16(header[12:14]),
-		QueryPasswordOffset:    binary.LittleEndian.Uint16(header[14:16]),
+		Version: binary.LittleEndian.Uint32(
+			header[0:4],
+		),
+		Length: binary.LittleEndian.Uint32(
+			header[4:8],
+		),
+		CurrentPasswordOffset: binary.LittleEndian.Uint32(
+			header[8:12],
+		),
+		PreviousPasswordOffset: binary.LittleEndian.Uint16(
+			header[12:14],
+		),
+		QueryPasswordOffset: binary.LittleEndian.Uint16(
+			header[14:16],
+		),
 	}
 
 	// Read remaining buffer
 	remaining := make([]byte, len(blob)-16)
-	if _, err := br.Read(remaining); err != nil && err.Error() != "EOF" {
+	if _, err := br.Read(remaining); err != nil &&
+		err.Error() != "EOF" {
 		return nil, err
 	}
 	result.Buffer = remaining
@@ -722,9 +879,14 @@ func (m *MSDSManagedPasswordBlob) GetCurrentPassword() ([]byte, error) {
 	}
 
 	// Password offset is relative to start of buffer
-	offset := int(m.CurrentPasswordOffset) - 16 // subtract header size since Buffer starts after header
+	offset := int(
+		m.CurrentPasswordOffset,
+	) - 16 // subtract header size since Buffer starts after header
 	if offset < 0 || offset >= len(m.Buffer) {
-		return nil, fmt.Errorf("invalid current password offset: %d", m.CurrentPasswordOffset)
+		return nil, fmt.Errorf(
+			"invalid current password offset: %d",
+			m.CurrentPasswordOffset,
+		)
 	}
 
 	// Read 256 bytes (standard password length for gMSA)
@@ -774,7 +936,10 @@ func dnsrpcnameToString(b []byte) (string, error) {
 }
 
 func (c *Conn) getAllResults(
-	searchscope int, filter string, attributes []string, baseDN ...string,
+	searchscope int,
+	filter string,
+	attributes []string,
+	baseDN ...string,
 ) ([]map[string][]string, error) {
 	var results []map[string][]string
 	var data string
@@ -787,28 +952,39 @@ func (c *Conn) getAllResults(
 	if slices.Contains(attributes, "nTSecurityDescriptor") {
 		ldapControls = append(ldapControls,
 			&ldap.ControlString{
-				ControlType:  "1.2.840.113556.1.4.801", // LDAP_SERVER_SD_FLAGS_OID
-				Criticality:  true,
-				ControlValue: string([]byte{0x30, 0x03, 0x02, 0x01, 0x07}),
+				ControlType: "1.2.840.113556.1.4.801", // LDAP_SERVER_SD_FLAGS_OID
+				Criticality: true,
+				ControlValue: string(
+					[]byte{0x30, 0x03, 0x02, 0x01, 0x07},
+				),
 			},
 		)
 	}
 	if slices.Contains(attributes, "msDS-ManagedPassword") {
 		ldapControls = append(ldapControls,
 			&ldap.ControlString{
-				ControlType:  "1.2.840.113556.1.4.2064",                    // PolicyHints OID
-				Criticality:  false,                                        // must be non-critical
-				ControlValue: string([]byte{0x30, 0x03, 0x02, 0x01, 0x01}), // raw BER: SEQUENCE(INT=1)
+				ControlType: "1.2.840.113556.1.4.2064", // PolicyHints OID
+				Criticality: false,                     // must be non-critical
+				ControlValue: string(
+					[]byte{0x30, 0x03, 0x02, 0x01, 0x01},
+				), // raw BER: SEQUENCE(INT=1)
 			},
 		)
 	}
 
-	result, err := c.ldapSearch(baseDN[0], searchscope, filter, attributes, ldapControls...)
+	result, err := c.ldapSearch(
+		baseDN[0],
+		searchscope,
+		filter,
+		attributes,
+		ldapControls...)
 	if err != nil {
 		return nil, err
 	}
 	if len(result.Entries) == 0 {
-		return nil, fmt.Errorf("no entries found") // custom error result not found
+		return nil, fmt.Errorf(
+			"no entries found",
+		) // custom error result not found
 	}
 	for i, entry := range result.Entries {
 		results = append(results, map[string][]string{})
@@ -826,16 +1002,26 @@ func (c *Conn) getAllResults(
 					}
 					datalength, n := binary.Uvarint(b)
 					if n == 0 {
-						return nil, fmt.Errorf("could not read record type")
+						return nil, fmt.Errorf(
+							"could not read record type",
+						)
 					}
 					// reading in rectype
 					b, err = byteReader(br, 2)
 					if err != nil {
 						return nil, err
 					}
-					rectype := binary.LittleEndian.Uint64(append(b, []byte{0, 0, 0, 0, 0, 0}...))
+					rectype := binary.LittleEndian.Uint64(
+						append(b, []byte{0, 0, 0, 0, 0, 0}...),
+					)
 					if _, ok := recTypes[rectype]; !ok {
-						values = append(values, fmt.Sprintf("Unknown record type %d", rectype))
+						values = append(
+							values,
+							fmt.Sprintf(
+								"Unknown record type %d",
+								rectype,
+							),
+						)
 						continue
 					}
 					// read and skip version(1 byte), rank(1 byte) , flags (2 byte), serial(4 byte)
@@ -848,7 +1034,9 @@ func (c *Conn) getAllResults(
 					if err != nil {
 						return nil, err
 					}
-					ttl := binary.BigEndian.Uint64(append([]byte{0, 0, 0, 0}, b...))
+					ttl := binary.BigEndian.Uint64(
+						append([]byte{0, 0, 0, 0}, b...),
+					)
 					// skipping reserved(4 bytes) and timestamp(4 bytes) = 8
 					_, err = byteReader(br, 8)
 					if err != nil {
@@ -866,7 +1054,15 @@ func (c *Conn) getAllResults(
 						data = net.IP(b).String()
 					case "TXT", "HINFO", "ISDN", "X25", "LOC":
 						data = string(b)
-					case "CNAME", "NS", "PTR", "DNAME", "MB", "MG", "MR", "MD", "MF":
+					case "CNAME",
+						"NS",
+						"PTR",
+						"DNAME",
+						"MB",
+						"MG",
+						"MR",
+						"MD",
+						"MF":
 						data, err = dnsrpcnameToString(b)
 						if err != nil {
 							return nil, err
@@ -902,7 +1098,11 @@ func (c *Conn) getAllResults(
 						data = "Unsupported:" + hex.EncodeToString(b)
 					}
 					_ = ttl
-					val := fmt.Sprintf("%s(%s)", recTypes[rectype], data)
+					val := fmt.Sprintf(
+						"%s(%s)",
+						recTypes[rectype],
+						data,
+					)
 					values = append(values, val)
 				}
 				results[i][attribute.Name] = values
@@ -910,7 +1110,6 @@ func (c *Conn) getAllResults(
 			case "objectguid":
 				values := []string{}
 				for _, v := range attribute.ByteValues {
-
 					values = append(values, decodeGUID(v))
 				}
 				results[i][attribute.Name] = values
@@ -933,11 +1132,15 @@ func (c *Conn) getAllResults(
 					value := ""
 
 					for _, ace := range sddl.DACL {
-
 						value += ace.String()
-
 					}
-					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
+					values = append(
+						values,
+						reSDDL.ReplaceAllString(
+							value+"\n    ",
+							"\n      $1",
+						),
+					)
 				}
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
@@ -952,11 +1155,15 @@ func (c *Conn) getAllResults(
 					value := ""
 
 					for _, ace := range sddl.DACL {
-
 						value += ace.String()
-
 					}
-					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
+					values = append(
+						values,
+						reSDDL.ReplaceAllString(
+							value+"\n    ",
+							"\n      $1",
+						),
+					)
 				}
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
@@ -968,17 +1175,32 @@ func (c *Conn) getAllResults(
 				for _, v := range attribute.ByteValues {
 					blob, err := ParseMSDSManagedPasswordBlob(v)
 					if err != nil {
-						values = append(values, fmt.Sprintf("Error parsing blob: %v", err))
+						values = append(
+							values,
+							fmt.Sprintf(
+								"Error parsing blob: %v",
+								err,
+							),
+						)
 						continue
 					}
 
 					ntlmHash, err := blob.GetCurrentPasswordNTLMHash()
 					if err != nil {
-						values = append(values, fmt.Sprintf("Error computing NTLM hash: %v", err))
+						values = append(
+							values,
+							fmt.Sprintf(
+								"Error computing NTLM hash: %v",
+								err,
+							),
+						)
 						continue
 					}
 
-					values = append(values, fmt.Sprintf("NTLM Hash: %s", ntlmHash))
+					values = append(
+						values,
+						fmt.Sprintf("NTLM Hash: %s", ntlmHash),
+					)
 				}
 
 				results[i][attribute.Name] = values
@@ -999,7 +1221,13 @@ func (c *Conn) getAllResults(
 							value += ace.String()
 						}
 					}
-					values = append(values, reSDDL.ReplaceAllString(value+"\n    ", "\n      $1"))
+					values = append(
+						values,
+						reSDDL.ReplaceAllString(
+							value+"\n    ",
+							"\n      $1",
+						),
+					)
 				}
 				results[i][attribute.Name] = values
 				results[i][attribute.Name+"_raw"] = attribute.Values
@@ -1015,11 +1243,19 @@ func (c *Conn) getAllResults(
 
 // Get the DN of a specific user
 func (c *Conn) getUserDN(username string) (string, error) {
-	filter := fmt.Sprintf("(&(objectClass=person)(sAMAccountName=%s))", username)
+	filter := fmt.Sprintf(
+		"(&(objectClass=person)(sAMAccountName=%s))",
+		username,
+	)
 	attributes := []string{"distinguishedName"}
 	searchscope := 2
 
-	results, err := c.getAllResults(searchscope, filter, attributes, c.baseDN)
+	results, err := c.getAllResults(
+		searchscope,
+		filter,
+		attributes,
+		c.baseDN,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -1040,20 +1276,43 @@ func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 	return result, err
 }
 
-func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attributes []string, controls ...ldap.Control) (*ldap.SearchResult, error) {
+func (c *Conn) ldapSearch(
+	basedn string,
+	searchscope int,
+	filter string,
+	attributes []string,
+	controls ...ldap.Control,
+) (*ldap.SearchResult, error) {
 	if c.lconn == nil {
 		return nil, fmt.Errorf("you must bind before searching")
 	}
 	if Debug {
 		if c.username != "" {
-			log.Printf("[+] ldapsearch -H %s -D %s -W -b %s -o tls_reqcert=allow '%s' %s\n", c.url, c.username, basedn, filter, strings.Join(attributes, " "))
+			log.Printf(
+				"[+] ldapsearch -H %s -D %s -W -b %s -o tls_reqcert=allow '%s' %s\n",
+				c.url,
+				c.username,
+				basedn,
+				filter,
+				strings.Join(attributes, " "),
+			)
 		} else {
 			log.Printf("[+] ldapsearch -H %s -b %s -o tls_reqcert=allow '%s' %s\n", c.url, basedn, filter, strings.Join(attributes, " "))
 		}
 	}
 	var err error
 	var result *ldap.SearchResult
-	searchReq := ldap.NewSearchRequest(basedn, searchscope, 0, 0, 0, false, filter, attributes, controls)
+	searchReq := ldap.NewSearchRequest(
+		basedn,
+		searchscope,
+		0,
+		0,
+		0,
+		false,
+		filter,
+		attributes,
+		controls,
+	)
 	result, err = c.lconn.Search(searchReq)
 	if err != nil {
 		return nil, err
@@ -1062,11 +1321,20 @@ func (c *Conn) ldapSearch(basedn string, searchscope int, filter string, attribu
 }
 
 // LDAPSearch will search the directory by a supplied searchscope, filter and attributes
-func (c *Conn) LDAPSearch(searchscope int, filter string, attributes []string, baseDN ...string) error {
+func (c *Conn) LDAPSearch(
+	searchscope int,
+	filter string,
+	attributes []string,
+	baseDN ...string,
+) error {
 	var keys []string
 	var err error
 	var results []map[string][]string
-	results, err = c.getAllResults(searchscope, filter, attributes, baseDN...)
+	results, err = c.getAllResults(
+		searchscope,
+		filter,
+		attributes,
+		baseDN...)
 	if err != nil {
 		return err
 	}
@@ -1106,7 +1374,10 @@ func (c *Conn) ListCAs() error {
 // ListConstrainedDelegation will search the directory for objects configured for Unconstrained Delegation
 func (c *Conn) ListConstrainedDelegation() error {
 	filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
-	attributes := []string{"samaccountname", "msDS-AllowedToDelegateTo"}
+	attributes := []string{
+		"samaccountname",
+		"msDS-AllowedToDelegateTo",
+	}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
@@ -1150,7 +1421,12 @@ func (c *Conn) ListFSMORoles() error {
 // ListGMSAaccounts will search the directory for all Group Managed Service Accounts and display the credential if you have p
 func (c *Conn) ListGMSAaccounts() error {
 	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"
-	attributes := []string{"samaccountname", "msDS-GroupMSAMembership", "msds-ManagedPasswordInterval", "msDS-ManagedPassword"}
+	attributes := []string{
+		"samaccountname",
+		"msDS-GroupMSAMembership",
+		"msds-ManagedPasswordInterval",
+		"msDS-ManagedPassword",
+	}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
@@ -1240,7 +1516,10 @@ func (c *Conn) ListRBCD() error {
 	var err error
 
 	filter := "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)"
-	attributes := []string{"samaccountname", "msDS-AllowedToActOnBehalfOfOtherIdentity"}
+	attributes := []string{
+		"samaccountname",
+		"msDS-AllowedToActOnBehalfOfOtherIdentity",
+	}
 	searchscope := 2
 	err = c.LDAPSearch(searchscope, filter, attributes)
 	if err != nil {
@@ -1293,13 +1572,20 @@ func (c *Conn) ListUsers(attributes ...string) error {
 // ListUserLoginScripts lists all scripts configured for user accounts, does not include GPO
 func (c *Conn) ListLoginScripts() error {
 	filter := "(scriptPath=*)"
-	attributes := []string{"sAMAccountName", "scriptPath", "userAccountControl"}
+	attributes := []string{
+		"sAMAccountName",
+		"scriptPath",
+		"userAccountControl",
+	}
 	searchscope := 2
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
 // RemoveConstrainedDelegation modifies msds-allowedtodelegateto to remove configuration of specific spns or all of them
-func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
+func (c *Conn) RemoveConstrainedDelegation(
+	username string,
+	spn string,
+) error {
 	var delegationres string
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"msDS-AllowedToDelegateTo"}
@@ -1320,13 +1606,16 @@ func (c *Conn) RemoveConstrainedDelegation(username string, spn string) error {
 	} else {
 		for _, h := range spns {
 			if !strings.EqualFold(h, spn) {
-				//if strings.ToLower(h) != strings.ToLower(spn) { Linter says dont do this.
+				// if strings.ToLower(h) != strings.ToLower(spn) { Linter says dont do this.
 				updatedSPNs = append(updatedSPNs, h)
 			}
 		}
 	}
 	// fmt.Printf("%s\n", delegationresstr)
-	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
+	enableReq := ldap.NewModifyRequest(
+		results[0]["DN"][0],
+		[]ldap.Control{},
+	)
 	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
 	return c.lconn.Modify(enableReq)
 }
@@ -1348,7 +1637,9 @@ func (c *Conn) RemoveLoginScript(username string) error {
 	return c.lconn.Modify(modifyReq)
 }
 
-func (c *Conn) RemoveResourceBasedConstrainedDelegation(targetmachinename string) error {
+func (c *Conn) RemoveResourceBasedConstrainedDelegation(
+	targetmachinename string,
+) error {
 	filter := "(samaccountname=" + targetmachinename + ")"
 	attributes := []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
 	searchscope := 2
@@ -1395,7 +1686,10 @@ func (c *Conn) RemoveSPNs(username string, spn string) error {
 		}
 	}
 
-	modReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
+	modReq := ldap.NewModifyRequest(
+		results[0]["DN"][0],
+		[]ldap.Control{},
+	)
 	modReq.Replace("servicePrincipalName", updatedSPNs)
 
 	return c.lconn.Modify(modReq)
@@ -1423,8 +1717,14 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 		return err
 	}
 	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(results[0]["DN"][0], []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	enableReq := ldap.NewModifyRequest(
+		results[0]["DN"][0],
+		[]ldap.Control{},
+	)
+	enableReq.Replace(
+		"userAccountControl",
+		[]string{fmt.Sprintf("%d", uac)},
+	)
 	return c.lconn.Modify(enableReq)
 }
 
@@ -1449,8 +1749,17 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 		return err
 	}
 	// Get value for UAC, and then apply value to bitmask
-	disableReq := ldap.NewModifyRequest("CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN, []ldap.Control{})
-	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	disableReq := ldap.NewModifyRequest(
+		"CN="+strings.TrimSuffix(
+			username,
+			"$",
+		)+",CN=Computers,"+c.baseDN,
+		[]ldap.Control{},
+	)
+	disableReq.Replace(
+		"userAccountControl",
+		[]string{fmt.Sprintf("%d", uac)},
+	)
 	return c.lconn.Modify(disableReq)
 }
 
@@ -1474,8 +1783,17 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 		return err
 	}
 	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest("CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN, []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	enableReq := ldap.NewModifyRequest(
+		"CN="+strings.TrimSuffix(
+			username,
+			"$",
+		)+",CN=Computers,"+c.baseDN,
+		[]ldap.Control{},
+	)
+	enableReq.Replace(
+		"userAccountControl",
+		[]string{fmt.Sprintf("%d", uac)},
+	)
 	return c.lconn.Modify(enableReq)
 }
 
@@ -1499,8 +1817,14 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	disableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
-	disableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	disableReq := ldap.NewModifyRequest(
+		"CN="+username+",CN=Users,"+c.baseDN,
+		[]ldap.Control{},
+	)
+	disableReq.Replace(
+		"userAccountControl",
+		[]string{fmt.Sprintf("%d", uac)},
+	)
 	return c.lconn.Modify(disableReq)
 }
 
@@ -1524,13 +1848,22 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 	if err != nil {
 		return err
 	}
-	enableReq := ldap.NewModifyRequest("CN="+username+",CN=Users,"+c.baseDN, []ldap.Control{})
-	enableReq.Replace("userAccountControl", []string{fmt.Sprintf("%d", uac)})
+	enableReq := ldap.NewModifyRequest(
+		"CN="+username+",CN=Users,"+c.baseDN,
+		[]ldap.Control{},
+	)
+	enableReq.Replace(
+		"userAccountControl",
+		[]string{fmt.Sprintf("%d", uac)},
+	)
 	return c.lconn.Modify(enableReq)
 }
 
 // SetLoginScript
-func (c *Conn) SetLoginScript(username string, scriptname string) error {
+func (c *Conn) SetLoginScript(
+	username string,
+	scriptname string,
+) error {
 	// Build the DN for the user
 	userDN, err := c.getUserDN(username)
 	if err != nil {
@@ -1544,12 +1877,17 @@ func (c *Conn) SetLoginScript(username string, scriptname string) error {
 
 	// Apply the modification
 	return c.lconn.Modify(modifyReq)
-
 }
 
 // SetUserPassword will set a user account's password
-func (c *Conn) SetUserPassword(username string, userpass string) error {
-	passwordReq, err := c.createUnicodePasswordRequest(username, userpass)
+func (c *Conn) SetUserPassword(
+	username string,
+	userpass string,
+) error {
+	passwordReq, err := c.createUnicodePasswordRequest(
+		username,
+		userpass,
+	)
 	if err != nil {
 		return err
 	}
@@ -1567,10 +1905,14 @@ func (c *Conn) RemoveShadowCredentials(username string) error {
 	modifyReq.Delete("msDS-KeyCredentialLink", nil)
 
 	if err := c.lconn.Modify(modifyReq); err != nil {
-		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultNoSuchAttribute {
+		if ldapErr, ok := err.(*ldap.Error); ok &&
+			ldapErr.ResultCode == ldap.LDAPResultNoSuchAttribute {
 			return nil
 		}
-		return fmt.Errorf("failed to remove shadow credential(s) from LDAP: %w", err)
+		return fmt.Errorf(
+			"failed to remove shadow credential(s) from LDAP: %w",
+			err,
+		)
 	}
 
 	return nil
@@ -1578,7 +1920,10 @@ func (c *Conn) RemoveShadowCredentials(username string) error {
 
 // AddShadowCredentialWithPFX adds a shadow credential and generates a PFX file for use with gettgtpkinit.py
 // Returns: PFX filename, PFX password, credential ID, error
-func (c *Conn) AddShadowCredentialWithPFX(username string, outputPath string) (pfxFilename string, pfxPassword string, credentialID string, err error) {
+func (c *Conn) AddShadowCredentialWithPFX(
+	username string,
+	outputPath string,
+) (pfxFilename string, pfxPassword string, credentialID string, err error) {
 	// Get the user's DN
 	userDN, err := c.getUserDN(username)
 	if err != nil {
@@ -1586,66 +1931,114 @@ func (c *Conn) AddShadowCredentialWithPFX(username string, outputPath string) (p
 	}
 
 	// Extract domain from baseDN (e.g., DC=spinninglikea,DC=top -> spinninglikea.top)
-	domain := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(c.baseDN, "DC=", ""), ",", "."))
+	domain := strings.ToLower(
+		strings.ReplaceAll(
+			strings.ReplaceAll(c.baseDN, "DC=", ""),
+			",",
+			".",
+		),
+	)
 	upn := username + "@" + domain
 
 	// Generate RSA private key (2048-bit for compatibility with gettgtpkinit.py)
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to generate private key: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to generate private key: %w",
+			err,
+		)
 	}
 
 	// Generate self-signed certificate with UPN in SAN
 	// Pass username for CN and upn for SAN
-	certBytes, err := GenerateSelfSignedCertRSA(username, upn, privateKey)
+	certBytes, err := GenerateSelfSignedCertRSA(
+		username,
+		upn,
+		privateKey,
+	)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to generate certificate: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to generate certificate: %w",
+			err,
+		)
 	}
 
 	// Parse the certificate
 	cert, err := x509.ParseCertificate(certBytes)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to parse certificate: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to parse certificate: %w",
+			err,
+		)
 	}
 
 	// Extract public key PEM from private key
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(
+		&privateKey.PublicKey,
+	)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to marshal public key: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to marshal public key: %w",
+			err,
+		)
 	}
-	pubKeyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubKeyBytes}))
+	pubKeyPEM := string(
+		pem.EncodeToMemory(
+			&pem.Block{Type: "PUBLIC KEY", Bytes: pubKeyBytes},
+		),
+	)
 
 	// Generate a random password for the PFX
 	passwordBytes := make([]byte, 16)
 	if _, err := rand.Read(passwordBytes); err != nil {
-		return "", "", "", fmt.Errorf("failed to generate password: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to generate password: %w",
+			err,
+		)
 	}
 	password := hex.EncodeToString(passwordBytes)
 
 	// Generate PFX
 	pfxBytes, err := GeneratePFXRSA(certBytes, privateKey, password)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to generate PFX: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to generate PFX: %w",
+			err,
+		)
 	}
 
 	// Save PFX file
 	filename := fmt.Sprintf("%s/%s.pfx", outputPath, username)
 	err = SaveBytesToFile(filename, pfxBytes)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to save PFX file: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to save PFX file: %w",
+			err,
+		)
 	}
 
 	// Create the KeyCredential blob from the public key and certificate
-	_, blobBytes, credHex, err := CreateKeyCredentialBlob(pubKeyPEM, cert)
+	_, blobBytes, credHex, err := CreateKeyCredentialBlob(
+		pubKeyPEM,
+		cert,
+	)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to build key credential blob: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to build key credential blob: %w",
+			err,
+		)
 	}
 
 	// Format the blob as DN-Binary for LDAP transmission
 	// Format: B:hexlength:hexdata:distinguishedName
 	// This is the standard LDAP format for msDS-KeyCredentialLink attribute
 	hexData := strings.ToUpper(hex.EncodeToString(blobBytes))
-	dnWithBinary := fmt.Sprintf("B:%d:%s:%s", len(hexData), hexData, userDN)
+	dnWithBinary := fmt.Sprintf(
+		"B:%d:%s:%s",
+		len(hexData),
+		hexData,
+		userDN,
+	)
 
 	// Create LDAP modify request with DN-Binary format
 	// msDS-KeyCredentialLink expects the value in DN-Binary format: B:length:hexdata:dn
@@ -1654,7 +2047,10 @@ func (c *Conn) AddShadowCredentialWithPFX(username string, outputPath string) (p
 
 	err = c.lconn.Modify(modifyReq)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to add shadow credential to LDAP: %w", err)
+		return "", "", "", fmt.Errorf(
+			"failed to add shadow credential to LDAP: %w",
+			err,
+		)
 	}
 
 	return filename, password, credHex, nil
@@ -1662,7 +2058,7 @@ func (c *Conn) AddShadowCredentialWithPFX(username string, outputPath string) (p
 
 // SaveBytesToFile writes bytes to a file
 func SaveBytesToFile(filename string, data []byte) error {
-	return os.WriteFile(filename, data, 0600)
+	return os.WriteFile(filename, data, 0o600)
 }
 
 // (previous generateKeyCredentialBlob helpers removed in favor of CreateKeyCredentialBlob)
@@ -1709,14 +2105,42 @@ func MarshalRSAPublicKeyBcrypt(key *rsa.PublicKey) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	// Write bcrypt RSA key blob header
-	binary.Write(buf, binary.LittleEndian, uint32(KeyTypeRSAPublic))   // KeyType: RSA1
-	binary.Write(buf, binary.LittleEndian, uint32(8*key.Size()))       // KeySize in bits
-	binary.Write(buf, binary.LittleEndian, uint32(len(exponentBytes))) // Exponent size
-	binary.Write(buf, binary.LittleEndian, uint32(len(modulusBytes)))  // Modulus size
-	binary.Write(buf, binary.LittleEndian, uint32(0))                  // Prime1 size (0 for public key)
-	binary.Write(buf, binary.LittleEndian, uint32(0))                  // Prime2 size (0 for public key)
-	buf.Write(exponentBytes)                                           // Exponent
-	buf.Write(modulusBytes)                                            // Modulus
+	binary.Write(
+		buf,
+		binary.LittleEndian,
+		uint32(KeyTypeRSAPublic),
+	) // KeyType: RSA1
+	binary.Write(
+		buf,
+		binary.LittleEndian,
+		uint32(8*key.Size()),
+	) // KeySize in bits
+	binary.Write(
+		buf,
+		binary.LittleEndian,
+		uint32(len(exponentBytes)),
+	) // Exponent size
+	binary.Write(
+		buf,
+		binary.LittleEndian,
+		uint32(len(modulusBytes)),
+	) // Modulus size
+	binary.Write(
+		buf,
+		binary.LittleEndian,
+		uint32(0),
+	) // Prime1 size (0 for public key)
+	binary.Write(
+		buf,
+		binary.LittleEndian,
+		uint32(0),
+	) // Prime2 size (0 for public key)
+	buf.Write(
+		exponentBytes,
+	) // Exponent
+	buf.Write(
+		modulusBytes,
+	) // Modulus
 
 	return buf.Bytes(), nil
 }
@@ -1732,66 +2156,119 @@ func buildKeyCredentialEntry(entryType uint8, value []byte) []byte {
 	return buf.Bytes()
 }
 
-func CreateKeyCredentialBlob(publicKeyPEM string, cert *x509.Certificate) (string, []byte, string, error) {
+func CreateKeyCredentialBlob(
+	publicKeyPEM string,
+	cert *x509.Certificate,
+) (string, []byte, string, error) {
 	// Parse PEM
 	block, _ := pem.Decode([]byte(publicKeyPEM))
 	if block == nil {
-		return "", nil, "", fmt.Errorf("failed to parse public key PEM")
+		return "", nil, "", fmt.Errorf(
+			"failed to parse public key PEM",
+		)
 	}
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		return "", nil, "", fmt.Errorf("failed to parse PKIX public key: %w", err)
+		return "", nil, "", fmt.Errorf(
+			"failed to parse PKIX public key: %w",
+			err,
+		)
 	}
 
 	// Support both RSA and ECDSA keys
 	rsaKey, isRSA := pub.(*rsa.PublicKey)
 	if !isRSA {
 		// Could also support ECDSA if needed
-		return "", nil, "", fmt.Errorf("public key type not supported: must be RSA")
+		return "", nil, "", fmt.Errorf(
+			"public key type not supported: must be RSA",
+		)
 	}
 
 	// Marshal the RSA public key in bcrypt RSA key blob format (Windows-specific format)
 	// This is the default format used by keycred and expected by Active Directory
 	keyMaterial, err := MarshalRSAPublicKeyBcrypt(rsaKey)
 	if err != nil {
-		return "", nil, "", fmt.Errorf("failed to marshal RSA key: %w", err)
+		return "", nil, "", fmt.Errorf(
+			"failed to marshal RSA key: %w",
+			err,
+		)
 	}
 
 	// Build entries that will be hashed for KeyHash
 	var hashedEntries [][]byte
 
 	// 1. KeyMaterial entry (type 0x03)
-	keyMaterialEntry := buildKeyCredentialEntry(KeyCredentialEntryKeyMaterial, keyMaterial)
+	keyMaterialEntry := buildKeyCredentialEntry(
+		KeyCredentialEntryKeyMaterial,
+		keyMaterial,
+	)
 	hashedEntries = append(hashedEntries, keyMaterialEntry)
 
 	// 2. KeyUsage entry (type 0x04) - NGC (0x01)
 	keyUsageValue := []byte{KeyUsageNGC}
-	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryKeyUsage, keyUsageValue))
+	hashedEntries = append(
+		hashedEntries,
+		buildKeyCredentialEntry(
+			KeyCredentialEntryKeyUsage,
+			keyUsageValue,
+		),
+	)
 
 	// 3. KeySource entry (type 0x05) - AD (0x00)
 	keySourceValue := []byte{KeySourceAD}
-	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryKeySource, keySourceValue))
+	hashedEntries = append(
+		hashedEntries,
+		buildKeyCredentialEntry(
+			KeyCredentialEntryKeySource,
+			keySourceValue,
+		),
+	)
 
 	// 4. DeviceID entry (type 0x06) - Random UUID
 	deviceID := make([]byte, 16)
 	rand.Read(deviceID)
-	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryDeviceID, deviceID))
+	hashedEntries = append(
+		hashedEntries,
+		buildKeyCredentialEntry(KeyCredentialEntryDeviceID, deviceID),
+	)
 
 	// 5. CustomKeyInfo entry (type 0x07) - Empty stub (Version=1, Flags=0)
 	customKeyInfo := []byte{0x01, 0x00}
-	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryCustomKeyInfo, customKeyInfo))
+	hashedEntries = append(
+		hashedEntries,
+		buildKeyCredentialEntry(
+			KeyCredentialEntryCustomKeyInfo,
+			customKeyInfo,
+		),
+	)
 
 	// 6. ApproximateLastLogonTimeStamp entry (type 0x08) - current time as Windows FILETIME
 	now := time.Now()
 	filetime := (now.Unix() + 11644473600) * 10000000 // Convert Unix time to Windows FILETIME
 	logonTimeBuf := new(bytes.Buffer)
 	binary.Write(logonTimeBuf, binary.LittleEndian, uint64(filetime))
-	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryApproximateLastLogonTimeStamp, logonTimeBuf.Bytes()))
+	hashedEntries = append(
+		hashedEntries,
+		buildKeyCredentialEntry(
+			KeyCredentialEntryApproximateLastLogonTimeStamp,
+			logonTimeBuf.Bytes(),
+		),
+	)
 
 	// 7. KeyCreationTime entry (type 0x09) - current time as Windows FILETIME
 	creationTimeBuf := new(bytes.Buffer)
-	binary.Write(creationTimeBuf, binary.LittleEndian, uint64(filetime))
-	hashedEntries = append(hashedEntries, buildKeyCredentialEntry(KeyCredentialEntryCreationTime, creationTimeBuf.Bytes()))
+	binary.Write(
+		creationTimeBuf,
+		binary.LittleEndian,
+		uint64(filetime),
+	)
+	hashedEntries = append(
+		hashedEntries,
+		buildKeyCredentialEntry(
+			KeyCredentialEntryCreationTime,
+			creationTimeBuf.Bytes(),
+		),
+	)
 
 	// Compute KeyHash (SHA256 of all hashed entries concatenated)
 	hashInput := new(bytes.Buffer)
@@ -1799,16 +2276,26 @@ func CreateKeyCredentialBlob(publicKeyPEM string, cert *x509.Certificate) (strin
 		hashInput.Write(entry)
 	}
 	keyHashSum := sha256.Sum256(hashInput.Bytes())
-	keyHashEntry := buildKeyCredentialEntry(KeyCredentialEntryKeyHash, keyHashSum[:])
+	keyHashEntry := buildKeyCredentialEntry(
+		KeyCredentialEntryKeyHash,
+		keyHashSum[:],
+	)
 
 	// KeyID is the SHA-256 hash of the KeyMaterial entry's VALUE (not the full entry)
 	keyIDSum := sha256.Sum256(keyMaterial)
-	keyIDEntry := buildKeyCredentialEntry(KeyCredentialEntryKeyID, keyIDSum[:])
+	keyIDEntry := buildKeyCredentialEntry(
+		KeyCredentialEntryKeyID,
+		keyIDSum[:],
+	)
 	credIDBytes := keyIDSum[:16] // Use first 16 bytes for credential ID display
 
 	// Assemble final blob: Version (4 bytes LE) + KeyID + KeyHash + hashedEntries
 	finalBuf := new(bytes.Buffer)
-	binary.Write(finalBuf, binary.LittleEndian, uint32(0x00000200)) // Version 2
+	binary.Write(
+		finalBuf,
+		binary.LittleEndian,
+		uint32(0x00000200),
+	) // Version 2
 
 	// Order: KeyID, KeyHash, then the hashed entries
 	finalBuf.Write(keyIDEntry)
@@ -1825,7 +2312,11 @@ func CreateKeyCredentialBlob(publicKeyPEM string, cert *x509.Certificate) (strin
 }
 
 // GenerateSelfSignedCertRSA creates a self-signed certificate for RSA keys
-func GenerateSelfSignedCertRSA(username string, upn string, privateKey *rsa.PrivateKey) ([]byte, error) {
+func GenerateSelfSignedCertRSA(
+	username string,
+	upn string,
+	privateKey *rsa.PrivateKey,
+) ([]byte, error) {
 	// Create certificate subject/issuer with just the CommonName (matches keycred)
 	subject := pkix.Name{
 		CommonName: username,
@@ -1842,30 +2333,53 @@ func GenerateSelfSignedCertRSA(username string, upn string, privateKey *rsa.Priv
 	//     }
 	//   }
 	// }
-	upnOID := []byte{0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37, 0x14, 0x02, 0x03}
+	upnOID := []byte{
+		0x06,
+		0x0A,
+		0x2B,
+		0x06,
+		0x01,
+		0x04,
+		0x01,
+		0x82,
+		0x37,
+		0x14,
+		0x02,
+		0x03,
+	}
 	upnValue := []byte(upn) // Full UPN for SAN
 
 	// Build the UTF8STRING
 	utf8Tag := append([]byte{0x0C, byte(len(upnValue))}, upnValue...)
 	// Wrap in explicit [0] tag
-	explicitTag := append([]byte{0xA0, byte(len(utf8Tag))}, utf8Tag...)
+	explicitTag := append(
+		[]byte{0xA0, byte(len(utf8Tag))},
+		utf8Tag...)
 	// Concatenate OID and explicit tag (NOT wrapped in SEQUENCE)
 	otherNameContent := append(upnOID, explicitTag...)
 	// Wrap in [0] context tag for otherName
-	otherName := append([]byte{0xA0, byte(len(otherNameContent))}, otherNameContent...)
+	otherName := append(
+		[]byte{0xA0, byte(len(otherNameContent))},
+		otherNameContent...)
 
 	// Wrap in SEQUENCE for SAN extension value
-	sanValue := append([]byte{0x30, byte(len(otherName))}, otherName...)
+	sanValue := append(
+		[]byte{0x30, byte(len(otherName))},
+		otherName...)
 
 	// Create certificate template matching keycred's approach
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject:      subject,
-		Issuer:       subject,                                    // Self-signed, so issuer = subject
-		NotBefore:    time.Now().Add(-40 * 365 * 24 * time.Hour), // Valid from 40 years ago
-		NotAfter:     time.Now().Add(40 * 365 * 24 * time.Hour),  // Valid for 40 years in future
-		KeyUsage:     x509.KeyUsageCertSign,                      // CertSign for shadow credentials
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		Issuer:       subject, // Self-signed, so issuer = subject
+		NotBefore: time.Now().
+			Add(-40 * 365 * 24 * time.Hour),
+		// Valid from 40 years ago
+		NotAfter: time.Now().
+			Add(40 * 365 * 24 * time.Hour),
+		// Valid for 40 years in future
+		KeyUsage:    x509.KeyUsageCertSign, // CertSign for shadow credentials
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		ExtraExtensions: []pkix.Extension{
 			{
 				Id:       []int{2, 5, 29, 17}, // SAN OID
@@ -1876,9 +2390,18 @@ func GenerateSelfSignedCertRSA(username string, upn string, privateKey *rsa.Priv
 	}
 
 	// Self-sign the certificate
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &privateKey.PublicKey, privateKey)
+	certBytes, err := x509.CreateCertificate(
+		rand.Reader,
+		cert,
+		cert,
+		&privateKey.PublicKey,
+		privateKey,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create certificate: %w", err)
+		return nil, fmt.Errorf(
+			"failed to create certificate: %w",
+			err,
+		)
 	}
 
 	return certBytes, nil
@@ -1886,7 +2409,11 @@ func GenerateSelfSignedCertRSA(username string, upn string, privateKey *rsa.Priv
 
 // GeneratePFXRSA creates a PFX file containing the certificate and RSA private key
 // Returns the PFX bytes
-func GeneratePFXRSA(certBytes []byte, privateKey *rsa.PrivateKey, password string) ([]byte, error) {
+func GeneratePFXRSA(
+	certBytes []byte,
+	privateKey *rsa.PrivateKey,
+	password string,
+) ([]byte, error) {
 	// Parse the certificate
 	cert, err := x509.ParseCertificate(certBytes)
 	if err != nil {
@@ -1898,7 +2425,11 @@ func GeneratePFXRSA(certBytes []byte, privateKey *rsa.PrivateKey, password strin
 }
 
 // createPKCS12RSA creates a PKCS12 (PFX) file for RSA keys
-func createPKCS12RSA(cert *x509.Certificate, privateKey *rsa.PrivateKey, password string) ([]byte, error) {
+func createPKCS12RSA(
+	cert *x509.Certificate,
+	privateKey *rsa.PrivateKey,
+	password string,
+) ([]byte, error) {
 	// Use go-pkcs12 to encode a proper PKCS#12 (PFX) container containing
 	// the private key and certificate. No CA chain is provided.
 	// Use pkcs12.Modern to avoid RC2 encryption which causes issues with older OpenSSL
@@ -1909,7 +2440,12 @@ func createPKCS12RSA(cert *x509.Certificate, privateKey *rsa.PrivateKey, passwor
 		pfxEncoder = pkcs12.Passwordless
 	}
 
-	pfxBytes, err := pfxEncoder.Encode(privateKey, cert, nil, password)
+	pfxBytes, err := pfxEncoder.Encode(
+		privateKey,
+		cert,
+		nil,
+		password,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pkcs12: %w", err)
 	}
