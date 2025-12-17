@@ -1570,21 +1570,11 @@ type LAPSPassword struct {
 
 // ListLAPS will search for LAPS passwords on computer objects
 // Supports both Legacy LAPS (ms-Mcs-AdmPwd) and Windows LAPS (msLAPS-Password, msLAPS-EncryptedPassword)
-func (c *Conn) ListLAPS(computerName ...string) error {
-	var filter string
+func (c *Conn) ListLAPS() error {
 	searchscope := 2
 
-	// Build filter - either specific computer or all computers with any LAPS attribute
-	if len(computerName) > 0 && computerName[0] != "" {
-		// Search for specific computer
-		name := computerName[0]
-		// Strip trailing $ if present for flexibility
-		name = strings.TrimSuffix(name, "$")
-		filter = fmt.Sprintf("(&(objectClass=computer)(|(sAMAccountName=%s$)(cn=%s)))", name, name)
-	} else {
-		// Search for all computers with any LAPS attribute present
-		filter = "(&(objectClass=computer)(|(ms-Mcs-AdmPwd=*)(msLAPS-Password=*)(msLAPS-EncryptedPassword=*)(msLAPS-EncryptedDSRMPassword=*)))"
-	}
+	// Search for all computers with any LAPS attribute present
+	filter := "(&(objectClass=computer)(|(ms-Mcs-AdmPwd=*)(msLAPS-Password=*)(msLAPS-EncryptedPassword=*)(msLAPS-EncryptedDSRMPassword=*)))"
 
 	attributes := []string{
 		"sAMAccountName",

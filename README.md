@@ -61,7 +61,7 @@ go run ./cmd/ldaptickler/ -s -u slacker -p --dc tip.spinninglikea.top  whoami
 
 ```text
 Usage:
-ldaptickler
+/home/slacker/.cache/go-build/12/12093d7affe1383e55f7ac78c8c1e08163f5f8096fc2da6b04d99e7815592cde-d/main
 [OPTIONS] <arg>
 
 DESCRIPTION
@@ -148,7 +148,7 @@ Supported Utility Commands
                                                            account
     enableuser <username>                                  Enables a user
                                                            account
-
+                                                           
 
 Supported LDAP Queries
     certpublishers             Returns all Certificate Publishers in the domain
@@ -167,6 +167,8 @@ Supported LDAP Queries
     groups                     Lists all security and distribution groups
     groupswithmembers          Lists groups and their associated members
     kerberoastable             Finds accounts vulnerable to Kerberoasting
+    laps                       Retrieves LAPS passwords (Legacy and Windows
+                               LAPS) from computer objects
     loginscripts               List all configured login scripts by accounts,
                                not including GPOs
     machineaccountquota        Displays the domain's MachineAccountQuota setting
@@ -192,7 +194,7 @@ Supported LDAP Queries
     users                      Lists all user accounts in the domain
     whoami                     Runs a whoami-style LDAP query for the current
                                user
-
+                               
 
 AUTHORS
     Chris Hodson r2d2@sostup.id

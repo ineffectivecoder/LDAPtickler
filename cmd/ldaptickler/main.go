@@ -174,7 +174,6 @@ var lookupTable map[string]action = map[string]action{
 	"laps": {
 		call:    laps,
 		numargs: 0,
-		usage:   "[computername]",
 	},
 	"loginscripts": {
 		call:    loginscripts,
@@ -320,7 +319,7 @@ func init() {
 		"groups::Lists all security and distribution groups\n",
 		"groupswithmembers::Lists groups and their associated members\n",
 		"kerberoastable::Finds accounts vulnerable to Kerberoasting\n",
-		"laps [computername]::Retrieves LAPS passwords (Legacy and Windows LAPS) from computer objects\n",
+		"laps::Retrieves LAPS passwords (Legacy and Windows LAPS) from computer objects\n",
 		"loginscripts::List all configured login scripts by accounts, not including GPOs\n",
 		"machineaccountquota::Displays the domain's MachineAccountQuota setting\n",
 		"machinecreationdacl::Displays the domain's Machine Creation DACL\n",
@@ -1195,22 +1194,13 @@ func kerberoastable(c *ldaptickler.Conn, args ...string) error {
 }
 
 func laps(c *ldaptickler.Conn, args ...string) error {
-	if len(args) > 0 && args[0] != "" {
-		fmt.Printf(
-			"[+] Searching for LAPS password on computer %s with baseDN %s\n",
-			args[0],
-			flags.basedn,
-		)
-		err := c.ListLAPS(args[0])
-		check(err)
-	} else {
-		fmt.Printf(
-			"[+] Searching for all LAPS passwords in LDAP with baseDN %s\n",
-			flags.basedn,
-		)
-		err := c.ListLAPS()
-		check(err)
-	}
+	fmt.Printf(
+		"[+] Searching for all LAPS passwords in LDAP with baseDN %s\n",
+		flags.basedn,
+	)
+
+	err := c.ListLAPS()
+	check(err)
 
 	return nil
 }
