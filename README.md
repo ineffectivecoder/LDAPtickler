@@ -1,8 +1,7 @@
 
-# LDAPtickler
+# Tickle Me LDAP
 
-![LDAPtickler](ldaptickler.png)
-Tickler of LDAP
+![Tickle Me LDAP](ldaptickler.png)
 
 ## What's it for?
 
@@ -498,7 +497,7 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 - [x] Reading GPOs(supported by collectbh)
 - [ ] When searching, store binary and string version of data, dont throw away binary version
 - [ ] Useful SCCM queries objectClasses(mSSMS*,mSSMSClient,mSSMSManagementPoint,mSSMSDistributionPoint,mSSMSSite,mSSMSEnvironment(mS-SMS-Site-CODE=*)
-- [ ] LAPS support(ms-mcs-admpwd, mslaps-encryptedpassword, mlaps-dsrmpassword attributes)
+- [x] LAPS support(ms-mcs-admpwd, msLAPS-Password, msLAPS-EncryptedPassword, msLAPS-EncryptedDSRMPassword attributes)
 - [ ] Delegated managed service account(msDS-DelegatedMSAState,msDS-ManagedAccountPrecededByLink,msDS-SupersededAccountState,msDS-SupersededManagedServiceAccountLink)
 - [x] Socks proxy support
 - [x] FSMO role querying(fSMORoleOwner)
@@ -506,6 +505,7 @@ connect(3, {sa_family=AF_INET, sin_port=htons(8000), sin_addr=inet_addr("127.0.0
 
 ## Updates
 
+- LAPS password retrieval is now supported (Legacy LAPS and Windows LAPS)
 - GSSAPI is now implemented thanks to the latest PRs to the go-ldap package
 - BloodHound collector has been implemented
 - Shadowcredential creation and removal is now supported

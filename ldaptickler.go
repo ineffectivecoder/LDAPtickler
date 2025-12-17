@@ -1561,6 +1561,210 @@ func (c *Conn) ListFSMORoles() error {
 	return c.LDAPSearch(searchscope, filter, attributes)
 }
 
+// LAPSPassword represents the JSON structure for Windows LAPS plain-text passwords
+type LAPSPassword struct {
+	AccountName string `json:"n"` // Account name (usually "Administrator")
+	Timestamp   string `json:"t"` // Password update timestamp (Windows FILETIME as hex)
+	Password    string `json:"p"` // Plain-text password
+}
+
+// ListLAPS will search for LAPS passwords on computer objects
+// Supports both Legacy LAPS (ms-Mcs-AdmPwd) and Windows LAPS (msLAPS-Password, msLAPS-EncryptedPassword)
+func (c *Conn) ListLAPS(computerName ...string) error {
+	var filter string
+	searchscope := 2
+
+	// Build filter - either specific computer or all computers with any LAPS attribute
+	if len(computerName) > 0 && computerName[0] != "" {
+		// Search for specific computer
+		name := computerName[0]
+		// Strip trailing $ if present for flexibility
+		name = strings.TrimSuffix(name, "$")
+		filter = fmt.Sprintf("(&(objectClass=computer)(|(sAMAccountName=%s$)(cn=%s)))", name, name)
+	} else {
+		// Search for all computers with any LAPS attribute present
+		filter = "(&(objectClass=computer)(|(ms-Mcs-AdmPwd=*)(msLAPS-Password=*)(msLAPS-EncryptedPassword=*)(msLAPS-EncryptedDSRMPassword=*)))"
+	}
+
+	attributes := []string{
+		"sAMAccountName",
+		"dNSHostName",
+		// Legacy LAPS
+		"ms-Mcs-AdmPwd",
+		"ms-Mcs-AdmPwdExpirationTime",
+		// Windows LAPS (plain-text)
+		"msLAPS-Password",
+		"msLAPS-PasswordExpirationTime",
+		// Windows LAPS (encrypted)
+		"msLAPS-EncryptedPassword",
+		"msLAPS-EncryptedDSRMPassword",
+		"msLAPS-EncryptedDSRMPasswordHistory",
+	}
+
+	results, err := c.getAllResults(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+
+	if len(results) == 0 {
+		fmt.Println("[!] No LAPS passwords found")
+		fmt.Println("[*] This could mean:")
+		fmt.Println("    - No computers have LAPS configured")
+		fmt.Println("    - You lack read permissions on LAPS attributes")
+		fmt.Println("    - LAPS read access is typically granted to:")
+		fmt.Println("      * Domain Admins")
+		fmt.Println("      * Computer object owners")
+		fmt.Println("      * Explicitly delegated groups")
+		return nil
+	}
+
+	for _, result := range results {
+		samName := ""
+		dnsName := ""
+		hasLAPS := false
+
+		if v, ok := result["sAMAccountName"]; ok && len(v) > 0 {
+			samName = v[0]
+		}
+		if v, ok := result["dNSHostName"]; ok && len(v) > 0 {
+			dnsName = v[0]
+		}
+
+		fmt.Printf("\n[+] Computer: %s\n", samName)
+		if dnsName != "" {
+			fmt.Printf("    DNS Name: %s\n", dnsName)
+		}
+
+		// Legacy LAPS (ms-Mcs-AdmPwd)
+		if v, ok := result["ms-Mcs-AdmPwd"]; ok && len(v) > 0 && v[0] != "" {
+			hasLAPS = true
+			fmt.Println("    [Legacy LAPS]")
+			fmt.Printf("      Password: %s\n", v[0])
+
+			if exp, ok := result["ms-Mcs-AdmPwdExpirationTime"]; ok && len(exp) > 0 && exp[0] != "" {
+				if expTime, err := parseWindowsFileTime(exp[0]); err == nil {
+					fmt.Printf("      Expires: %s\n", expTime.Format("2006-01-02 15:04:05 UTC"))
+				}
+			}
+		}
+
+		// Windows LAPS plain-text (msLAPS-Password)
+		if v, ok := result["msLAPS-Password"]; ok && len(v) > 0 && v[0] != "" {
+			hasLAPS = true
+			fmt.Println("    [Windows LAPS]")
+
+			// Parse JSON: {"n":"Administrator","t":"...","p":"password"}
+			var lapsPass LAPSPassword
+			if err := parseJSON(v[0], &lapsPass); err == nil {
+				fmt.Printf("      Account: %s\n", lapsPass.AccountName)
+				fmt.Printf("      Password: %s\n", lapsPass.Password)
+				if lapsPass.Timestamp != "" {
+					if ts, err := parseWindowsFileTimeHex(lapsPass.Timestamp); err == nil {
+						fmt.Printf("      Updated: %s\n", ts.Format("2006-01-02 15:04:05 UTC"))
+					}
+				}
+			} else {
+				// Fallback: print raw value
+				fmt.Printf("      Raw: %s\n", v[0])
+			}
+
+			if exp, ok := result["msLAPS-PasswordExpirationTime"]; ok && len(exp) > 0 && exp[0] != "" {
+				if expTime, err := parseWindowsFileTime(exp[0]); err == nil {
+					fmt.Printf("      Expires: %s\n", expTime.Format("2006-01-02 15:04:05 UTC"))
+				}
+			}
+		}
+
+		// Windows LAPS encrypted password
+		if v, ok := result["msLAPS-EncryptedPassword"]; ok && len(v) > 0 && v[0] != "" {
+			hasLAPS = true
+			fmt.Println("    [Windows LAPS - Encrypted]")
+			fmt.Println("      [!] Password is encrypted with DPAPI-NG")
+			fmt.Println("      [!] Decryption requires authorized group membership")
+			fmt.Printf("      [*] Blob size: %d bytes\n", len(v[0]))
+		}
+
+		// Windows LAPS DSRM password (for DCs)
+		if v, ok := result["msLAPS-EncryptedDSRMPassword"]; ok && len(v) > 0 && v[0] != "" {
+			hasLAPS = true
+			fmt.Println("    [Windows LAPS - DSRM (Encrypted)]")
+			fmt.Println("      [!] DSRM password is encrypted with DPAPI-NG")
+			fmt.Printf("      [*] Blob size: %d bytes\n", len(v[0]))
+		}
+
+		// DSRM history
+		if v, ok := result["msLAPS-EncryptedDSRMPasswordHistory"]; ok && len(v) > 0 {
+			fmt.Printf("    [Windows LAPS - DSRM History]: %d entries (encrypted)\n", len(v))
+		}
+
+		if !hasLAPS {
+			fmt.Println("    [!] No LAPS attributes readable (check permissions)")
+		}
+	}
+
+	return nil
+}
+
+// parseWindowsFileTime converts a Windows FILETIME string (decimal) to time.Time
+func parseWindowsFileTime(filetime string) (time.Time, error) {
+	ft, err := strconv.ParseInt(filetime, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	// Windows FILETIME: 100-nanosecond intervals since January 1, 1601
+	// Unix epoch: January 1, 1970
+	// Difference: 116444736000000000 100-ns intervals
+	const epochDiff = 116444736000000000
+	unixNano := (ft - epochDiff) * 100
+	return time.Unix(0, unixNano).UTC(), nil
+}
+
+// parseWindowsFileTimeHex converts a Windows FILETIME hex string to time.Time
+func parseWindowsFileTimeHex(hexTime string) (time.Time, error) {
+	// Remove any "0x" prefix
+	hexTime = strings.TrimPrefix(hexTime, "0x")
+	hexTime = strings.TrimPrefix(hexTime, "0X")
+
+	ft, err := strconv.ParseInt(hexTime, 16, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	const epochDiff = 116444736000000000
+	unixNano := (ft - epochDiff) * 100
+	return time.Unix(0, unixNano).UTC(), nil
+}
+
+// parseJSON is a simple JSON parser for LAPS password structure
+func parseJSON(data string, v *LAPSPassword) error {
+	// Simple parser for {"n":"...","t":"...","p":"..."}
+	// Using manual parsing to avoid encoding/json import if not already present
+	data = strings.TrimSpace(data)
+	if !strings.HasPrefix(data, "{") || !strings.HasSuffix(data, "}") {
+		return fmt.Errorf("invalid JSON")
+	}
+
+	// Extract values using simple string operations
+	extractValue := func(key string) string {
+		searchKey := fmt.Sprintf(`"%s":"`, key)
+		idx := strings.Index(data, searchKey)
+		if idx == -1 {
+			return ""
+		}
+		start := idx + len(searchKey)
+		end := strings.Index(data[start:], `"`)
+		if end == -1 {
+			return ""
+		}
+		return data[start : start+end]
+	}
+
+	v.AccountName = extractValue("n")
+	v.Timestamp = extractValue("t")
+	v.Password = extractValue("p")
+
+	return nil
+}
+
 // ListGMSAaccounts will search the directory for all Group Managed Service Accounts and display the credential if you have p
 func (c *Conn) ListGMSAaccounts() error {
 	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"
