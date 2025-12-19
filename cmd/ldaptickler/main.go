@@ -57,6 +57,11 @@ var lookupTable map[string]action = map[string]action{
 		numargs: 1,
 		usage:   "<username>",
 	},
+	"adddns": {
+		call:    adddns,
+		numargs: 2,
+		usage:   "<hostname> <ipaddress>",
+	},
 	"addspn": {
 		call:    addspn,
 		numargs: 2,
@@ -285,6 +290,7 @@ func init() {
 		"addmachine <machinename> <machinepass>::Adds a new machine to the domain\n",
 		"addmachinelp <machinename> <machinepass>::Adds a new machine using low-priv credentials\n",
 		"addshadowcredential <username>::Adds shadow credential and generates PFX file in current directory\n",
+		"adddns <hostname> <ipaddress>::Adds a DNS A record to the AD-integrated DNS zone\n",
 		"addspn <accountname> <spn>::Adds an SPN to an account\n",
 		"adduser <username> <password>::Creates a new user\n",
 		"changepassword <accountname> <newpassword>::Changes the password for an account\n",
@@ -760,6 +766,27 @@ func disableshadowcredential(
 	fmt.Printf(
 		"[+] Successfully disabled shadow credentials for account %s\n",
 		username,
+	)
+
+	return nil
+}
+
+func adddns(c *ldaptickler.Conn, args ...string) error {
+	hostname := args[0]
+	ipaddress := args[1]
+	fmt.Printf(
+		"[+] Adding DNS A record '%s' -> '%s'\n",
+		hostname,
+		ipaddress,
+	)
+	err := c.AddDNSARecord(hostname, ipaddress)
+	if err != nil {
+		return err
+	}
+	fmt.Printf(
+		"[+] Successfully added DNS A record: %s -> %s\n",
+		hostname,
+		ipaddress,
 	)
 
 	return nil

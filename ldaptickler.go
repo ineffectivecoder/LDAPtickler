@@ -108,6 +108,13 @@ const (
 	UACPartialSecretsAccount        = 0x4000000
 )
 
+// DNS record constants for MS-DNSP specification
+const (
+	DNSTypeA      uint16 = 1   // A record type
+	DNSRankZone   uint8  = 240 // Authoritative zone record
+	DefaultDNSTTL uint32 = 180 // Default TTL in seconds
+)
+
 // This will reveal creds in plain text, yay
 var (
 	LDAPDebug bool
@@ -889,6 +896,65 @@ func byteReader(br *bytes.Reader, length int) ([]byte, error) {
 	return b, nil
 }
 
+// baseDNToZone converts a baseDN to a DNS zone name
+// Example: "DC=spinninglikea,DC=top" -> "spinninglikea.top"
+func baseDNToZone(baseDN string) string {
+	zone := strings.ReplaceAll(baseDN, "DC=", "")
+	zone = strings.ReplaceAll(zone, ",", ".")
+	return strings.ToLower(zone)
+}
+
+// buildDNSRecordA creates the binary blob for a DNS A record
+// per MS-DNSP DNS_RPC_RECORD structure specification
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/6912b338-5472-4f59-b912-0edb536b6ed8
+func buildDNSRecordA(ipAddress string, ttl uint32) ([]byte, error) {
+	// Parse and validate IP address
+	ip := net.ParseIP(ipAddress)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid IP address: %s", ipAddress)
+	}
+
+	// Ensure it's an IPv4 address
+	ipv4 := ip.To4()
+	if ipv4 == nil {
+		return nil, fmt.Errorf("not a valid IPv4 address: %s", ipAddress)
+	}
+
+	buf := new(bytes.Buffer)
+
+	// DataLength (2 bytes, LE) - 4 bytes for IPv4 address
+	binary.Write(buf, binary.LittleEndian, uint16(4))
+
+	// Type (2 bytes, LE) - 1 for A record
+	binary.Write(buf, binary.LittleEndian, DNSTypeA)
+
+	// Version (1 byte) - always 5
+	buf.WriteByte(5)
+
+	// Rank (1 byte) - 240 for authoritative zone records
+	buf.WriteByte(DNSRankZone)
+
+	// Flags (2 bytes, LE) - 0
+	binary.Write(buf, binary.LittleEndian, uint16(0))
+
+	// Serial (4 bytes, LE) - zone serial, can be 0
+	binary.Write(buf, binary.LittleEndian, uint32(0))
+
+	// TtlSeconds (4 bytes, BIG ENDIAN!) - This is the oddity in the spec
+	binary.Write(buf, binary.BigEndian, ttl)
+
+	// Reserved (4 bytes, LE) - 0
+	binary.Write(buf, binary.LittleEndian, uint32(0))
+
+	// TimeStamp (4 bytes, LE) - 0 for static records
+	binary.Write(buf, binary.LittleEndian, uint32(0))
+
+	// Data - 4 bytes IPv4 address
+	buf.Write(ipv4)
+
+	return buf.Bytes(), nil
+}
+
 // ParseMSDSManagedPasswordBlob parses the binary blob from msDS-ManagedPassword attribute
 func ParseMSDSManagedPasswordBlob(
 	blob []byte,
@@ -1547,6 +1613,67 @@ func (c *Conn) ListDNS() error {
 	var err error = c.LDAPSearch(searchscope, filter, attributes, "DC=DomainDnsZones,"+c.baseDN)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// AddDNSARecord adds a DNS A record to the Active Directory-integrated DNS zone
+// hostname: the DNS name to add (e.g., "attacker" for attacker.domain.com)
+// ipAddress: the IPv4 address to associate with the hostname
+func (c *Conn) AddDNSARecord(hostname string, ipAddress string) error {
+	// Derive zone from baseDN
+	zone := baseDNToZone(c.baseDN)
+
+	// Construct the DN for the DNS node
+	// Format: DC=[hostname],DC=[zone],CN=MicrosoftDNS,DC=DomainDnsZones,[baseDN]
+	dn := fmt.Sprintf("DC=%s,DC=%s,CN=MicrosoftDNS,DC=DomainDnsZones,%s",
+		hostname, zone, c.baseDN)
+
+	// First, check if the DNS node already exists
+	filter := fmt.Sprintf("(&(objectClass=dnsNode)(name=%s))", ldap.EscapeFilter(hostname))
+	attributes := []string{"name"}
+	searchBase := fmt.Sprintf("DC=%s,CN=MicrosoftDNS,DC=DomainDnsZones,%s", zone, c.baseDN)
+
+	searchReq := ldap.NewSearchRequest(
+		searchBase,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		filter,
+		attributes,
+		nil,
+	)
+
+	result, err := c.lconn.Search(searchReq)
+	if err == nil && len(result.Entries) > 0 {
+		return fmt.Errorf("DNS record for '%s' already exists in zone '%s'", hostname, zone)
+	}
+
+	// Build the DNS record binary blob
+	dnsRecord, err := buildDNSRecordA(ipAddress, DefaultDNSTTL)
+	if err != nil {
+		return fmt.Errorf("failed to build DNS record: %w", err)
+	}
+
+	// Create the LDAP Add request
+	addReq := ldap.NewAddRequest(dn, []ldap.Control{})
+
+	// Set object classes for dnsNode
+	addReq.Attribute("objectClass", []string{"top", "dnsNode"})
+
+	// Set the dNSTombstoned attribute to FALSE
+	addReq.Attribute("dNSTombstoned", []string{"FALSE"})
+
+	// Set the name attribute
+	addReq.Attribute("name", []string{hostname})
+
+	// Set the dnsRecord attribute (binary blob)
+	addReq.Attribute("dnsRecord", []string{string(dnsRecord)})
+
+	// Execute the add request
+	if err := c.lconn.Add(addReq); err != nil {
+		return fmt.Errorf("failed to add DNS record: %w", err)
 	}
 
 	return nil
