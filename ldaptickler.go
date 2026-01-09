@@ -2521,7 +2521,7 @@ func (c *Conn) AddShadowCredentialWithPFX(
 	}
 
 	// Save PFX file
-	filename := fmt.Sprintf("%s/%s.pfx", outputPath, username)
+	filename := fmt.Sprintf("%s/%s_%s.pfx", outputPath, username, password)
 
 	err = SaveBytesToFile(filename, pfxBytes)
 	if err != nil {
@@ -2556,6 +2556,7 @@ func (c *Conn) AddShadowCredentialWithPFX(
 
 	// Create LDAP modify request with DN-Binary format
 	// msDS-KeyCredentialLink expects the value in DN-Binary format: B:length:hexdata:dn
+
 	modifyReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
 	modifyReq.Add("msDS-KeyCredentialLink", []string{dnWithBinary})
 
