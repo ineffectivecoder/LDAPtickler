@@ -52,8 +52,8 @@ var lookupTable map[string]action = map[string]action{
 		numargs: 1,
 		usage:   "<username>",
 	},
-	"disableshadowcredential": {
-		call:    disableshadowcredential,
+	"disableshadowcredentials": {
+		call:    disableshadowcredentials,
 		numargs: 1,
 		usage:   "<username>",
 	},
@@ -299,7 +299,7 @@ func init() {
 		"disableloginscript <username>::Disables a login script by removing it from the account\n",
 		"disablemachine <machinename>::Disables a machine account\n",
 		"disablerbcd <accountname>::Disables RBCD for an account\n",
-		"disableshadowcredential <username>::Removes all shadow credentials from the account\n",
+		"disableshadowcredentials <username>::Removes all shadow credentials from the account\n",
 		"disablespn <accountname> <spn>::Removes an SPN from an account\n",
 		"disableunconstraineddelegation <accountname>::Disables unconstrained delegation for an account\n",
 		"disableuser <username>::Disables a user account\n",
@@ -749,7 +749,7 @@ func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disableshadowcredential(
+func disableshadowcredentials(
 	c *ldaptickler.Conn,
 	args ...string,
 ) error {
