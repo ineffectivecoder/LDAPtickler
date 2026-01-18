@@ -72,6 +72,20 @@ type KeyCredentialBlob struct {
 	Reserved     [32]byte // Reserved
 }
 
+// ParsedKeyCredential holds parsed shadow credential data from msDS-KeyCredentialLink
+type ParsedKeyCredential struct {
+	CredentialID   string         // Hex-encoded credential ID (first 16 bytes of KeyID hash)
+	KeyUsage       string         // "NGC" or "Unknown"
+	KeySource      string         // "AD" or "AzureAD"
+	DeviceID       string         // UUID string
+	CreationTime   time.Time      // When the credential was created
+	LastLogonTime  time.Time      // Approximate last logon time
+	PublicKey      *rsa.PublicKey // The RSA public key
+	PublicKeyPEM   string         // PEM-encoded public key
+	KeyFingerprint string         // SHA-256 fingerprint of the public key (hex)
+	KeySize        int            // Key size in bits
+}
+
 // These enums are bind methods for the bind function
 const (
 	MethodBindAnonymous = iota
@@ -2020,12 +2034,111 @@ func (c *Conn) ListSchema() error {
 }
 
 // ListShadowCredentials will identify any accounts configured with Shadow Credentials
+// and parse the msDS-KeyCredentialLink blob to display detailed information
 func (c *Conn) ListShadowCredentials() error {
 	filter := "(msDS-KeyCredentialLink=*)"
-	attributes := []string{"samaccountname"}
+	attributes := []string{"samaccountname", "msDS-KeyCredentialLink"}
 	searchscope := 2
 
-	return c.LDAPSearch(searchscope, filter, attributes)
+	results, err := c.getAllResults(searchscope, filter, attributes)
+	if err != nil {
+		return err
+	}
+
+	if len(results) == 0 {
+		fmt.Println("[!] No accounts with shadow credentials found")
+		return nil
+	}
+
+	for _, result := range results {
+		samName := ""
+		if v, ok := result["sAMAccountName"]; ok && len(v) > 0 {
+			samName = v[0]
+		}
+
+		keyCredLinks := result["msDS-KeyCredentialLink"]
+		if len(keyCredLinks) == 0 {
+			continue
+		}
+
+		fmt.Printf("\n[+] Account: %s\n", samName)
+		fmt.Printf("    Shadow Credentials: %d\n", len(keyCredLinks))
+
+		for i, link := range keyCredLinks {
+			// msDS-KeyCredentialLink is in DN-Binary format: B:length:hexdata:dn
+			// We need to extract the hex data portion
+			blobBytes, err := extractDNBinaryBlob(link)
+			if err != nil {
+				fmt.Printf("    [%d] Error extracting blob: %v\n", i+1, err)
+				continue
+			}
+
+			parsed, err := ParseKeyCredentialBlob(blobBytes)
+			if err != nil {
+				fmt.Printf("    [%d] Error parsing blob: %v\n", i+1, err)
+				continue
+			}
+
+			fmt.Printf("\n    [Credential %d]\n", i+1)
+			if parsed.CredentialID != "" {
+				fmt.Printf("      Credential ID: %s\n", parsed.CredentialID)
+			}
+			if !parsed.CreationTime.IsZero() {
+				fmt.Printf("      Created: %s\n", parsed.CreationTime.Format("2006-01-02 15:04:05 UTC"))
+			}
+			if !parsed.LastLogonTime.IsZero() {
+				fmt.Printf("      Last Logon: %s\n", parsed.LastLogonTime.Format("2006-01-02 15:04:05 UTC"))
+			}
+			if parsed.KeySize > 0 {
+				fmt.Printf("      Key Type: RSA-%d\n", parsed.KeySize)
+			}
+			if parsed.KeyFingerprint != "" {
+				fmt.Printf("      Key Fingerprint: %s\n", parsed.KeyFingerprint[:32]+"...")
+			}
+			if parsed.KeyUsage != "" {
+				fmt.Printf("      Key Usage: %s\n", parsed.KeyUsage)
+			}
+			if parsed.KeySource != "" {
+				fmt.Printf("      Key Source: %s\n", parsed.KeySource)
+			}
+			if parsed.DeviceID != "" {
+				fmt.Printf("      Device ID: %s\n", parsed.DeviceID)
+			}
+			if parsed.PublicKeyPEM != "" {
+				fmt.Printf("      Public Key (PEM):\n")
+				// Indent each line of the PEM
+				for _, line := range strings.Split(strings.TrimSpace(parsed.PublicKeyPEM), "\n") {
+					fmt.Printf("        %s\n", line)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// extractDNBinaryBlob extracts the binary blob from a DN-Binary formatted string
+// Format: B:length:hexdata:dn
+func extractDNBinaryBlob(dnBinary string) ([]byte, error) {
+	if !strings.HasPrefix(dnBinary, "B:") {
+		// Not in DN-Binary format, try to decode as raw hex or base64
+		if data, err := hex.DecodeString(dnBinary); err == nil {
+			return data, nil
+		}
+		if data, err := base64.StdEncoding.DecodeString(dnBinary); err == nil {
+			return data, nil
+		}
+		return nil, errors.New("unrecognized blob format")
+	}
+
+	// Parse B:length:hexdata:dn format
+	parts := strings.SplitN(dnBinary, ":", 4)
+	if len(parts) < 3 {
+		return nil, errors.New("invalid DN-Binary format")
+	}
+
+	hexData := parts[2]
+	return hex.DecodeString(hexData)
 }
 
 // ListUnconstrainedDelegation will identify any accounts configured for Unconstrained Delegation
@@ -2831,6 +2944,171 @@ func CreateKeyCredentialBlob(
 	credentialIDHex := hex.EncodeToString(credIDBytes)
 
 	return blobBase64, blobBytes, credentialIDHex, nil
+}
+
+// ParseKeyCredentialBlob parses a msDS-KeyCredentialLink binary blob and returns the parsed credential
+func ParseKeyCredentialBlob(data []byte) (*ParsedKeyCredential, error) {
+	if len(data) < 4 {
+		return nil, errors.New("blob too short: missing version header")
+	}
+
+	result := &ParsedKeyCredential{}
+
+	// Read version (4 bytes LE)
+	version := binary.LittleEndian.Uint32(data[0:4])
+	if version != 0x00000200 {
+		return nil, fmt.Errorf("unsupported KeyCredentialLink version: 0x%08X", version)
+	}
+
+	offset := 4
+
+	// Parse TLV entries
+	for offset < len(data) {
+		if offset+3 > len(data) {
+			break // Not enough data for length + type
+		}
+
+		// Read length (2 bytes LE)
+		length := binary.LittleEndian.Uint16(data[offset : offset+2])
+		entryType := data[offset+2]
+		offset += 3
+
+		if offset+int(length) > len(data) {
+			break // Not enough data for value
+		}
+
+		value := data[offset : offset+int(length)]
+		offset += int(length)
+
+		switch entryType {
+		case KeyCredentialEntryKeyID:
+			// First 16 bytes of SHA-256 hash = credential ID
+			if len(value) >= 16 {
+				result.CredentialID = hex.EncodeToString(value[:16])
+			}
+
+		case KeyCredentialEntryKeyMaterial:
+			// Parse bcrypt RSA public key blob
+			pubKey, keySize, err := parseRSAPublicKeyBcrypt(value)
+			if err == nil && pubKey != nil {
+				result.PublicKey = pubKey
+				result.KeySize = keySize
+
+				// Generate PEM
+				pkixBytes, err := x509.MarshalPKIXPublicKey(pubKey)
+				if err == nil {
+					pemBlock := &pem.Block{
+						Type:  "PUBLIC KEY",
+						Bytes: pkixBytes,
+					}
+					result.PublicKeyPEM = string(pem.EncodeToMemory(pemBlock))
+				}
+
+				// Generate fingerprint (SHA-256 of modulus)
+				modulusBytes := pubKey.N.Bytes()
+				fingerprint := sha256.Sum256(modulusBytes)
+				result.KeyFingerprint = hex.EncodeToString(fingerprint[:])
+			}
+
+		case KeyCredentialEntryKeyUsage:
+			if len(value) >= 1 {
+				if value[0] == KeyUsageNGC {
+					result.KeyUsage = "NGC"
+				} else {
+					result.KeyUsage = fmt.Sprintf("Unknown (0x%02X)", value[0])
+				}
+			}
+
+		case KeyCredentialEntryKeySource:
+			if len(value) >= 1 {
+				if value[0] == KeySourceAD {
+					result.KeySource = "AD"
+				} else {
+					result.KeySource = "AzureAD"
+				}
+			}
+
+		case KeyCredentialEntryDeviceID:
+			if len(value) == 16 {
+				// Format as UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+				result.DeviceID = fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+					binary.LittleEndian.Uint32(value[0:4]),
+					binary.LittleEndian.Uint16(value[4:6]),
+					binary.LittleEndian.Uint16(value[6:8]),
+					binary.BigEndian.Uint16(value[8:10]),
+					value[10:16])
+			}
+
+		case KeyCredentialEntryCreationTime:
+			if len(value) == 8 {
+				filetime := binary.LittleEndian.Uint64(value)
+				result.CreationTime = filetimeToTime(filetime)
+			}
+
+		case KeyCredentialEntryApproximateLastLogonTimeStamp:
+			if len(value) == 8 {
+				filetime := binary.LittleEndian.Uint64(value)
+				result.LastLogonTime = filetimeToTime(filetime)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// parseRSAPublicKeyBcrypt parses a bcrypt RSA public key blob
+func parseRSAPublicKeyBcrypt(data []byte) (*rsa.PublicKey, int, error) {
+	if len(data) < 24 {
+		return nil, 0, errors.New("bcrypt blob too short")
+	}
+
+	// Read header
+	keyType := binary.LittleEndian.Uint32(data[0:4])
+	if keyType != KeyTypeRSAPublic {
+		return nil, 0, fmt.Errorf("not an RSA public key blob: 0x%08X", keyType)
+	}
+
+	bitLength := binary.LittleEndian.Uint32(data[4:8])
+	expSize := binary.LittleEndian.Uint32(data[8:12])
+	modSize := binary.LittleEndian.Uint32(data[12:16])
+	// prime1Size := binary.LittleEndian.Uint32(data[16:20]) // 0 for public key
+	// prime2Size := binary.LittleEndian.Uint32(data[20:24]) // 0 for public key
+
+	offset := 24
+	if offset+int(expSize)+int(modSize) > len(data) {
+		return nil, 0, errors.New("bcrypt blob truncated")
+	}
+
+	// Read exponent
+	expBytes := data[offset : offset+int(expSize)]
+	offset += int(expSize)
+
+	// Read modulus
+	modBytes := data[offset : offset+int(modSize)]
+
+	// Convert to big.Int
+	exp := new(big.Int).SetBytes(expBytes)
+	mod := new(big.Int).SetBytes(modBytes)
+
+	pubKey := &rsa.PublicKey{
+		N: mod,
+		E: int(exp.Int64()),
+	}
+
+	return pubKey, int(bitLength), nil
+}
+
+// filetimeToTime converts Windows FILETIME to Go time.Time
+func filetimeToTime(filetime uint64) time.Time {
+	// Windows FILETIME: 100-nanosecond intervals since January 1, 1601
+	// Unix epoch: January 1, 1970
+	// Difference: 116444736000000000 100-ns intervals
+	const epochDiff = 116444736000000000
+	if filetime < epochDiff {
+		return time.Time{}
+	}
+	unixNano := (int64(filetime) - epochDiff) * 100
+	return time.Unix(0, unixNano).UTC()
 }
 
 // GenerateSelfSignedCertRSA creates a self-signed certificate for RSA keys
