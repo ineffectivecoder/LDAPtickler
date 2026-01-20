@@ -2093,7 +2093,7 @@ func (c *Conn) ListShadowCredentials() error {
 				fmt.Printf("      Key Type: RSA-%d\n", parsed.KeySize)
 			}
 			if parsed.KeyFingerprint != "" {
-				fmt.Printf("      Key Fingerprint: %s\n", parsed.KeyFingerprint[:32]+"...")
+				fmt.Printf("      Key Fingerprint: %s\n", parsed.KeyFingerprint)
 			}
 			if parsed.KeyUsage != "" {
 				fmt.Printf("      Key Usage: %s\n", parsed.KeyUsage)
