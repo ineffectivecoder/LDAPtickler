@@ -153,6 +153,7 @@ var lookupTable map[string]action = map[string]action{
 		usage:   "<username>",
 	},
 	"fsmoroles": {call: fsmoroles, numargs: 0},
+	"findadcs":  {call: findadcs, numargs: 0},
 	"enableunconstraineddelegation": {
 		call:    enableud,
 		numargs: 1,
@@ -320,6 +321,7 @@ func init() {
 		"constraineddelegation::Lists accounts configured for constrained delegation\n",
 		"dnsrecords::Returns DNS records stored in Active Directory\n",
 		"domaincontrollers::Lists all domain controllers in the domain\n",
+		"findadcs::Enumerate AD CS certificate templates and detect ESC vulnerabilities\n",
 		"fsmoroles::Lists all FSMO roles for the domain\n",
 		"gmsaaccounts::Lists all Group Managed Service Accounts (gMSAs) in the domain, will dump NTLM hash if you have access\n",
 		"groups::Lists all security and distribution groups\n",
@@ -1132,6 +1134,192 @@ func enableuser(c *ldaptickler.Conn, args ...string) error {
 	fmt.Printf("[+] User account %s enabled\n", objectname)
 
 	return nil
+}
+
+func findadcs(c *ldaptickler.Conn, args ...string) error {
+	fmt.Printf("[+] Enumerating AD CS Certificate Templates and Enterprise CAs\n")
+	fmt.Printf("[+] Base DN: %s\n\n", flags.basedn)
+
+	result, err := c.EnumerateADCS()
+	if err != nil {
+		return err
+	}
+
+	// Print Enterprise CAs
+	fmt.Printf("=" + strings.Repeat("=", 79) + "\n")
+	fmt.Printf("Certificate Authorities (%d found)\n", len(result.CAs))
+	fmt.Printf("=" + strings.Repeat("=", 79) + "\n\n")
+
+	for _, ca := range result.CAs {
+		printCA(ca)
+	}
+
+	// Print Certificate Templates
+	fmt.Printf("=" + strings.Repeat("=", 79) + "\n")
+	fmt.Printf("Certificate Templates (%d found)\n", len(result.Templates))
+	fmt.Printf("=" + strings.Repeat("=", 79) + "\n\n")
+
+	// Count vulnerable templates
+	vulnCount := 0
+	for _, t := range result.Templates {
+		if len(t.ESCVulnerabilities) > 0 {
+			vulnCount++
+		}
+	}
+
+	if vulnCount > 0 {
+		fmt.Printf("[!] %d vulnerable template(s) detected\n\n", vulnCount)
+	}
+
+	for _, t := range result.Templates {
+		printTemplate(t)
+	}
+
+	return nil
+}
+
+func printCA(ca ldaptickler.EnterpriseCA) {
+	fmt.Printf("CA Name                       : %s\n", ca.Name)
+	fmt.Printf("  DNS Name                    : %s\n", ca.DNSHostname)
+	fmt.Printf("  Distinguished Name          : %s\n", ca.DN)
+	fmt.Printf("  Templates Published         : %d\n", len(ca.CertificateTemplates))
+
+	// Print ESC vulnerabilities
+	for _, vuln := range ca.ESCVulnerabilities {
+		fmt.Printf("  [!] %s: %s\n", vuln.Name, vuln.Description)
+		for _, principal := range vuln.Principals {
+			fmt.Printf("      -> %s\n", principal)
+		}
+	}
+
+	// Print permissions if any interesting ones found
+	if len(ca.CASecurityPermissions) > 0 {
+		fmt.Printf("  Permissions:\n")
+		for _, perm := range ca.CASecurityPermissions {
+			permStr := ""
+			if perm.ManageCA {
+				permStr = "ManageCA"
+			}
+			if perm.ManageCerts {
+				if permStr != "" {
+					permStr += ", "
+				}
+				permStr += "ManageCertificates"
+			}
+			if perm.Enroll {
+				if permStr != "" {
+					permStr += ", "
+				}
+				permStr += "Enroll"
+			}
+			fmt.Printf("    %s : %s\n", perm.PrincipalName, permStr)
+		}
+	}
+
+	fmt.Println()
+}
+
+func printTemplate(t ldaptickler.CertTemplate) {
+	// Print header with vulnerability indicators
+	if len(t.ESCVulnerabilities) > 0 {
+		var escNames []string
+		for _, vuln := range t.ESCVulnerabilities {
+			escNames = append(escNames, vuln.Name)
+		}
+		fmt.Printf("[VULNERABLE] Template: %s [%s]\n", t.Name, strings.Join(escNames, ", "))
+	} else {
+		fmt.Printf("Template: %s\n", t.Name)
+	}
+
+	fmt.Printf("  Display Name                : %s\n", t.DisplayName)
+	fmt.Printf("  Distinguished Name          : %s\n", t.DN)
+	fmt.Printf("  Schema Version              : %d\n", t.SchemaVersion)
+
+	// Key security properties
+	fmt.Printf("  Enrollee Supplies Subject   : %v\n", t.EnrolleeSuppliesSubject)
+	fmt.Printf("  Manager Approval Required   : %v\n", t.ManagerApprovalRequired)
+	fmt.Printf("  Authorized Signatures       : %d\n", t.AuthorizedSignaturesNeeded)
+	fmt.Printf("  Client Authentication       : %v\n", t.ClientAuthEnabled)
+
+	// EKUs
+	if len(t.EKUs) > 0 {
+		fmt.Printf("  Extended Key Usages:\n")
+		for _, eku := range t.EKUs {
+			ekuName := getEKUName(eku)
+			fmt.Printf("    - %s (%s)\n", ekuName, eku)
+		}
+	} else {
+		fmt.Printf("  Extended Key Usages         : None (Any purpose)\n")
+	}
+
+	// Validity period
+	if t.ValidityPeriod != "" {
+		fmt.Printf("  Validity Period             : %s\n", t.ValidityPeriod)
+	}
+	if t.RenewalPeriod != "" {
+		fmt.Printf("  Renewal Period              : %s\n", t.RenewalPeriod)
+	}
+
+	// ESC flags
+	if t.NoSecurityExtension {
+		fmt.Printf("  [!] No Security Extension   : True (ESC9)\n")
+	}
+
+	// Enrollment permissions
+	if len(t.EnrollmentPrincipals) > 0 {
+		fmt.Printf("  Enrollment Permissions:\n")
+		for _, perm := range t.EnrollmentPrincipals {
+			permType := ""
+			if perm.CanEnroll {
+				permType = "Enroll"
+			}
+			if perm.CanAutoEnroll {
+				if permType != "" {
+					permType += ", "
+				}
+				permType += "AutoEnroll"
+			}
+			fmt.Printf("    [+] %s (%s): %s\n", perm.PrincipalName, perm.PrincipalType, permType)
+		}
+	}
+
+	// Object controllers (ESC4)
+	if len(t.ObjectControllers) > 0 {
+		fmt.Printf("  Dangerous Object Permissions (ESC4):\n")
+		for _, perm := range t.ObjectControllers {
+			fmt.Printf("    [!] %s (%s): %s\n", perm.PrincipalName, perm.PrincipalType, perm.Permission)
+		}
+	}
+
+	// ESC vulnerability details
+	for _, vuln := range t.ESCVulnerabilities {
+		fmt.Printf("  [!] %s: %s\n", vuln.Name, vuln.Description)
+		if len(vuln.Principals) > 0 {
+			fmt.Printf("      Exploitable by: %s\n", strings.Join(vuln.Principals, ", "))
+		}
+	}
+
+	fmt.Println()
+}
+
+func getEKUName(oid string) string {
+	ekuNames := map[string]string{
+		ldaptickler.OIDClientAuthentication:    "Client Authentication",
+		ldaptickler.OIDSmartCardLogon:          "Smart Card Logon",
+		ldaptickler.OIDPKINITClientAuth:        "PKINIT Client Authentication",
+		ldaptickler.OIDAnyPurpose:              "Any Purpose",
+		ldaptickler.OIDCertificateRequestAgent: "Certificate Request Agent",
+		ldaptickler.OIDServerAuth:              "Server Authentication",
+		"1.3.6.1.5.5.7.3.4":                    "Secure Email",
+		"1.3.6.1.5.5.7.3.3":                    "Code Signing",
+		"1.3.6.1.4.1.311.10.3.4":               "EFS",
+		"1.3.6.1.4.1.311.21.5":                 "CA Exchange",
+	}
+
+	if name, ok := ekuNames[oid]; ok {
+		return name
+	}
+	return "Unknown"
 }
 
 func expandlist(in []string) []string {
