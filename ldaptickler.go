@@ -27,7 +27,6 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/go-ldap/ldap/v3/gssapi"
-	"github.com/huner2/go-sddlparse"
 	pkcs12 "software.sslmate.com/src/go-pkcs12"
 
 	// Todo replace below library, go-sddlparse is much better
@@ -1096,36 +1095,17 @@ func (c *Conn) getAllResults(
 	baseDN ...string,
 ) ([]map[string][]string, error) {
 	var results []map[string][]string
-	var data string
+
 	var ldapControls []ldap.Control
 
 	if len(baseDN) == 0 {
 		baseDN = []string{c.baseDN}
 	}
+	for _, attribute := range attributes {
+		if control, ok := controlStringLookup[strings.ToLower(attribute)]; ok {
+			ldapControls = append(ldapControls, control)
+		}
 
-	// Minimal ASN.1: Sequence {INTEGER 0x07 }
-	if slices.Contains(attributes, "nTSecurityDescriptor") {
-		ldapControls = append(ldapControls,
-			&ldap.ControlString{
-				ControlType: "1.2.840.113556.1.4.801", // LDAP_SERVER_SD_FLAGS_OID
-				Criticality: true,
-				ControlValue: string(
-					[]byte{0x30, 0x03, 0x02, 0x01, 0x07},
-				),
-			},
-		)
-	}
-
-	if slices.Contains(attributes, "msDS-ManagedPassword") {
-		ldapControls = append(ldapControls,
-			&ldap.ControlString{
-				ControlType: "1.2.840.113556.1.4.2064", // PolicyHints OID
-				Criticality: false,                     // must be non-critical
-				ControlValue: string(
-					[]byte{0x30, 0x03, 0x02, 0x01, 0x01},
-				), // raw BER: SEQUENCE(INT=1)
-			},
-		)
 	}
 
 	result, err := c.ldapSearch(
@@ -1149,286 +1129,10 @@ func (c *Conn) getAllResults(
 
 		results[i]["DN"] = []string{entry.DN}
 		for _, attribute := range entry.Attributes {
-			switch strings.ToLower(attribute.Name) {
-			case "dnsrecord":
-				values := []string{}
-
-				for _, v := range attribute.ByteValues {
-					br := bytes.NewReader(v)
-					// reading size
-					b, err := byteReader(br, 2)
-					if err != nil {
-						return nil, err
-					}
-
-					datalength, n := binary.Uvarint(b)
-					if n == 0 {
-						return nil, errors.New(
-							"could not read record type",
-						)
-					}
-					// reading in rectype
-					b, err = byteReader(br, 2)
-					if err != nil {
-						return nil, err
-					}
-
-					rectype := binary.LittleEndian.Uint64(
-						append(b, []byte{0, 0, 0, 0, 0, 0}...),
-					)
-					if _, ok := recTypes[rectype]; !ok {
-						values = append(
-							values,
-							fmt.Sprintf(
-								"Unknown record type %d",
-								rectype,
-							),
-						)
-
-						continue
-					}
-					// read and skip version(1 byte), rank(1 byte) , flags (2 byte), serial(4 byte)
-					_, err = byteReader(br, 8)
-					if err != nil {
-						return nil, err
-					}
-					// reading in TTL
-					b, err = byteReader(br, 4)
-					if err != nil {
-						return nil, err
-					}
-
-					ttl := binary.BigEndian.Uint64(
-						append([]byte{0, 0, 0, 0}, b...),
-					)
-					// skipping reserved(4 bytes) and timestamp(4 bytes) = 8
-					_, err = byteReader(br, 8)
-					if err != nil {
-						return nil, err
-					}
-					// reading in Data(variable length, fun!)
-					b, err = byteReader(br, int(datalength))
-					if err != nil {
-						return nil, err
-					}
-
-					switch recTypes[rectype] {
-					case "A":
-						data = net.IP(b).String()
-					case "AAAA":
-						data = net.IP(b).String()
-					case "TXT", "HINFO", "ISDN", "X25", "LOC":
-						data = string(b)
-					case "CNAME",
-						"NS",
-						"PTR",
-						"DNAME",
-						"MB",
-						"MG",
-						"MR",
-						"MD",
-						"MF":
-						data, err = dnsrpcnameToString(b)
-						if err != nil {
-							return nil, err
-						}
-
-					case "SRV":
-						// Skipping priority and weight, 2 bytes each
-						br2 := bytes.NewReader(b[4:])
-						// read 2 bytes for port
-						b, err = byteReader(br2, 2)
-						if err != nil {
-							return nil, err
-						}
-
-						port := binary.BigEndian.Uint16(b)
-						b = make([]byte, br2.Len())
-
-						_, err := br2.Read(b)
-						if err != nil {
-							return nil, err
-						}
-
-						data, err = dnsrpcnameToString(b)
-						if err != nil {
-							return nil, err
-						}
-
-						data = fmt.Sprintf("%s:%d", data, port)
-					case "SOA":
-						// Skipping serial, refresh, retry, expire, minimum (4 bytes each = 20 bytes )
-						data, err = dnsrpcnameToString(b[20:])
-						if err != nil {
-							return nil, err
-						}
-
-					default:
-						data = "Unsupported:" + hex.EncodeToString(b)
-					}
-
-					_ = ttl
-					val := fmt.Sprintf(
-						"%s(%s)",
-						recTypes[rectype],
-						data,
-					)
-					values = append(values, val)
-				}
-
-				results[i][attribute.Name] = values
+			if transform, ok := transformsLookup[strings.ToLower(attribute.Name)]; ok {
+				results[i][attribute.Name] = transform(attribute.ByteValues)
 				results[i][attribute.Name+"_raw"] = attribute.Values
-			case "objectguid":
-				values := []string{}
-				for _, v := range attribute.ByteValues {
-					values = append(values, decodeGUID(v))
-				}
-
-				results[i][attribute.Name] = values
-				results[i][attribute.Name+"_raw"] = attribute.Values
-			case "objectsid":
-				values := []string{}
-
-				for _, v := range attribute.ByteValues {
-					v, _ := decodeSID(v)
-					values = append(values, v)
-				}
-
-				results[i][attribute.Name] = values
-			case "msds-allowedtoactonbehalfofotheridentity":
-				values := []string{}
-
-				for _, v := range attribute.ByteValues {
-					sddl, err := sddlparse.SDDLFromBinary(v)
-					if err != nil {
-						return nil, err
-					}
-
-					value := ""
-
-					var valueSb1136 strings.Builder
-					for _, ace := range sddl.DACL {
-						valueSb1136.WriteString(ace.String())
-					}
-
-					value += valueSb1136.String()
-
-					values = append(
-						values,
-						reSDDL.ReplaceAllString(
-							value+"\n    ",
-							"\n      $1",
-						),
-					)
-				}
-
-				results[i][attribute.Name] = values
-				results[i][attribute.Name+"_raw"] = attribute.Values
-			case "msds-groupmsamembership":
-				values := []string{}
-
-				for _, v := range attribute.ByteValues {
-					sddl, err := sddlparse.SDDLFromBinary(v)
-					if err != nil {
-						return nil, err
-					}
-
-					value := ""
-
-					var valueSb1159 strings.Builder
-					for _, ace := range sddl.DACL {
-						valueSb1159.WriteString(ace.String())
-					}
-
-					value += valueSb1159.String()
-
-					values = append(
-						values,
-						reSDDL.ReplaceAllString(
-							value+"\n    ",
-							"\n      $1",
-						),
-					)
-				}
-
-				results[i][attribute.Name] = values
-				results[i][attribute.Name+"_raw"] = attribute.Values
-
-				// WELL CRAP, sounds like you have to pass another control option to pull this.
-			case "msds-managedpassword":
-				values := []string{}
-
-				for _, v := range attribute.ByteValues {
-					blob, err := ParseMSDSManagedPasswordBlob(v)
-					if err != nil {
-						values = append(
-							values,
-							fmt.Sprintf(
-								"Error parsing blob: %v",
-								err,
-							),
-						)
-
-						continue
-					}
-
-					ntlmHash, err := blob.GetCurrentPasswordNTLMHash()
-					if err != nil {
-						values = append(
-							values,
-							fmt.Sprintf(
-								"Error computing NTLM hash: %v",
-								err,
-							),
-						)
-
-						continue
-					}
-
-					values = append(
-						values,
-						"NTLM Hash: "+ntlmHash,
-					)
-				}
-
-				results[i][attribute.Name] = values
-				results[i][attribute.Name+"_raw"] = attribute.Values
-
-			case "ntsecuritydescriptor":
-				values := []string{}
-
-				for _, v := range attribute.ByteValues {
-					sddl, err := sddlparse.SDDLFromBinary(v)
-					if err != nil {
-						return nil, err
-					}
-
-					value := ""
-
-					writemasks := sddlparse.ACCESS_MASK_GENERIC_ALL | sddlparse.ACCESS_MASK_GENERIC_WRITE | sddlparse.ACCESS_MASK_WRITE_OWNER | sddlparse.ACCESS_MASK_WRITE_DACL
-					var valueSb1221 strings.Builder
-
-					for _, ace := range sddl.DACL {
-						if ace.AccessMask&writemasks > 0 {
-							valueSb1221.WriteString(ace.String())
-						}
-					}
-
-					value += valueSb1221.String()
-
-					values = append(
-						values,
-						reSDDL.ReplaceAllString(
-							value+"\n    ",
-							"\n      $1",
-						),
-					)
-				}
-
-				results[i][attribute.Name] = values
-				results[i][attribute.Name+"_raw"] = attribute.Values
-
-			default:
+			} else {
 				results[i][attribute.Name] = attribute.Values
 				results[i][attribute.Name+"_raw"] = attribute.Values
 			}
@@ -3168,6 +2872,7 @@ func GenerateSelfSignedCertRSA(
 		otherName...)
 
 	// Create certificate template matching keycred's approach
+	// We absolutely must have a Subject, doesnt matter if it is valid, a valid not before, not after and thats it.
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject:      subject,

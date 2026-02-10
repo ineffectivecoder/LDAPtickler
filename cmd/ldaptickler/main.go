@@ -622,7 +622,9 @@ func main() {
 	err = lookupTable[strings.ToLower(cli.Arg(0))].call(
 		c,
 		cli.Args()[1:]...)
+
 	check(err)
+
 }
 
 func addloginscript(c *ldaptickler.Conn, args ...string) error {
@@ -803,7 +805,9 @@ func addspn(c *ldaptickler.Conn, args ...string) error {
 		machinename,
 	)
 	err := c.AddServicePrincipalName(machinename, spn)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf(
 		"[+] Successfully added spn %s to machine account %s\n",
 		spn,
@@ -824,19 +828,25 @@ func adduser(c *ldaptickler.Conn, args ...string) error {
 		userpasswd,
 	)
 	err := c.AddUserAccount(username, principalname)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("[+] Successfully added user account %s\n", username)
 	fmt.Printf("[+] Now setting password...\n")
 
 	err = c.SetUserPassword(username, userpasswd)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf(
 		"[+] Password set successfully for user %s\n",
 		username,
 	)
 	fmt.Printf("[+] Now enabling account for user %s\n", username)
 	err = c.SetEnableUserAccount(username)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf(
 		"[+] Successfully added and enabled user account %s\n",
 		username,
@@ -852,7 +862,9 @@ func certpublishers(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListCAs()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -867,7 +879,9 @@ func changepassword(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 	err := c.SetUserPassword(username, userpasswd)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf(
 		"[+] Password change successful for user %s\n",
 		username,
@@ -926,7 +940,9 @@ func computers(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListComputers()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -941,7 +957,9 @@ func constraineddelegation(
 	)
 
 	err := c.ListConstrainedDelegation()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -953,12 +971,16 @@ func deleteobject(c *ldaptickler.Conn, args ...string) error {
 	if objecttype == "m" {
 		fmt.Printf("[+] Deleting machine account %s\n", objectname)
 		err := c.DeleteObject(objectname, objecttype)
-		check(err)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("[+] Machine account %s deleted\n", objectname)
 	} else {
 		fmt.Printf("[+] Deleting user account %s\n", objectname)
 		err := c.DeleteObject(objectname, objecttype)
-		check(err)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("[+] User account %s deleted\n", objectname)
 	}
 
@@ -981,7 +1003,9 @@ func disableloginscript(c *ldaptickler.Conn, args ...string) error {
 func disablemachine(c *ldaptickler.Conn, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetDisableMachineAccount(objectname)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("[+] Machine account %s disabled\n", objectname)
 
 	return nil
@@ -996,7 +1020,9 @@ func disablecd(c *ldaptickler.Conn, args ...string) error {
 		samaccountname,
 	)
 	err := c.RemoveConstrainedDelegation(samaccountname, spn)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1005,7 +1031,9 @@ func disablerbcd(c *ldaptickler.Conn, args ...string) error {
 	samaccountname := args[0]
 	fmt.Printf("[+] Removing RBCD from %s\n", samaccountname)
 	err := c.RemoveResourceBasedConstrainedDelegation(samaccountname)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1017,7 +1045,9 @@ func disableud(c *ldaptickler.Conn, args ...string) error {
 		samaccountname,
 	)
 	err := c.RemoveUnconstrainedDelegation(samaccountname)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1032,11 +1062,15 @@ func disablespn(c *ldaptickler.Conn, args ...string) error {
 			samaccountname,
 		)
 		err := c.RemoveSPNs(samaccountname, spn)
-		check(err)
+		if err != nil {
+			return err
+		}
 	} else {
 		fmt.Printf("[+] Removing service principal name %s from %s\n", spn, samaccountname)
 		err := c.RemoveSPNs(samaccountname, spn)
-		check(err)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1045,7 +1079,9 @@ func disablespn(c *ldaptickler.Conn, args ...string) error {
 func disableuser(c *ldaptickler.Conn, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetDisableUserAccount(objectname)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("[+] User account %s disabled\n", objectname)
 
 	return nil
@@ -1058,7 +1094,9 @@ func dnsrecords(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListDNS()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1070,7 +1108,9 @@ func domaincontrollers(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListDCs()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1078,7 +1118,9 @@ func domaincontrollers(c *ldaptickler.Conn, args ...string) error {
 func enablemachine(c *ldaptickler.Conn, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetEnableMachineAccount(objectname)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("[+] Machine account %s enabled\n", objectname)
 
 	return nil
@@ -1093,7 +1135,9 @@ func enablecd(c *ldaptickler.Conn, args ...string) error {
 		samaccountname,
 	)
 	err := c.AddConstrainedDelegation(samaccountname, spn)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1105,7 +1149,9 @@ func enableud(c *ldaptickler.Conn, args ...string) error {
 		samaccountname,
 	)
 	err := c.AddUnconstrainedDelegation(samaccountname)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1122,7 +1168,9 @@ func enablerbcd(c *ldaptickler.Conn, args ...string) error {
 		samaccountname,
 		delegatingcomputer,
 	)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1130,7 +1178,9 @@ func enablerbcd(c *ldaptickler.Conn, args ...string) error {
 func enableuser(c *ldaptickler.Conn, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetEnableUserAccount(objectname)
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("[+] User account %s enabled\n", objectname)
 
 	return nil
@@ -1146,18 +1196,18 @@ func findadcs(c *ldaptickler.Conn, args ...string) error {
 	}
 
 	// Print Enterprise CAs
-	fmt.Printf("=" + strings.Repeat("=", 79) + "\n")
+	fmt.Println(strings.Repeat("=", 80))
 	fmt.Printf("Certificate Authorities (%d found)\n", len(result.CAs))
-	fmt.Printf("=" + strings.Repeat("=", 79) + "\n\n")
+	fmt.Println(strings.Repeat("=", 80) + "\n")
 
 	for _, ca := range result.CAs {
 		printCA(ca)
 	}
 
 	// Print Certificate Templates
-	fmt.Printf("=" + strings.Repeat("=", 79) + "\n")
+	fmt.Println(strings.Repeat("=", 80))
 	fmt.Printf("Certificate Templates (%d found)\n", len(result.Templates))
-	fmt.Printf("=" + strings.Repeat("=", 79) + "\n\n")
+	fmt.Println(strings.Repeat("=", 80) + "\n")
 
 	// Count vulnerable templates
 	vulnCount := 0
@@ -1343,7 +1393,9 @@ func filter(c *ldaptickler.Conn, args ...string) error {
 		filter,
 		expandlist(flags.attributes),
 	)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1355,7 +1407,9 @@ func fsmoroles(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListFSMORoles()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1367,7 +1421,9 @@ func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListGMSAaccounts()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1379,7 +1435,9 @@ func groups(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListGroups()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1391,7 +1449,9 @@ func groupswithmembers(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListGroupswithMembers()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1403,7 +1463,9 @@ func kerberoastable(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListKerberoastable()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1415,7 +1477,9 @@ func laps(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListLAPS()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1427,7 +1491,9 @@ func machineaccountquota(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListMachineAccountQuota()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1439,7 +1505,9 @@ func machinecreationdacl(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListMachineCreationDACL()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1451,7 +1519,9 @@ func nopassword(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListNoPassword()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1464,7 +1534,9 @@ func objectquery(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 	err := c.FindUserByName(objectname, flags.searchscope)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1476,7 +1548,9 @@ func passworddontexpire(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListPasswordDontExpire()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1491,7 +1565,9 @@ func passwordchangenextlogin(
 	)
 
 	err := c.ListPasswordChangeNextLogin()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1503,7 +1579,9 @@ func protectedusers(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListProtectedUsers()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1515,7 +1593,9 @@ func preauthdisabled(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListPreAuthDisabled()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1528,7 +1608,9 @@ func querydescription(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 	err := c.FindUserByDescription(querydescription)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1540,7 +1622,9 @@ func rbcd(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListRBCD()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1552,7 +1636,9 @@ func schema(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListSchema()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1564,7 +1650,9 @@ func shadowcredentials(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListShadowCredentials()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1579,7 +1667,9 @@ func unconstraineddelegation(
 	)
 
 	err := c.ListUnconstrainedDelegation()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1590,7 +1680,9 @@ func users(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 	err := c.ListUsers(expandlist(flags.attributes)...)
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1602,7 +1694,9 @@ func loginscripts(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	err := c.ListLoginScripts()
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1614,7 +1708,9 @@ func whoami(c *ldaptickler.Conn, args ...string) error {
 	)
 
 	result, err := c.GetWhoAmI()
-	check(err)
+	if err != nil {
+		return err
+	}
 	fmt.Printf(
 		"[+] You are currently authenticated as %+v\n",
 		*result,
