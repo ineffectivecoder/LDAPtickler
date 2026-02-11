@@ -14,12 +14,12 @@ import (
 
 /*
 	TODO
-
 1. Refactor Search Results
 2. Refactor LDAP Conn to be an interface
 2.1. Implement interface with existing LDAP connections
 3. Add ADWS!!!!!
 */
+
 var (
 	controlStringLookup = map[string]*ldap.ControlString{
 		"msds-managedpassword": {
