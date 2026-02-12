@@ -861,11 +861,11 @@ func certpublishers(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListCAs()
+	results, err := c.ListCAs()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -939,11 +939,11 @@ func computers(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListComputers()
+	results, err := c.ListComputers()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -956,11 +956,11 @@ func constraineddelegation(
 		flags.basedn,
 	)
 
-	err := c.ListConstrainedDelegation()
+	results, err := c.ListConstrainedDelegation()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1093,11 +1093,11 @@ func dnsrecords(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListDNS()
+	results, err := c.ListDNS()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1107,11 +1107,11 @@ func domaincontrollers(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListDCs()
+	results, err := c.ListDCs()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1388,7 +1388,7 @@ func filter(c *ldaptickler.Conn, args ...string) error {
 		filter,
 		flags.basedn,
 	)
-	err := c.LDAPSearch(
+	results, err := c.LDAPSearch(
 		flags.searchscope,
 		filter,
 		expandlist(flags.attributes),
@@ -1396,7 +1396,7 @@ func filter(c *ldaptickler.Conn, args ...string) error {
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1406,11 +1406,11 @@ func fsmoroles(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListFSMORoles()
+	results, err := c.ListFSMORoles()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1420,11 +1420,11 @@ func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListGMSAaccounts()
+	results, err := c.ListGMSAaccounts()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1434,11 +1434,11 @@ func groups(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListGroups()
+	results, err := c.ListGroups()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1448,11 +1448,11 @@ func groupswithmembers(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListGroupswithMembers()
+	results, err := c.ListGroupswithMembers()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1462,11 +1462,11 @@ func kerberoastable(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListKerberoastable()
+	results, err := c.ListKerberoastable()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1490,11 +1490,11 @@ func machineaccountquota(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListMachineAccountQuota()
+	results, err := c.ListMachineAccountQuota()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1504,11 +1504,11 @@ func machinecreationdacl(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListMachineCreationDACL()
+	results, err := c.ListMachineCreationDACL()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1518,11 +1518,11 @@ func nopassword(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListNoPassword()
+	results, err := c.ListNoPassword()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1533,11 +1533,11 @@ func objectquery(c *ldaptickler.Conn, args ...string) error {
 		objectname,
 		flags.basedn,
 	)
-	err := c.FindUserByName(objectname, flags.searchscope)
+	results, err := c.FindUserByName(objectname, flags.searchscope)
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1547,11 +1547,11 @@ func passworddontexpire(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListPasswordDontExpire()
+	results, err := c.ListPasswordDontExpire()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1564,11 +1564,11 @@ func passwordchangenextlogin(
 		flags.basedn,
 	)
 
-	err := c.ListPasswordChangeNextLogin()
+	results, err := c.ListPasswordChangeNextLogin()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1578,11 +1578,11 @@ func protectedusers(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListProtectedUsers()
+	results, err := c.ListProtectedUsers()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1592,11 +1592,11 @@ func preauthdisabled(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListPreAuthDisabled()
+	results, err := c.ListPreAuthDisabled()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1607,11 +1607,11 @@ func querydescription(c *ldaptickler.Conn, args ...string) error {
 		querydescription,
 		flags.basedn,
 	)
-	err := c.FindUserByDescription(querydescription)
+	results, err := c.FindUserByDescription(querydescription)
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1621,11 +1621,11 @@ func rbcd(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListRBCD()
+	results, err := c.ListRBCD()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1635,11 +1635,11 @@ func schema(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListSchema()
+	results, err := c.ListSchema()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1666,11 +1666,11 @@ func unconstraineddelegation(
 		flags.basedn,
 	)
 
-	err := c.ListUnconstrainedDelegation()
+	results, err := c.ListUnconstrainedDelegation()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1679,11 +1679,11 @@ func users(c *ldaptickler.Conn, args ...string) error {
 		"[+] Searching for all users in LDAP with baseDN %s\n",
 		flags.basedn,
 	)
-	err := c.ListUsers(expandlist(flags.attributes)...)
+	results, err := c.ListUsers(expandlist(flags.attributes)...)
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 
@@ -1693,11 +1693,11 @@ func loginscripts(c *ldaptickler.Conn, args ...string) error {
 		flags.basedn,
 	)
 
-	err := c.ListLoginScripts()
+	results, err := c.ListLoginScripts()
 	if err != nil {
 		return err
 	}
-
+	results.Print()
 	return nil
 }
 

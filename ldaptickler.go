@@ -850,7 +850,7 @@ func (c *Conn) DeleteObject(
 }
 
 // FindUserByDescription will search the directory for a specified query description
-func (c *Conn) FindUserByDescription(querydescription string) error {
+func (c *Conn) FindUserByDescription(querydescription string) (Results, error) {
 	filter := "(&(objectCategory=*)(description=" + querydescription + "))"
 	attributes := []string{"samaccountname", "description"}
 	searchscope := 2
@@ -862,7 +862,7 @@ func (c *Conn) FindUserByDescription(querydescription string) error {
 func (c *Conn) FindUserByName(
 	objectquery string,
 	searchscope int,
-) error {
+) (Results, error) {
 	filter := "(&(objectClass=user)(samaccountname=" + objectquery + "))"
 	attributes := []string{"*"}
 
@@ -1225,24 +1225,18 @@ func (c *Conn) LDAPSearch(
 	filter string,
 	attributes []string,
 	baseDN ...string,
-) error {
-	var err error
-	var results Results
+) (Results, error) {
 
-	results, err = c.getAllResults(
+	return c.getAllResults(
 		searchscope,
 		filter,
 		attributes,
 		baseDN...)
-	if err != nil {
-		return err
-	}
-	results.Print()
-	return nil
+
 }
 
 // ListCAs will search the directory for all Cert Publishers or CAs in the domain
-func (c *Conn) ListCAs() error {
+func (c *Conn) ListCAs() (Results, error) {
 	filter := "(&(samaccountname=Cert Publishers)(member=*) "
 	attributes := []string{"member"}
 	searchscope := 2
@@ -1251,7 +1245,7 @@ func (c *Conn) ListCAs() error {
 }
 
 // ListConstrainedDelegation will search the directory for objects configured for Unconstrained Delegation
-func (c *Conn) ListConstrainedDelegation() error {
+func (c *Conn) ListConstrainedDelegation() (Results, error) {
 	filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
 	attributes := []string{
 		"samaccountname",
@@ -1263,7 +1257,7 @@ func (c *Conn) ListConstrainedDelegation() error {
 }
 
 // ListComputers will search the directory for all computer/machine account objects
-func (c *Conn) ListComputers() error {
+func (c *Conn) ListComputers() (Results, error) {
 	filter := "(&(objectClass=computer)(!(objectClass=msDS-GroupManagedServiceAccount)))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1272,7 +1266,7 @@ func (c *Conn) ListComputers() error {
 }
 
 // ListDCs will search the directory for all Domain Controllers
-func (c *Conn) ListDCs() error {
+func (c *Conn) ListDCs() (Results, error) {
 	filter := "(&(objectCategory=Computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1281,17 +1275,12 @@ func (c *Conn) ListDCs() error {
 }
 
 // ListDNS will search the directory for all DNS records
-func (c *Conn) ListDNS() error {
+func (c *Conn) ListDNS() (Results, error) {
 	filter := "(&(objectClass=dnsNode)(dnsRecord=*))"
 	attributes := []string{"name", "dnsRecord", "dnsHostName"}
 	searchscope := 2
 
-	var err error = c.LDAPSearch(searchscope, filter, attributes, "DC=DomainDnsZones,"+c.baseDN)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.LDAPSearch(searchscope, filter, attributes, "DC=DomainDnsZones,"+c.baseDN)
 }
 
 // AddDNSARecord adds a DNS A record to the Active Directory-integrated DNS zone
@@ -1356,7 +1345,7 @@ func (c *Conn) AddDNSARecord(hostname string, ipAddress string) error {
 }
 
 // ListFSMORoles will search the directory for all FSMO role holders
-func (c *Conn) ListFSMORoles() error {
+func (c *Conn) ListFSMORoles() (Results, error) {
 	filter := "(fsmoroleOwner=*)"
 	attributes := []string{"distinguishedName", "fsmoroleOwner"}
 	searchscope := 2
@@ -1373,6 +1362,7 @@ type LAPSPassword struct {
 
 // ListLAPS will search for LAPS passwords on computer objects
 // Supports both Legacy LAPS (ms-Mcs-AdmPwd) and Windows LAPS (msLAPS-Password, msLAPS-EncryptedPassword)
+// FIX THIS, doesnt follow the standard
 func (c *Conn) ListLAPS() error {
 	searchscope := 2
 
@@ -1559,7 +1549,7 @@ func parseJSON(data string, v *LAPSPassword) error {
 }
 
 // ListGMSAaccounts will search the directory for all Group Managed Service Accounts and display the credential if you have p
-func (c *Conn) ListGMSAaccounts() error {
+func (c *Conn) ListGMSAaccounts() (Results, error) {
 	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"
 	attributes := []string{
 		"samaccountname",
@@ -1573,7 +1563,7 @@ func (c *Conn) ListGMSAaccounts() error {
 }
 
 // ListGroups will search the directory for all Groups
-func (c *Conn) ListGroups() error {
+func (c *Conn) ListGroups() (Results, error) {
 	filter := "(objectCategory=group)"
 	attributes := []string{"sAMAccountName"}
 	searchscope := 2
@@ -1582,7 +1572,7 @@ func (c *Conn) ListGroups() error {
 }
 
 // ListGroupswithMembers will search the directory for all Groups and their members
-func (c *Conn) ListGroupswithMembers() error {
+func (c *Conn) ListGroupswithMembers() (Results, error) {
 	filter := "(&(objectCategory=group)(samaccountname=*)(member=*))"
 	attributes := []string{"member"}
 	searchscope := 2
@@ -1591,7 +1581,7 @@ func (c *Conn) ListGroupswithMembers() error {
 }
 
 // ListKerberoastable will search the directory for all Kerberoastable users
-func (c *Conn) ListKerberoastable() error {
+func (c *Conn) ListKerberoastable() (Results, error) {
 	filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
 	attributes := []string{"samaccountname", "serviceprincipalname"}
 	searchscope := 2
@@ -1600,7 +1590,7 @@ func (c *Conn) ListKerberoastable() error {
 }
 
 // ListMachineAccountQuota will identify the number of machine accounts users are allowed to add to the domain
-func (c *Conn) ListMachineAccountQuota() error {
+func (c *Conn) ListMachineAccountQuota() (Results, error) {
 	filter := "(objectClass=*)"
 	attributes := []string{"ms-DS-MachineAccountQuota"}
 	searchscope := 0
@@ -1609,7 +1599,7 @@ func (c *Conn) ListMachineAccountQuota() error {
 }
 
 // ListMachineCreationDACL will identify the DACL on the Computers container
-func (c *Conn) ListMachineCreationDACL() error {
+func (c *Conn) ListMachineCreationDACL() (Results, error) {
 	filter := "(objectClass=domainDNS)"
 	attributes := []string{"nTSecurityDescriptor"}
 	searchscope := 2
@@ -1618,7 +1608,7 @@ func (c *Conn) ListMachineCreationDACL() error {
 }
 
 // ListNoPassword will identify any users who aren't required to have a password
-func (c *Conn) ListNoPassword() error {
+func (c *Conn) ListNoPassword() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1627,7 +1617,7 @@ func (c *Conn) ListNoPassword() error {
 }
 
 // ListPasswordChangeNextLogin will identify any users who are required to change their password at next login
-func (c *Conn) ListPasswordChangeNextLogin() error {
+func (c *Conn) ListPasswordChangeNextLogin() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(pwdLastSet=0)(!(useraccountcontrol:1.2.840.113556.1.4.803:=2)))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1636,7 +1626,7 @@ func (c *Conn) ListPasswordChangeNextLogin() error {
 }
 
 // ListPasswordDontExpire will identify any users who have a password that is not required to be changed after a specific amount of time
-func (c *Conn) ListPasswordDontExpire() error {
+func (c *Conn) ListPasswordDontExpire() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=65536))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1645,7 +1635,7 @@ func (c *Conn) ListPasswordDontExpire() error {
 }
 
 // ListPreAuthDisabled will identify any accounts where preauthentication is disabled
-func (c *Conn) ListPreAuthDisabled() error {
+func (c *Conn) ListPreAuthDisabled() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=4194304))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1654,7 +1644,7 @@ func (c *Conn) ListPreAuthDisabled() error {
 }
 
 // ListProtectedUsers will identify any accounts in the Protected Users group
-func (c *Conn) ListProtectedUsers() error {
+func (c *Conn) ListProtectedUsers() (Results, error) {
 	filter := "(&(samaccountname=Protected Users)(member=*))"
 	attributes := []string{"member"}
 	searchscope := 2
@@ -1663,8 +1653,7 @@ func (c *Conn) ListProtectedUsers() error {
 }
 
 // ListRBCD will identify all objects configured for RBCD
-func (c *Conn) ListRBCD() error {
-	var err error
+func (c *Conn) ListRBCD() (Results, error) {
 
 	filter := "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)"
 	attributes := []string{
@@ -1673,26 +1662,17 @@ func (c *Conn) ListRBCD() error {
 	}
 	searchscope := 2
 
-	err = c.LDAPSearch(searchscope, filter, attributes)
-	if err != nil {
-		return err
-	}
+	return c.LDAPSearch(searchscope, filter, attributes)
 
-	return nil
 }
 
 // ListSchema will list the schema of the directory
-func (c *Conn) ListSchema() error {
+func (c *Conn) ListSchema() (Results, error) {
 	filter := "(objectClass=*)"
 	attributes := []string{}
 	searchscope := 0
+	return c.LDAPSearch(searchscope, filter, attributes, "cn=Schema,cn=Configuration,"+c.baseDN)
 
-	var err error = c.LDAPSearch(searchscope, filter, attributes, "cn=Schema,cn=Configuration,"+c.baseDN)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // ListShadowCredentials will identify any accounts configured with Shadow Credentials
@@ -1804,7 +1784,7 @@ func extractDNBinaryBlob(dnBinary string) ([]byte, error) {
 }
 
 // ListUnconstrainedDelegation will identify any accounts configured for Unconstrained Delegation
-func (c *Conn) ListUnconstrainedDelegation() error {
+func (c *Conn) ListUnconstrainedDelegation() (Results, error) {
 	// It is doing the bitmasking for us, must use decimal value. Bitmask is 80000
 	filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
 	attributes := []string{"samaccountname", "useraccountcontrol"}
@@ -1814,7 +1794,7 @@ func (c *Conn) ListUnconstrainedDelegation() error {
 }
 
 // ListUsers will identify all user objects. This may be overridden with multiple attributes changing the functionality.
-func (c *Conn) ListUsers(attributes ...string) error {
+func (c *Conn) ListUsers(attributes ...string) (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user))"
 
 	if len(attributes) == 0 {
@@ -1827,7 +1807,7 @@ func (c *Conn) ListUsers(attributes ...string) error {
 }
 
 // ListUserLoginScripts lists all scripts configured for user accounts, does not include GPO
-func (c *Conn) ListLoginScripts() error {
+func (c *Conn) ListLoginScripts() (Results, error) {
 	filter := "(scriptPath=*)"
 	attributes := []string{
 		"sAMAccountName",
