@@ -416,7 +416,7 @@ func (c *Conn) AddConstrainedDelegation(
 	attributes := []string{"msDS-AllowedToDelegateTo"}
 	searchscope := 2
 	var err error
-	var results []map[string][]string
+	var results Results
 
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
@@ -425,15 +425,15 @@ func (c *Conn) AddConstrainedDelegation(
 		}
 	}
 
-	if len(results[0]["msDS-AllowedToDelegateTo"]) > 0 {
-		delegationres = results[0]["msDS-AllowedToDelegateTo"][0]
+	if len(results[0].GetAttr("msDS-AllowedToDelegateTo")) > 0 {
+		delegationres = results[0].GetAttr("msDS-AllowedToDelegateTo")[0]
 	}
 
 	delegationres = strings.TrimSpace(
 		fmt.Sprintf("%s %s", delegationres, spn),
 	)
 	enableReq := ldap.NewModifyRequest(
-		results[0]["DN"][0],
+		results[0].GetDN(),
 		[]ldap.Control{},
 	)
 	enableReq.Replace(
@@ -537,7 +537,7 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 	attributes := []string{"objectSid"}
 	searchscope := 2
 	var err error
-	var results []map[string][]string
+	var results Results
 
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
@@ -545,14 +545,14 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 	}
 
 	// Getting object sid
-	if len(results[0]["objectSid"]) == 0 {
+	if results[0].Length("objectSid") == 0 {
 		return fmt.Errorf(
 			"no objectSid found for %s",
 			delegatingComputer[0],
 		)
 	}
 
-	delegatingComputerSID := results[0]["objectSid"][0]
+	delegatingComputerSID := results[0].GetAttr("objectSid")[0]
 
 	filter = "(samaccountname=" + targetmachinename + ")"
 	attributes = []string{"msDS-AllowedToActOnBehalfOfOtherIdentity"}
@@ -562,7 +562,7 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 		return err
 	}
 
-	dn := results[0]["DN"][0]
+	dn := results[0].GetAttr("DN")[0]
 	if !strings.Contains(strings.ToLower(dn), "cn=computers") {
 		return errors.New("this object is not a computer, go away")
 	}
@@ -570,10 +570,8 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 	var allowed string
 
 	// Getting msDS-AllowedToActOnBehalfOfOtherIdentity
-	if len(
-		results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"],
-	) > 0 {
-		allowed = results[0]["msDS-AllowedToActOnBehalfOfOtherIdentity"][0]
+	if results[0].Length("msDS-AllowedToActOnBehalfOfOtherIdentity") > 0 {
+		allowed = results[0].GetAttr("msDS-AllowedToActOnBehalfOfOtherIdentity")[0]
 	}
 	// RBCD setting
 	sddl, err := winsddlconverter.ParseSDDL(allowed)
@@ -653,9 +651,9 @@ func (c *Conn) AddServicePrincipalName(
 		return fmt.Errorf("user %s not found", username)
 	}
 
-	userDN := results[0]["DN"][0]
+	userDN := results[0].GetAttr("DN")[0]
 
-	existingSPNs := results[0]["servicePrincipalName"]
+	existingSPNs := results[0].GetAttr("servicePrincipalName")
 
 	// Check if SPN already exists
 	existingSPNs = append(existingSPNs, strings.Fields(spn)...)
@@ -709,7 +707,7 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 	// Machine accounts require $ you dummy.
 	// UAC output is a bit mask which can be deciphered here: https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/useraccountcontrol-manipulate-account-properties
 	var err error
-	var results []map[string][]string
+	var results Results
 	var uacstr string
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"userAccountControl"}
@@ -720,8 +718,8 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 		return err
 	}
 
-	if len(results[0]["userAccountControl"]) > 0 {
-		uacstr = results[0]["userAccountControl"][0]
+	if results[0].Length("userAccountControl") > 0 {
+		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
 
 	uac, err := flagset(uacstr, UACTrustedForDelegation)
@@ -731,7 +729,7 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 
 	// Get value for UAC, and then apply value to bitmask
 	enableReq := ldap.NewModifyRequest(
-		results[0]["DN"][0],
+		results[0].GetAttr("DN")[0],
 		[]ldap.Control{},
 	)
 	enableReq.Replace(
@@ -1093,8 +1091,8 @@ func (c *Conn) getAllResults(
 	filter string,
 	attributes []string,
 	baseDN ...string,
-) ([]map[string][]string, error) {
-	var results []map[string][]string
+) (Results, error) {
+	var results Results
 
 	var ldapControls []ldap.Control
 
@@ -1115,28 +1113,18 @@ func (c *Conn) getAllResults(
 		attributes,
 		ldapControls...)
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
 	if len(result.Entries) == 0 {
-		return nil, errors.New(
+		return results, errors.New(
 			"no entries found",
 		) // custom error result not found
 	}
 
-	for i, entry := range result.Entries {
-		results = append(results, map[string][]string{})
+	for _, entry := range result.Entries {
+		results.Add(*NewResultFromLDAP(entry))
 
-		results[i]["DN"] = []string{entry.DN}
-		for _, attribute := range entry.Attributes {
-			if transform, ok := transformsLookup[strings.ToLower(attribute.Name)]; ok {
-				results[i][attribute.Name] = transform(attribute.ByteValues)
-				results[i][attribute.Name+"_raw"] = attribute.Values
-			} else {
-				results[i][attribute.Name] = attribute.Values
-				results[i][attribute.Name+"_raw"] = attribute.Values
-			}
-		}
 	}
 
 	return results, nil
@@ -1165,7 +1153,7 @@ func (c *Conn) getUserDN(username string) (string, error) {
 		return "", fmt.Errorf("user %s not found", username)
 	}
 
-	return results[0]["distinguishedName"][0], nil
+	return results[0].GetAttr("distinguishedName")[0], nil
 }
 
 // GetWhoAmI will query the LDAP server for who we currently are authenticated as
@@ -1238,9 +1226,8 @@ func (c *Conn) LDAPSearch(
 	attributes []string,
 	baseDN ...string,
 ) error {
-	var keys []string
 	var err error
-	var results []map[string][]string
+	var results Results
 
 	results, err = c.getAllResults(
 		searchscope,
@@ -1250,36 +1237,7 @@ func (c *Conn) LDAPSearch(
 	if err != nil {
 		return err
 	}
-
-	for _, result := range results {
-		fmt.Printf("  DN: %s\n", result["DN"][0])
-
-		keys = []string{}
-		for key := range result {
-			keys = append(keys, key)
-		}
-
-		slices.Sort(keys)
-
-		for _, key := range keys {
-			if strings.HasSuffix(key, "_raw") {
-				continue
-			}
-
-			values := result[key]
-			if key == "DN" {
-				continue // Skip DN key as it is already printed
-			}
-
-			if len(values) == 0 {
-				fmt.Printf("    %s: No values found\n", key)
-				continue
-			}
-
-			fmt.Printf("    %s: %v\n", key, values)
-		}
-	}
-
+	results.Print()
 	return nil
 }
 
@@ -1458,10 +1416,10 @@ func (c *Conn) ListLAPS() error {
 		dnsName := ""
 		hasLAPS := false
 
-		if v, ok := result["sAMAccountName"]; ok && len(v) > 0 {
+		if v := result.GetAttr("sAMAccountName"); len(v) > 0 {
 			samName = v[0]
 		}
-		if v, ok := result["dNSHostName"]; ok && len(v) > 0 {
+		if v := result.GetAttr("dNSHostName"); len(v) > 0 {
 			dnsName = v[0]
 		}
 
@@ -1471,12 +1429,12 @@ func (c *Conn) ListLAPS() error {
 		}
 
 		// Legacy LAPS (ms-Mcs-AdmPwd)
-		if v, ok := result["ms-Mcs-AdmPwd"]; ok && len(v) > 0 && v[0] != "" {
+		if v := result.GetAttr("ms-Mcs-AdmPwd"); len(v) > 0 && v[0] != "" {
 			hasLAPS = true
 			fmt.Println("    [Legacy LAPS]")
 			fmt.Printf("      Password: %s\n", v[0])
 
-			if exp, ok := result["ms-Mcs-AdmPwdExpirationTime"]; ok && len(exp) > 0 && exp[0] != "" {
+			if exp := result.GetAttr("ms-Mcs-AdmPwdExpirationTime"); len(exp) > 0 && exp[0] != "" {
 				if expTime, err := parseWindowsFileTime(exp[0]); err == nil {
 					fmt.Printf("      Expires: %s\n", expTime.Format("2006-01-02 15:04:05 UTC"))
 				}
@@ -1484,7 +1442,7 @@ func (c *Conn) ListLAPS() error {
 		}
 
 		// Windows LAPS plain-text (msLAPS-Password)
-		if v, ok := result["msLAPS-Password"]; ok && len(v) > 0 && v[0] != "" {
+		if v := result.GetAttr("msLAPS-Password"); len(v) > 0 && v[0] != "" {
 			hasLAPS = true
 			fmt.Println("    [Windows LAPS]")
 
@@ -1503,7 +1461,7 @@ func (c *Conn) ListLAPS() error {
 				fmt.Printf("      Raw: %s\n", v[0])
 			}
 
-			if exp, ok := result["msLAPS-PasswordExpirationTime"]; ok && len(exp) > 0 && exp[0] != "" {
+			if exp := result.GetAttr("msLAPS-PasswordExpirationTime"); len(exp) > 0 && exp[0] != "" {
 				if expTime, err := parseWindowsFileTime(exp[0]); err == nil {
 					fmt.Printf("      Expires: %s\n", expTime.Format("2006-01-02 15:04:05 UTC"))
 				}
@@ -1511,7 +1469,7 @@ func (c *Conn) ListLAPS() error {
 		}
 
 		// Windows LAPS encrypted password
-		if v, ok := result["msLAPS-EncryptedPassword"]; ok && len(v) > 0 && v[0] != "" {
+		if v := result.GetAttr("msLAPS-EncryptedPassword"); len(v) > 0 && v[0] != "" {
 			hasLAPS = true
 			fmt.Println("    [Windows LAPS - Encrypted]")
 			fmt.Println("      [!] Password is encrypted with DPAPI-NG")
@@ -1520,7 +1478,7 @@ func (c *Conn) ListLAPS() error {
 		}
 
 		// Windows LAPS DSRM password (for DCs)
-		if v, ok := result["msLAPS-EncryptedDSRMPassword"]; ok && len(v) > 0 && v[0] != "" {
+		if v := result.GetAttr("msLAPS-EncryptedDSRMPassword"); len(v) > 0 && v[0] != "" {
 			hasLAPS = true
 			fmt.Println("    [Windows LAPS - DSRM (Encrypted)]")
 			fmt.Println("      [!] DSRM password is encrypted with DPAPI-NG")
@@ -1528,7 +1486,7 @@ func (c *Conn) ListLAPS() error {
 		}
 
 		// DSRM history
-		if v, ok := result["msLAPS-EncryptedDSRMPasswordHistory"]; ok && len(v) > 0 {
+		if v := result.GetAttr("msLAPS-EncryptedDSRMPasswordHistory"); len(v) > 0 {
 			fmt.Printf("    [Windows LAPS - DSRM History]: %d entries (encrypted)\n", len(v))
 		}
 
@@ -1756,11 +1714,11 @@ func (c *Conn) ListShadowCredentials() error {
 
 	for _, result := range results {
 		samName := ""
-		if v, ok := result["sAMAccountName"]; ok && len(v) > 0 {
+		if v := result.GetAttr("sAMAccountName"); len(v) > 0 {
 			samName = v[0]
 		}
 
-		keyCredLinks := result["msDS-KeyCredentialLink"]
+		keyCredLinks := result.GetAttr("msDS-KeyCredentialLink")
 		if len(keyCredLinks) == 0 {
 			continue
 		}
@@ -1891,15 +1849,15 @@ func (c *Conn) RemoveConstrainedDelegation(
 	attributes := []string{"msDS-AllowedToDelegateTo"}
 	searchscope := 2
 	var err error
-	var results []map[string][]string
+	var results Results
 
 	results, err = c.getAllResults(searchscope, filter, attributes)
 	if err != nil {
 		return err
 	}
 
-	if len(results[0]["msDS-AllowedToDelegateTo"]) > 0 {
-		delegationres = results[0]["msDS-AllowedToDelegateTo"][0]
+	if results[0].Length("msDS-AllowedToDelegateTo") > 0 {
+		delegationres = results[0].GetAttr("msDS-AllowedToDelegateTo")[0]
 	}
 
 	spns := strings.Fields(delegationres)
@@ -1917,7 +1875,7 @@ func (c *Conn) RemoveConstrainedDelegation(
 	}
 	// fmt.Printf("%s\n", delegationresstr)
 	enableReq := ldap.NewModifyRequest(
-		results[0]["DN"][0],
+		results[0].GetAttr("DN")[0],
 		[]ldap.Control{},
 	)
 	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
@@ -1954,7 +1912,7 @@ func (c *Conn) RemoveResourceBasedConstrainedDelegation(
 		return err
 	}
 
-	dn := results[0]["DN"][0]
+	dn := results[0].GetAttr("DN")[0]
 	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
 	enableReq.Delete("msDS-AllowedToActOnBehalfOfOtherIdentity", nil)
 
@@ -1976,8 +1934,8 @@ func (c *Conn) RemoveSPNs(username string, spn string) error {
 		return fmt.Errorf("user %s not found", username)
 	}
 
-	if len(results[0]["servicePrincipalName"]) > 0 {
-		spnValues = results[0]["servicePrincipalName"][0]
+	if results[0].Length("servicePrincipalName") > 0 {
+		spnValues = results[0].GetAttr("servicePrincipalName")[0]
 	}
 
 	existingSPNs := strings.Fields(strings.ToLower(spnValues))
@@ -1995,7 +1953,7 @@ func (c *Conn) RemoveSPNs(username string, spn string) error {
 	}
 
 	modReq := ldap.NewModifyRequest(
-		results[0]["DN"][0],
+		results[0].GetAttr("DN")[0],
 		[]ldap.Control{},
 	)
 	modReq.Replace("servicePrincipalName", updatedSPNs)
@@ -2007,7 +1965,7 @@ func (c *Conn) RemoveSPNs(username string, spn string) error {
 func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 	// Working again.
 	var err error
-	var results []map[string][]string
+	var results Results
 	var uacstr string
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"userAccountControl"}
@@ -2018,8 +1976,8 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 		return err
 	}
 
-	if len(results[0]["userAccountControl"]) > 0 {
-		uacstr = results[0]["userAccountControl"][0]
+	if results[0].Length("userAccountControl") > 0 {
+		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
 
 	uac, err := flagunset(uacstr, UACTrustedForDelegation)
@@ -2028,7 +1986,7 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 	}
 	// Get value for UAC, and then apply value to bitmask
 	enableReq := ldap.NewModifyRequest(
-		results[0]["DN"][0],
+		results[0].GetAttr("DN")[0],
 		[]ldap.Control{},
 	)
 	enableReq.Replace(
@@ -2042,7 +2000,7 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account
 func (c *Conn) SetDisableMachineAccount(username string) error {
 	var err error
-	var results []map[string][]string
+	var results Results
 	var uacstr string
 	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
@@ -2053,8 +2011,8 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 		return err
 	}
 
-	if len(results[0]["userAccountControl"]) > 0 {
-		uacstr = results[0]["userAccountControl"][0]
+	if results[0].Length("userAccountControl") > 0 {
+		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
 
 	uac, err := flagset(uacstr, UACAccountDisable)
@@ -2080,7 +2038,7 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 // SetEnableMachineAccount will modify the userAccountControl attribute to enable a machine account
 func (c *Conn) SetEnableMachineAccount(username string) error {
 	var err error
-	var results []map[string][]string
+	var results Results
 	var uacstr string
 	filter := "(&(objectClass=computer)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
@@ -2091,8 +2049,8 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 		return err
 	}
 
-	if len(results[0]["userAccountControl"]) > 0 {
-		uacstr = results[0]["userAccountControl"][0]
+	if results[0].Length("userAccountControl") > 0 {
+		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
 
 	uac, err := flagunset(uacstr, UACAccountDisable)
@@ -2118,7 +2076,7 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 // SetDisableUserAccount will modify the userAccountControl attribute to disable a user account
 func (c *Conn) SetDisableUserAccount(username string) error {
 	var err error
-	var results []map[string][]string
+	var results Results
 	var uacstr string
 	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
@@ -2129,8 +2087,8 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 		return err
 	}
 
-	if len(results[0]["userAccountControl"]) > 0 {
-		uacstr = results[0]["userAccountControl"][0]
+	if results[0].Length("userAccountControl") > 0 {
+		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
 
 	uac, err := flagset(uacstr, UACAccountDisable)
@@ -2153,7 +2111,7 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 // SetEnableUserAccount will modify the userAccountControl attribute to enable a user account
 func (c *Conn) SetEnableUserAccount(username string) error {
 	var err error
-	var results []map[string][]string
+	var results Results
 	var uacstr string
 	filter := "(&(objectClass=person)(samaccountname=" + username + "))"
 	attributes := []string{"useraccountcontrol"}
@@ -2164,8 +2122,8 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 		return err
 	}
 
-	if len(results[0]["userAccountControl"]) > 0 {
-		uacstr = results[0]["userAccountControl"][0]
+	if results[0].Length("userAccountControl") > 0 {
+		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
 
 	uac, err := flagunset(uacstr, UACAccountDisable)

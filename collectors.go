@@ -426,7 +426,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 	domain := extractDomainFromDN(baseDN)
 
 	for _, e := range res {
-		dn := firstOrEmpty(e, "DN")
+		dn := e.GetDN()
 
 		sid := firstOrEmpty(e, "objectSid")
 		if sid == "" {
@@ -454,16 +454,16 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 		}
 
 		// Check if user has SPN (kerberoastable)
-		spns := e["servicePrincipalName"]
+		spns := e.GetAttr("servicePrincipalName")
 		hasSPN := len(spns) > 0
 
 		// Check for shadow credentials (msDS-KeyCredentialLink)
-		hasShadowCreds := len(e["msDS-KeyCredentialLink"]) > 0
+		hasShadowCreds := len(e.GetAttr("msDS-KeyCredentialLink")) > 0
 
 		// Parse SID History
 		var sidHistory []string
 
-		for _, sidHist := range e["sIDHistory"] {
+		for _, sidHist := range e.GetAttr("sIDHistory") {
 			if sidHist != "" {
 				sidHistory = append(sidHistory, sidHist)
 			}
@@ -525,10 +525,10 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 			),
 			"shadowcredentials": hasShadowCreds,
 			"allowedtodelegate": nilIfEmpty(
-				e["msDS-AllowedToDelegateTo"],
+				e.GetAttr("msDS-AllowedToDelegateTo"),
 			),
 			"serviceprincipalnames": nilIfEmpty(
-				e["servicePrincipalName"],
+				e.GetAttr("servicePrincipalName"),
 			),
 			"sidhistory": nilIfEmpty(sidHistory),
 			"supportedencryptiontypes": toStringOrNil(
@@ -550,7 +550,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 		user := BHUser{
 			ObjectID:                sid,
 			PrimaryGroupSID:         primaryGroupSID,
-			AllowedToDelegate:       e["msDS-AllowedToDelegateTo"],
+			AllowedToDelegate:       e.GetAttr("msDS-AllowedToDelegateTo"),
 			Properties:              props,
 			Aces:                    []BHAce{},
 			SPNTargets:              []string{},
@@ -612,7 +612,7 @@ func (c *Conn) collectComputersBloodHound(
 	domain := extractDomainFromDN(baseDN)
 
 	for _, e := range res {
-		dn := firstOrEmpty(e, "DN")
+		dn := e.GetDN()
 
 		sid := firstOrEmpty(e, "objectSid")
 		if sid == "" {
@@ -644,7 +644,7 @@ func (c *Conn) collectComputersBloodHound(
 		}
 
 		// Check for LAPS
-		hasLAPS := len(e["ms-mcs-admpwdexpirationtime"]) > 0
+		hasLAPS := len(e.GetAttr("ms-mcs-admpwdexpirationtime")) > 0
 
 		// Check if computer is a DC
 		isDC := false
@@ -655,7 +655,7 @@ func (c *Conn) collectComputersBloodHound(
 		// Parse SID History
 		var sidHistory []string
 
-		for _, sidHist := range e["sIDHistory"] {
+		for _, sidHist := range e.GetAttr("sIDHistory") {
 			if sidHist != "" {
 				sidHistory = append(sidHistory, sidHist)
 			}
@@ -708,14 +708,14 @@ func (c *Conn) collectComputersBloodHound(
 				"adminCount",
 			) == "1",
 			"serviceprincipalnames": nilIfEmpty(
-				e["servicePrincipalName"],
+				e.GetAttr("servicePrincipalName"),
 			),
 			"sidhistory": nilIfEmpty(sidHistory),
 			"supportedencryptiontypes": nilIfEmpty(
-				e["msDS-SupportedEncryptionTypes"],
+				e.GetAttr("msDS-SupportedEncryptionTypes"),
 			),
 			"allowedtodelegate": nilIfEmpty(
-				e["msDS-AllowedToDelegateTo"],
+				e.GetAttr("msDS-AllowedToDelegateTo"),
 			),
 			"useraccountcontrol": toInt(
 				firstOrEmpty(e, "userAccountControl"),
@@ -748,7 +748,7 @@ func (c *Conn) collectComputersBloodHound(
 				Results:       []string{},
 			},
 			AllowedToDelegate: sliceOrNil(
-				e["msDS-AllowedToDelegateTo"],
+				e.GetAttr("msDS-AllowedToDelegateTo"),
 			),
 			Sessions: BHCollectionResult{
 				Collected:     false,
@@ -830,7 +830,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 	domain := extractDomainFromDN(baseDN)
 
 	for _, e := range res {
-		dn := firstOrEmpty(e, "DN")
+		dn := e.GetDN()
 
 		sid := firstOrEmpty(e, "objectSid")
 		if sid == "" {
@@ -839,7 +839,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 
 		members := []BHMember{}
 
-		for _, memberDN := range e["member"] {
+		for _, memberDN := range e.GetAttr("member") {
 			// For each member, we need to resolve its SID and type
 			memberSID := c.resolveSIDFromDN(memberDN)
 			if memberSID == "" {
@@ -884,7 +884,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 		// Parse SID History
 		var sidHistory []string
 
-		for _, sidHist := range e["sIDHistory"] {
+		for _, sidHist := range e.GetAttr("sIDHistory") {
 			if sidHist != "" {
 				sidHistory = append(sidHistory, sidHist)
 			}
@@ -983,7 +983,7 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (any, error) {
 			sid := firstOrEmpty(e, "objectSid")
 			// Don't skip if no SID - still create domain object for visibility
 
-			dn := firstOrEmpty(e, "DN")
+			dn := e.GetDN()
 			if dn == "" {
 				dn = baseDN // Fallback to baseDN if not found
 			}
@@ -1170,7 +1170,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 	domain := extractDomainFromDN(baseDN)
 
 	for _, e := range res {
-		dn := firstOrEmpty(e, "DN")
+		dn := e.GetDN()
 
 		guid := firstOrEmpty(e, "objectGUID")
 		if guid == "" {
@@ -1257,7 +1257,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (any, error) {
 	domain := extractDomainFromDN(baseDN)
 
 	for _, e := range res {
-		dn := firstOrEmpty(e, "DN")
+		dn := e.GetDN()
 
 		name := firstOrEmpty(e, "displayName")
 		if name == "" {
@@ -1344,7 +1344,7 @@ func (c *Conn) collectContainersBloodHound(
 	domain := extractDomainFromDN(baseDN)
 
 	for _, e := range res {
-		dn := firstOrEmpty(e, "DN")
+		dn := e.GetDN()
 
 		guid := firstOrEmpty(e, "objectGUID")
 		if guid == "" {
@@ -1382,12 +1382,8 @@ func (c *Conn) collectContainersBloodHound(
 
 // Helper functions
 
-func firstOrEmpty(m map[string][]string, k string) string {
-	if v, ok := m[k]; ok && len(v) > 0 {
-		return v[0]
-	}
-
-	if v, ok := m[strings.ToLower(k)]; ok && len(v) > 0 {
+func firstOrEmpty(r Result, k string) string {
+	if v := r.GetAttr(k); len(v) > 0 {
 		return v[0]
 	}
 
@@ -1879,10 +1875,10 @@ func (c *Conn) collectCertTemplatesBloodHound(
 			"validityperiod": "",
 			"renewalperiod":  "",
 			"ekus": nilIfEmpty(
-				entry["msPKI-RA-Application-Policies"],
+				entry.GetAttr("msPKI-RA-Application-Policies"),
 			),
 			"effectiveekus": nilIfEmpty(
-				entry["msPKI-Certificate-Application-Policy"],
+				entry.GetAttr("msPKI-Certificate-Application-Policy"),
 			),
 			"authenticationenabled":         true,
 			"schannelauthenticationenabled": false,
@@ -1890,13 +1886,13 @@ func (c *Conn) collectCertTemplatesBloodHound(
 				firstOrEmpty(entry, "msPKI-Certificate-Policy"),
 			),
 			"certificateapplicationpolicy": nilIfEmpty(
-				entry["msPKI-RA-Application-Policies"],
+				entry.GetAttr("msPKI-RA-Application-Policies"),
 			),
 			"applicationpolicies": nilIfEmpty(
-				entry["msPKI-RA-Application-Policies"],
+				entry.GetAttr("msPKI-RA-Application-Policies"),
 			),
 			"issuancepolicies": nilIfEmpty(
-				entry["msPKI-Certificate-Policy"],
+				entry.GetAttr("msPKI-Certificate-Policy"),
 			),
 		}
 
@@ -2074,14 +2070,14 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (any, error) {
 		)
 	}
 	// Filter out the AIA container itself if it was returned
-	filtered := make([]map[string][]string, 0)
+	var filtered Results
 
 	for _, entry := range res {
 		dn := firstOrEmpty(entry, "DN")
 		cn := firstOrEmpty(entry, "cn")
 		// Skip the AIA container itself (where cn=AIA and dn matches the container)
 		if cn != "AIA" || dn != aiaContainerDN {
-			filtered = append(filtered, entry)
+			filtered.Add(entry)
 		}
 	}
 
@@ -2095,7 +2091,7 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (any, error) {
 		dn := firstOrEmpty(entry, "DN")
 		name := firstOrEmpty(entry, "cn")
 		guid := firstOrEmpty(entry, "objectGUID")
-		hasCrossCert := len(entry["crossCertificatePair"]) > 0
+		hasCrossCert := len(entry.GetAttr("crossCertificatePair")) > 0
 
 		if name == "" {
 			name = dn
@@ -2113,7 +2109,7 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (any, error) {
 			),
 			"hascrosscertificatepair": hasCrossCert,
 			"crosscertificatepair": nilIfEmpty(
-				entry["crossCertificatePair"],
+				entry.GetAttr("crossCertificatePair"),
 			),
 		}
 
