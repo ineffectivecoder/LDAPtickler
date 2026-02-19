@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -17,7 +16,6 @@ import (
 	"log"
 	"math/big"
 	"net"
-	"net/url"
 	"os"
 	"regexp"
 	"slices"
@@ -31,15 +29,9 @@ import (
 
 	// Todo replace below library, go-sddlparse is much better
 	winsddlconverter "github.com/ineffectivecoder/win-sddl-converter"
-	"github.com/jcmturner/gokrb5/iana/flags"
-	"github.com/jcmturner/gokrb5/v8/client"
 	"golang.org/x/crypto/md4"
-	"golang.org/x/net/proxy"
 	"golang.org/x/text/encoding/unicode"
 )
-
-// BindMethod TODO WHAT IS THIS?!
-type BindMethod int
 
 type UnicodeString struct {
 	Length        uint16
@@ -85,14 +77,15 @@ type ParsedKeyCredential struct {
 	KeySize        int            // Key size in bits
 }
 
+type BindMethod int
+
 // These enums are bind methods for the bind function
 const (
 	MethodBindAnonymous = iota
-	MethodBindPassword
 	MethodBindDomain
 	MethodBindDomainPTH
-	MethodBindSASL
 	MethodBindGSSAPI
+	MethodBindPassword
 )
 
 // Enums for modification of useraccountcontrol field
@@ -135,8 +128,23 @@ var (
 	Debug     bool
 )
 
-// Conn gives us a structure named lconn linked to *ldap.Conn
-type Conn struct {
+type Credentials struct {
+	DC       string
+	Domain   string
+	Hash     string
+	Password string
+	Username string
+}
+
+type Conn interface {
+	Bind(method BindMethod, creds Credentials, skipVerify ...bool) error
+	Close() error
+	Query(baseDN string, scope int, filter string, attrs []string) (Results, error)
+	SetProxy(proxyURL string)
+}
+
+// Tickler gives us a structure named lconn linked to *ldap.Conn
+type Tickler struct {
 	lconn      *ldap.Conn
 	gssClient  *gssapi.Client
 	baseDN     string
@@ -147,8 +155,8 @@ type Conn struct {
 }
 
 // New TODO great note Chris
-func New(url string, basedn string, skipVerify ...bool) *Conn {
-	var connection *Conn = &Conn{url: url, baseDN: basedn}
+func New(url string, basedn string, skipVerify ...bool) *Tickler {
+	var connection *Tickler = &Tickler{url: url, baseDN: basedn}
 	if len(skipVerify) > 0 {
 		connection.skipVerify = skipVerify[0]
 	}
@@ -157,97 +165,11 @@ func New(url string, basedn string, skipVerify ...bool) *Conn {
 }
 
 // SetProxy configures SOCKS5 proxy for LDAP connection
-func (c *Conn) SetProxy(proxyURL string) {
-	c.proxyURL = proxyURL
+func (c *Tickler) SetProxy(proxyURL string) {
+	//c.proxyURL = proxyURL FIXME
 }
 
-func (c *Conn) bindSetup() error {
-	var err error
-
-	// If proxy is configured, use SOCKS5 dialer
-	if c.proxyURL != "" {
-		// Parse LDAP URL to get host
-		u, err := url.Parse(c.url)
-		if err != nil {
-			return err
-		}
-
-		// Parse proxy URL to get host:port
-		proxyURL, err := url.Parse(c.proxyURL)
-		if err != nil {
-			return fmt.Errorf("invalid proxy URL: %w", err)
-		}
-
-		proxyAddr := proxyURL.Host
-		if proxyAddr == "" {
-			// If no scheme, assume it's already host:port
-			proxyAddr = c.proxyURL
-		}
-
-		// Create SOCKS5 dialer
-		proxyDialer, err := proxy.SOCKS5("tcp",
-			proxyAddr,
-			nil, // no auth
-			proxy.Direct)
-		if err != nil {
-			return err
-		}
-
-		// Dial through proxy - add default port if missing
-		ldapAddr := u.Host
-		if !strings.Contains(ldapAddr, ":") {
-			if strings.HasPrefix(c.url, "ldaps:") {
-				ldapAddr += ":636"
-			} else {
-				ldapAddr += ":389"
-			}
-		}
-
-		conn, err := proxyDialer.Dial("tcp", ldapAddr)
-		if err != nil {
-			return err
-		}
-
-		// Wrap with TLS if using LDAPS
-		if strings.HasPrefix(c.url, "ldaps:") {
-			tlsConn := tls.Client(conn, &tls.Config{
-				InsecureSkipVerify: c.skipVerify,
-				ServerName:         u.Hostname(),
-			})
-			conn = tlsConn
-		}
-
-		c.lconn = ldap.NewConn(
-			conn,
-			strings.HasPrefix(c.url, "ldaps:"),
-		)
-		c.lconn.Start()
-	} else {
-		// Original direct connection code
-		if strings.HasPrefix(c.url, "ldaps:") {
-			// look into other dialer
-			c.lconn, err = ldap.DialURL(c.url, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: c.skipVerify}))
-		} else {
-			if !strings.HasPrefix(c.url, "ldap:") {
-				c.url = "ldap://" + c.url
-			}
-
-			c.lconn, err = ldap.DialURL(c.url)
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-
-	if LDAPDebug {
-		c.lconn.Debug = true
-	}
-
-	return nil
-}
-
-func (c *Conn) createUnicodePasswordRequest(
+func (c *Tickler) createUnicodePasswordRequest(
 	username string,
 	password string,
 ) (*ldap.ModifyRequest, error) {
@@ -283,131 +205,8 @@ func encodePassword(password string) string {
 	return encoded
 }
 
-// BindAnonymous will attempt to bind to the specified URL with an optional username.
-func (c *Conn) BindAnonymous(username string) error {
-	c.username = username
-	var err error
-
-	err = c.bindSetup()
-	if err != nil {
-		return err
-	}
-
-	err = c.lconn.UnauthenticatedBind(username)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// BindDomain will attempt to bind to the specified URL with a username, password and domain.
-func (c *Conn) BindDomain(
-	domain string,
-	username string,
-	password string,
-) error {
-	c.username = username
-	var err error
-
-	err = c.bindSetup()
-	if err != nil {
-		return err
-	}
-
-	err = c.lconn.NTLMBind(domain, username, password)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// BindDomainPTH will attempt to bind to the specified URL with a username, password hash and domain.
-func (c *Conn) BindDomainPTH(
-	domain string,
-	username string,
-	hash string,
-) error {
-	c.username = username
-	var err error
-
-	err = c.bindSetup()
-	if err != nil {
-		return err
-	}
-
-	err = c.lconn.NTLMBindWithHash(domain, username, hash)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *Conn) BindGSSAPI(
-	domain string,
-	username string,
-	password string,
-	spn string,
-) error {
-	// GSSAPI Implementation
-	c.username = username
-	var err error
-
-	c.gssClient, err = gssapi.NewClientWithPassword(
-		username,                // Kerberos principal name
-		strings.ToUpper(domain), // Kerberos realm
-		password,                // Kerberos password
-		"/etc/krb5.conf",        // krb5 configuration file path
-		client.DisablePAFXFAST(
-			true,
-		), // Optional: disable FAST if your realm needs it
-	)
-	if err != nil {
-		return err
-	}
-
-	err = c.bindSetup()
-	if err != nil {
-		return err
-	}
-
-	err = c.lconn.GSSAPIBindRequestWithAPOptions(
-		c.gssClient,
-		&ldap.GSSAPIBindRequest{
-			ServicePrincipalName: spn,
-			AuthZID:              "",
-		},
-		[]int{flags.APOptionMutualRequired},
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// BindPassword will attempt a simple bind to the specified  URL with supplied username and password
-func (c *Conn) BindPassword(username string, password string) error {
-	c.username = username
-	var err error
-
-	err = c.bindSetup()
-	if err != nil {
-		return err
-	}
-
-	err = c.lconn.Bind(username, password)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // AddConstrainedDelegation modifies msds-allowedtodelegateto to configured constrained delegation for specified spn
-func (c *Conn) AddConstrainedDelegation(
+func (c *Tickler) AddConstrainedDelegation(
 	username string,
 	spn string,
 ) error {
@@ -445,7 +244,7 @@ func (c *Conn) AddConstrainedDelegation(
 }
 
 // AddMachineAccount will attempt to add a machine account for the supplied machinename and machinepass
-func (c *Conn) AddMachineAccount(
+func (c *Tickler) AddMachineAccount(
 	machinename string,
 	machinepass string,
 ) error {
@@ -477,7 +276,7 @@ func (c *Conn) AddMachineAccount(
 }
 
 // AddMachineAccountLowPriv will attempt to add a machine account with the supplied details as a low privilege user
-func (c *Conn) AddMachineAccountLowPriv(
+func (c *Tickler) AddMachineAccountLowPriv(
 	machinename string,
 	machinepass string,
 	domain string,
@@ -529,7 +328,7 @@ func (c *Conn) AddMachineAccountLowPriv(
 }
 
 // AddResourceBasedConstrainedDelegation will attempt to add RBCD permissions from delegatingComputer to targetmachinename
-func (c *Conn) AddResourceBasedConstrainedDelegation(
+func (c *Tickler) AddResourceBasedConstrainedDelegation(
 	targetmachinename string,
 	delegatingComputer ...string,
 ) error {
@@ -630,7 +429,7 @@ func (c *Conn) AddResourceBasedConstrainedDelegation(
 }
 
 // TODO Add filter elsewhere
-func (c *Conn) AddServicePrincipalName(
+func (c *Tickler) AddServicePrincipalName(
 	username string,
 	spn string,
 ) error {
@@ -668,7 +467,7 @@ func (c *Conn) AddServicePrincipalName(
 
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
 // SetEnableAccount to function
-func (c *Conn) AddUserAccount(
+func (c *Tickler) AddUserAccount(
 	username string,
 	principalname string,
 ) error {
@@ -702,7 +501,7 @@ func (c *Conn) AddUserAccount(
 }
 
 // AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
-func (c *Conn) AddUnconstrainedDelegation(username string) error {
+func (c *Tickler) AddUnconstrainedDelegation(username string) error {
 	// THIS WORKS AGAIN!
 	// Machine accounts require $ you dummy.
 	// UAC output is a bit mask which can be deciphered here: https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/useraccountcontrol-manipulate-account-properties
@@ -741,7 +540,7 @@ func (c *Conn) AddUnconstrainedDelegation(username string) error {
 }
 
 // Close closes the LDAP connection
-func (c *Conn) Close() error {
+func (c *Tickler) Close() error {
 	if c.gssClient != nil {
 		c.gssClient.Close()
 	}
@@ -831,7 +630,7 @@ func decodeSID(sidBytes []byte) (string, error) {
 
 // DeleteObject will attempt to delete the object specified, currently supports users and computers
 // REDO THIS, change to deletemachine and deleteuser, deletegpo?
-func (c *Conn) DeleteObject(
+func (c *Tickler) DeleteObject(
 	objectname string,
 	objecttype string,
 ) error {
@@ -850,7 +649,7 @@ func (c *Conn) DeleteObject(
 }
 
 // FindUserByDescription will search the directory for a specified query description
-func (c *Conn) FindUserByDescription(querydescription string) (Results, error) {
+func (c *Tickler) FindUserByDescription(querydescription string) (Results, error) {
 	filter := "(&(objectCategory=*)(description=" + querydescription + "))"
 	attributes := []string{"samaccountname", "description"}
 	searchscope := 2
@@ -859,7 +658,7 @@ func (c *Conn) FindUserByDescription(querydescription string) (Results, error) {
 }
 
 // FindUserByName will search the directory for a specified username
-func (c *Conn) FindUserByName(
+func (c *Tickler) FindUserByName(
 	objectquery string,
 	searchscope int,
 ) (Results, error) {
@@ -1086,7 +885,7 @@ func dnsrpcnameToString(b []byte) (string, error) {
 	return data, nil
 }
 
-func (c *Conn) getAllResults(
+func (c *Tickler) getAllResults(
 	searchscope int,
 	filter string,
 	attributes []string,
@@ -1131,7 +930,7 @@ func (c *Conn) getAllResults(
 }
 
 // Get the DN of a specific user
-func (c *Conn) getUserDN(username string) (string, error) {
+func (c *Tickler) getUserDN(username string) (string, error) {
 	filter := fmt.Sprintf(
 		"(&(objectClass=person)(sAMAccountName=%s))",
 		username,
@@ -1157,7 +956,7 @@ func (c *Conn) getUserDN(username string) (string, error) {
 }
 
 // GetWhoAmI will query the LDAP server for who we currently are authenticated as
-func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
+func (c *Tickler) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 	result, err := c.lconn.WhoAmI(nil)
 	if err != nil {
 		return nil, err
@@ -1166,7 +965,7 @@ func (c *Conn) GetWhoAmI() (*ldap.WhoAmIResult, error) {
 	return result, err
 }
 
-func (c *Conn) ldapSearch(
+func (c *Tickler) ldapSearch(
 	basedn string,
 	searchscope int,
 	filter string,
@@ -1220,7 +1019,7 @@ func (c *Conn) ldapSearch(
 }
 
 // LDAPSearch will search the directory by a supplied searchscope, filter and attributes
-func (c *Conn) LDAPSearch(
+func (c *Tickler) LDAPSearch(
 	searchscope int,
 	filter string,
 	attributes []string,
@@ -1236,7 +1035,7 @@ func (c *Conn) LDAPSearch(
 }
 
 // ListCAs will search the directory for all Cert Publishers or CAs in the domain
-func (c *Conn) ListCAs() (Results, error) {
+func (c *Tickler) ListCAs() (Results, error) {
 	filter := "(&(samaccountname=Cert Publishers)(member=*) "
 	attributes := []string{"member"}
 	searchscope := 2
@@ -1245,7 +1044,7 @@ func (c *Conn) ListCAs() (Results, error) {
 }
 
 // ListConstrainedDelegation will search the directory for objects configured for Unconstrained Delegation
-func (c *Conn) ListConstrainedDelegation() (Results, error) {
+func (c *Tickler) ListConstrainedDelegation() (Results, error) {
 	filter := "(&(objectClass=User)(msDS-AllowedToDelegateTo=*))"
 	attributes := []string{
 		"samaccountname",
@@ -1257,7 +1056,7 @@ func (c *Conn) ListConstrainedDelegation() (Results, error) {
 }
 
 // ListComputers will search the directory for all computer/machine account objects
-func (c *Conn) ListComputers() (Results, error) {
+func (c *Tickler) ListComputers() (Results, error) {
 	filter := "(&(objectClass=computer)(!(objectClass=msDS-GroupManagedServiceAccount)))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1266,7 +1065,7 @@ func (c *Conn) ListComputers() (Results, error) {
 }
 
 // ListDCs will search the directory for all Domain Controllers
-func (c *Conn) ListDCs() (Results, error) {
+func (c *Tickler) ListDCs() (Results, error) {
 	filter := "(&(objectCategory=Computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1275,7 +1074,7 @@ func (c *Conn) ListDCs() (Results, error) {
 }
 
 // ListDNS will search the directory for all DNS records
-func (c *Conn) ListDNS() (Results, error) {
+func (c *Tickler) ListDNS() (Results, error) {
 	filter := "(&(objectClass=dnsNode)(dnsRecord=*))"
 	attributes := []string{"name", "dnsRecord", "dnsHostName"}
 	searchscope := 2
@@ -1286,7 +1085,7 @@ func (c *Conn) ListDNS() (Results, error) {
 // AddDNSARecord adds a DNS A record to the Active Directory-integrated DNS zone
 // hostname: the DNS name to add (e.g., "attacker" for attacker.domain.com)
 // ipAddress: the IPv4 address to associate with the hostname
-func (c *Conn) AddDNSARecord(hostname string, ipAddress string) error {
+func (c *Tickler) AddDNSARecord(hostname string, ipAddress string) error {
 	// Derive zone from baseDN
 	zone := baseDNToZone(c.baseDN)
 
@@ -1345,7 +1144,7 @@ func (c *Conn) AddDNSARecord(hostname string, ipAddress string) error {
 }
 
 // ListFSMORoles will search the directory for all FSMO role holders
-func (c *Conn) ListFSMORoles() (Results, error) {
+func (c *Tickler) ListFSMORoles() (Results, error) {
 	filter := "(fsmoroleOwner=*)"
 	attributes := []string{"distinguishedName", "fsmoroleOwner"}
 	searchscope := 2
@@ -1363,7 +1162,7 @@ type LAPSPassword struct {
 // ListLAPS will search for LAPS passwords on computer objects
 // Supports both Legacy LAPS (ms-Mcs-AdmPwd) and Windows LAPS (msLAPS-Password, msLAPS-EncryptedPassword)
 // FIX THIS, doesnt follow the standard
-func (c *Conn) ListLAPS() error {
+func (c *Tickler) ListLAPS() error {
 	searchscope := 2
 
 	// Search for all computers with any LAPS attribute present
@@ -1549,7 +1348,7 @@ func parseJSON(data string, v *LAPSPassword) error {
 }
 
 // ListGMSAaccounts will search the directory for all Group Managed Service Accounts and display the credential if you have p
-func (c *Conn) ListGMSAaccounts() (Results, error) {
+func (c *Tickler) ListGMSAaccounts() (Results, error) {
 	filter := "(&(objectClass=msDS-GroupManagedServiceAccount)(samaccountname=*))"
 	attributes := []string{
 		"samaccountname",
@@ -1563,7 +1362,7 @@ func (c *Conn) ListGMSAaccounts() (Results, error) {
 }
 
 // ListGroups will search the directory for all Groups
-func (c *Conn) ListGroups() (Results, error) {
+func (c *Tickler) ListGroups() (Results, error) {
 	filter := "(objectCategory=group)"
 	attributes := []string{"sAMAccountName"}
 	searchscope := 2
@@ -1572,7 +1371,7 @@ func (c *Conn) ListGroups() (Results, error) {
 }
 
 // ListGroupswithMembers will search the directory for all Groups and their members
-func (c *Conn) ListGroupswithMembers() (Results, error) {
+func (c *Tickler) ListGroupswithMembers() (Results, error) {
 	filter := "(&(objectCategory=group)(samaccountname=*)(member=*))"
 	attributes := []string{"member"}
 	searchscope := 2
@@ -1581,7 +1380,7 @@ func (c *Conn) ListGroupswithMembers() (Results, error) {
 }
 
 // ListKerberoastable will search the directory for all Kerberoastable users
-func (c *Conn) ListKerberoastable() (Results, error) {
+func (c *Tickler) ListKerberoastable() (Results, error) {
 	filter := "(&(objectClass=User)(serviceprincipalname=*)(samaccountname=*))"
 	attributes := []string{"samaccountname", "serviceprincipalname"}
 	searchscope := 2
@@ -1590,7 +1389,7 @@ func (c *Conn) ListKerberoastable() (Results, error) {
 }
 
 // ListMachineAccountQuota will identify the number of machine accounts users are allowed to add to the domain
-func (c *Conn) ListMachineAccountQuota() (Results, error) {
+func (c *Tickler) ListMachineAccountQuota() (Results, error) {
 	filter := "(objectClass=*)"
 	attributes := []string{"ms-DS-MachineAccountQuota"}
 	searchscope := 0
@@ -1599,7 +1398,7 @@ func (c *Conn) ListMachineAccountQuota() (Results, error) {
 }
 
 // ListMachineCreationDACL will identify the DACL on the Computers container
-func (c *Conn) ListMachineCreationDACL() (Results, error) {
+func (c *Tickler) ListMachineCreationDACL() (Results, error) {
 	filter := "(objectClass=domainDNS)"
 	attributes := []string{"nTSecurityDescriptor"}
 	searchscope := 2
@@ -1608,7 +1407,7 @@ func (c *Conn) ListMachineCreationDACL() (Results, error) {
 }
 
 // ListNoPassword will identify any users who aren't required to have a password
-func (c *Conn) ListNoPassword() (Results, error) {
+func (c *Tickler) ListNoPassword() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=32))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1617,7 +1416,7 @@ func (c *Conn) ListNoPassword() (Results, error) {
 }
 
 // ListPasswordChangeNextLogin will identify any users who are required to change their password at next login
-func (c *Conn) ListPasswordChangeNextLogin() (Results, error) {
+func (c *Tickler) ListPasswordChangeNextLogin() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(pwdLastSet=0)(!(useraccountcontrol:1.2.840.113556.1.4.803:=2)))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1626,7 +1425,7 @@ func (c *Conn) ListPasswordChangeNextLogin() (Results, error) {
 }
 
 // ListPasswordDontExpire will identify any users who have a password that is not required to be changed after a specific amount of time
-func (c *Conn) ListPasswordDontExpire() (Results, error) {
+func (c *Tickler) ListPasswordDontExpire() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=65536))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1635,7 +1434,7 @@ func (c *Conn) ListPasswordDontExpire() (Results, error) {
 }
 
 // ListPreAuthDisabled will identify any accounts where preauthentication is disabled
-func (c *Conn) ListPreAuthDisabled() (Results, error) {
+func (c *Tickler) ListPreAuthDisabled() (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=4194304))"
 	attributes := []string{"samaccountname"}
 	searchscope := 2
@@ -1644,7 +1443,7 @@ func (c *Conn) ListPreAuthDisabled() (Results, error) {
 }
 
 // ListProtectedUsers will identify any accounts in the Protected Users group
-func (c *Conn) ListProtectedUsers() (Results, error) {
+func (c *Tickler) ListProtectedUsers() (Results, error) {
 	filter := "(&(samaccountname=Protected Users)(member=*))"
 	attributes := []string{"member"}
 	searchscope := 2
@@ -1653,7 +1452,7 @@ func (c *Conn) ListProtectedUsers() (Results, error) {
 }
 
 // ListRBCD will identify all objects configured for RBCD
-func (c *Conn) ListRBCD() (Results, error) {
+func (c *Tickler) ListRBCD() (Results, error) {
 
 	filter := "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)"
 	attributes := []string{
@@ -1667,7 +1466,7 @@ func (c *Conn) ListRBCD() (Results, error) {
 }
 
 // ListSchema will list the schema of the directory
-func (c *Conn) ListSchema() (Results, error) {
+func (c *Tickler) ListSchema() (Results, error) {
 	filter := "(objectClass=*)"
 	attributes := []string{}
 	searchscope := 0
@@ -1677,7 +1476,7 @@ func (c *Conn) ListSchema() (Results, error) {
 
 // ListShadowCredentials will identify any accounts configured with Shadow Credentials
 // and parse the msDS-KeyCredentialLink blob to display detailed information
-func (c *Conn) ListShadowCredentials() error {
+func (c *Tickler) ListShadowCredentials() error {
 	filter := "(msDS-KeyCredentialLink=*)"
 	attributes := []string{"samaccountname", "msDS-KeyCredentialLink"}
 	searchscope := 2
@@ -1784,7 +1583,7 @@ func extractDNBinaryBlob(dnBinary string) ([]byte, error) {
 }
 
 // ListUnconstrainedDelegation will identify any accounts configured for Unconstrained Delegation
-func (c *Conn) ListUnconstrainedDelegation() (Results, error) {
+func (c *Tickler) ListUnconstrainedDelegation() (Results, error) {
 	// It is doing the bitmasking for us, must use decimal value. Bitmask is 80000
 	filter := "(userAccountControl:1.2.840.113556.1.4.803:=524288)"
 	attributes := []string{"samaccountname", "useraccountcontrol"}
@@ -1794,7 +1593,7 @@ func (c *Conn) ListUnconstrainedDelegation() (Results, error) {
 }
 
 // ListUsers will identify all user objects. This may be overridden with multiple attributes changing the functionality.
-func (c *Conn) ListUsers(attributes ...string) (Results, error) {
+func (c *Tickler) ListUsers(attributes ...string) (Results, error) {
 	filter := "(&(objectCategory=person)(objectClass=user))"
 
 	if len(attributes) == 0 {
@@ -1807,7 +1606,7 @@ func (c *Conn) ListUsers(attributes ...string) (Results, error) {
 }
 
 // ListUserLoginScripts lists all scripts configured for user accounts, does not include GPO
-func (c *Conn) ListLoginScripts() (Results, error) {
+func (c *Tickler) ListLoginScripts() (Results, error) {
 	filter := "(scriptPath=*)"
 	attributes := []string{
 		"sAMAccountName",
@@ -1820,7 +1619,7 @@ func (c *Conn) ListLoginScripts() (Results, error) {
 }
 
 // RemoveConstrainedDelegation modifies msds-allowedtodelegateto to remove configuration of specific spns or all of them
-func (c *Conn) RemoveConstrainedDelegation(
+func (c *Tickler) RemoveConstrainedDelegation(
 	username string,
 	spn string,
 ) error {
@@ -1864,7 +1663,7 @@ func (c *Conn) RemoveConstrainedDelegation(
 }
 
 // RemoveLoginScript removes login script from given user
-func (c *Conn) RemoveLoginScript(username string) error {
+func (c *Tickler) RemoveLoginScript(username string) error {
 	// First, get the user's DN
 	userDN, err := c.getUserDN(username)
 	if err != nil {
@@ -1880,7 +1679,7 @@ func (c *Conn) RemoveLoginScript(username string) error {
 	return c.lconn.Modify(modifyReq)
 }
 
-func (c *Conn) RemoveResourceBasedConstrainedDelegation(
+func (c *Tickler) RemoveResourceBasedConstrainedDelegation(
 	targetmachinename string,
 ) error {
 	filter := "(samaccountname=" + targetmachinename + ")"
@@ -1899,7 +1698,7 @@ func (c *Conn) RemoveResourceBasedConstrainedDelegation(
 	return c.lconn.Modify(enableReq)
 }
 
-func (c *Conn) RemoveSPNs(username string, spn string) error {
+func (c *Tickler) RemoveSPNs(username string, spn string) error {
 	var spnValues string
 	filter := "(samaccountname=" + username + ")"
 	attributes := []string{"servicePrincipalName"}
@@ -1942,7 +1741,7 @@ func (c *Conn) RemoveSPNs(username string, spn string) error {
 }
 
 // RemoveUnconstrainedDelegation will modify the useraccountcontrol field to disable unconstrained delegation
-func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
+func (c *Tickler) RemoveUnconstrainedDelegation(username string) error {
 	// Working again.
 	var err error
 	var results Results
@@ -1978,7 +1777,7 @@ func (c *Conn) RemoveUnconstrainedDelegation(username string) error {
 }
 
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account
-func (c *Conn) SetDisableMachineAccount(username string) error {
+func (c *Tickler) SetDisableMachineAccount(username string) error {
 	var err error
 	var results Results
 	var uacstr string
@@ -2016,7 +1815,7 @@ func (c *Conn) SetDisableMachineAccount(username string) error {
 }
 
 // SetEnableMachineAccount will modify the userAccountControl attribute to enable a machine account
-func (c *Conn) SetEnableMachineAccount(username string) error {
+func (c *Tickler) SetEnableMachineAccount(username string) error {
 	var err error
 	var results Results
 	var uacstr string
@@ -2054,7 +1853,7 @@ func (c *Conn) SetEnableMachineAccount(username string) error {
 }
 
 // SetDisableUserAccount will modify the userAccountControl attribute to disable a user account
-func (c *Conn) SetDisableUserAccount(username string) error {
+func (c *Tickler) SetDisableUserAccount(username string) error {
 	var err error
 	var results Results
 	var uacstr string
@@ -2089,7 +1888,7 @@ func (c *Conn) SetDisableUserAccount(username string) error {
 }
 
 // SetEnableUserAccount will modify the userAccountControl attribute to enable a user account
-func (c *Conn) SetEnableUserAccount(username string) error {
+func (c *Tickler) SetEnableUserAccount(username string) error {
 	var err error
 	var results Results
 	var uacstr string
@@ -2124,7 +1923,7 @@ func (c *Conn) SetEnableUserAccount(username string) error {
 }
 
 // SetLoginScript
-func (c *Conn) SetLoginScript(
+func (c *Tickler) SetLoginScript(
 	username string,
 	scriptname string,
 ) error {
@@ -2144,7 +1943,7 @@ func (c *Conn) SetLoginScript(
 }
 
 // SetUserPassword will set a user account's password
-func (c *Conn) SetUserPassword(
+func (c *Tickler) SetUserPassword(
 	username string,
 	userpass string,
 ) error {
@@ -2160,7 +1959,7 @@ func (c *Conn) SetUserPassword(
 }
 
 // RemoveShadowCredentials deletes all msDS-KeyCredentialLink entries from the specified user
-func (c *Conn) RemoveShadowCredentials(username string) error {
+func (c *Tickler) RemoveShadowCredentials(username string) error {
 	userDN, err := c.getUserDN(username)
 	if err != nil {
 		return err
@@ -2186,7 +1985,7 @@ func (c *Conn) RemoveShadowCredentials(username string) error {
 
 // AddShadowCredentialWithPFX adds a shadow credential and generates a PFX file for use with gettgtpkinit.py
 // Returns: PFX filename, PFX password, credential ID, error
-func (c *Conn) AddShadowCredentialWithPFX(
+func (c *Tickler) AddShadowCredentialWithPFX(
 	username string,
 	outputPath string,
 ) (pfxFilename string, pfxPassword string, credentialID string, err error) {

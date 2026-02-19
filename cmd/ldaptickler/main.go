@@ -25,7 +25,7 @@ const (
 )
 */
 type action struct {
-	call    func(*ldaptickler.Conn, ...string) error
+	call    func(*ldaptickler.Tickler, ...string) error
 	numargs int
 	usage   string
 }
@@ -571,7 +571,7 @@ func main() {
 	}
 	// add flag dbag
 	// ldaptickler.LDAPDebug = false
-	var c *ldaptickler.Conn = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
+	var c *ldaptickler.Tickler = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
 	if flags.proxy != "" {
 		c.SetProxy(flags.proxy)
 	}
@@ -627,7 +627,7 @@ func main() {
 
 }
 
-func addloginscript(c *ldaptickler.Conn, args ...string) error {
+func addloginscript(c *ldaptickler.Tickler, args ...string) error {
 	username := args[0]
 	loginscript := args[1]
 
@@ -645,7 +645,7 @@ func addloginscript(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func addmachine(c *ldaptickler.Conn, args ...string) error {
+func addmachine(c *ldaptickler.Tickler, args ...string) error {
 	machinename := args[0]
 	machinepass := args[1]
 	// machinename, machinepass, _ := strings.Cut(flags.addmachine, " ")
@@ -663,7 +663,7 @@ func addmachine(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func addmachinelp(c *ldaptickler.Conn, args ...string) error {
+func addmachinelp(c *ldaptickler.Tickler, args ...string) error {
 	machinename := args[0]
 	machinepass := args[1]
 	domain := args[2]
@@ -686,7 +686,7 @@ func addmachinelp(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
+func addshadowcredential(c *ldaptickler.Tickler, args ...string) error {
 	username := args[0]
 	outputDir := "."
 
@@ -754,7 +754,7 @@ func addshadowcredential(c *ldaptickler.Conn, args ...string) error {
 }
 
 func disableshadowcredentials(
-	c *ldaptickler.Conn,
+	c *ldaptickler.Tickler,
 	args ...string,
 ) error {
 	username := args[0]
@@ -775,7 +775,7 @@ func disableshadowcredentials(
 	return nil
 }
 
-func adddns(c *ldaptickler.Conn, args ...string) error {
+func adddns(c *ldaptickler.Tickler, args ...string) error {
 	hostname := args[0]
 	ipaddress := args[1]
 	fmt.Printf(
@@ -796,7 +796,7 @@ func adddns(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func addspn(c *ldaptickler.Conn, args ...string) error {
+func addspn(c *ldaptickler.Tickler, args ...string) error {
 	machinename := args[0]
 	spn := args[1]
 	fmt.Printf(
@@ -817,7 +817,7 @@ func addspn(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func adduser(c *ldaptickler.Conn, args ...string) error {
+func adduser(c *ldaptickler.Tickler, args ...string) error {
 	username := args[0]
 	principalname := args[1]
 	userpasswd := args[2]
@@ -855,7 +855,7 @@ func adduser(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func certpublishers(c *ldaptickler.Conn, args ...string) error {
+func certpublishers(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all Certificate Publishers in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -869,7 +869,7 @@ func certpublishers(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func changepassword(c *ldaptickler.Conn, args ...string) error {
+func changepassword(c *ldaptickler.Tickler, args ...string) error {
 	username := args[0]
 	userpasswd := args[1]
 
@@ -890,7 +890,7 @@ func changepassword(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func collectbh(c *ldaptickler.Conn, args ...string) error {
+func collectbh(c *ldaptickler.Tickler, args ...string) error {
 	var out string
 	if len(args) > 0 {
 		out = args[0]
@@ -933,7 +933,7 @@ func collectbh(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func computers(c *ldaptickler.Conn, args ...string) error {
+func computers(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all computers in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -948,7 +948,7 @@ func computers(c *ldaptickler.Conn, args ...string) error {
 }
 
 func constraineddelegation(
-	c *ldaptickler.Conn,
+	c *ldaptickler.Tickler,
 	args ...string,
 ) error {
 	fmt.Printf(
@@ -964,7 +964,7 @@ func constraineddelegation(
 	return nil
 }
 
-func deleteobject(c *ldaptickler.Conn, args ...string) error {
+func deleteobject(c *ldaptickler.Tickler, args ...string) error {
 	objectname := cli.Arg(1)
 	objecttype := cli.Arg(2)
 
@@ -987,7 +987,7 @@ func deleteobject(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disableloginscript(c *ldaptickler.Conn, args ...string) error {
+func disableloginscript(c *ldaptickler.Tickler, args ...string) error {
 	username := args[0]
 
 	err := c.RemoveLoginScript(username)
@@ -1000,7 +1000,7 @@ func disableloginscript(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disablemachine(c *ldaptickler.Conn, args ...string) error {
+func disablemachine(c *ldaptickler.Tickler, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetDisableMachineAccount(objectname)
 	if err != nil {
@@ -1011,7 +1011,7 @@ func disablemachine(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disablecd(c *ldaptickler.Conn, args ...string) error {
+func disablecd(c *ldaptickler.Tickler, args ...string) error {
 	samaccountname := args[0]
 	spn := args[1]
 	fmt.Printf(
@@ -1027,7 +1027,7 @@ func disablecd(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disablerbcd(c *ldaptickler.Conn, args ...string) error {
+func disablerbcd(c *ldaptickler.Tickler, args ...string) error {
 	samaccountname := args[0]
 	fmt.Printf("[+] Removing RBCD from %s\n", samaccountname)
 	err := c.RemoveResourceBasedConstrainedDelegation(samaccountname)
@@ -1038,7 +1038,7 @@ func disablerbcd(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disableud(c *ldaptickler.Conn, args ...string) error {
+func disableud(c *ldaptickler.Tickler, args ...string) error {
 	samaccountname := args[0]
 	fmt.Printf(
 		"[+] Removing unconstrained delegation from %s\n",
@@ -1052,7 +1052,7 @@ func disableud(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disablespn(c *ldaptickler.Conn, args ...string) error {
+func disablespn(c *ldaptickler.Tickler, args ...string) error {
 	samaccountname := args[0]
 
 	spn := args[1]
@@ -1076,7 +1076,7 @@ func disablespn(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func disableuser(c *ldaptickler.Conn, args ...string) error {
+func disableuser(c *ldaptickler.Tickler, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetDisableUserAccount(objectname)
 	if err != nil {
@@ -1087,7 +1087,7 @@ func disableuser(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func dnsrecords(c *ldaptickler.Conn, args ...string) error {
+func dnsrecords(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all DNS records in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1101,7 +1101,7 @@ func dnsrecords(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func domaincontrollers(c *ldaptickler.Conn, args ...string) error {
+func domaincontrollers(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all Domain Controllers in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1115,7 +1115,7 @@ func domaincontrollers(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func enablemachine(c *ldaptickler.Conn, args ...string) error {
+func enablemachine(c *ldaptickler.Tickler, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetEnableMachineAccount(objectname)
 	if err != nil {
@@ -1126,7 +1126,7 @@ func enablemachine(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func enablecd(c *ldaptickler.Conn, args ...string) error {
+func enablecd(c *ldaptickler.Tickler, args ...string) error {
 	samaccountname := args[0]
 	spn := args[1]
 	fmt.Printf(
@@ -1142,7 +1142,7 @@ func enablecd(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func enableud(c *ldaptickler.Conn, args ...string) error {
+func enableud(c *ldaptickler.Tickler, args ...string) error {
 	samaccountname := args[0]
 	fmt.Printf(
 		"[+] Adding unconstrained delegation to %s\n",
@@ -1156,7 +1156,7 @@ func enableud(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func enablerbcd(c *ldaptickler.Conn, args ...string) error {
+func enablerbcd(c *ldaptickler.Tickler, args ...string) error {
 	samaccountname := args[0]
 	delegatingcomputer := args[1]
 	fmt.Printf(
@@ -1175,7 +1175,7 @@ func enablerbcd(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func enableuser(c *ldaptickler.Conn, args ...string) error {
+func enableuser(c *ldaptickler.Tickler, args ...string) error {
 	objectname := cli.Arg(1)
 	err := c.SetEnableUserAccount(objectname)
 	if err != nil {
@@ -1186,7 +1186,7 @@ func enableuser(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func findadcs(c *ldaptickler.Conn, args ...string) error {
+func findadcs(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf("[+] Enumerating AD CS Certificate Templates and Enterprise CAs\n")
 	fmt.Printf("[+] Base DN: %s\n\n", flags.basedn)
 
@@ -1381,7 +1381,7 @@ func expandlist(in []string) []string {
 	return out
 }
 
-func filter(c *ldaptickler.Conn, args ...string) error {
+func filter(c *ldaptickler.Tickler, args ...string) error {
 	filter := cli.Arg(1)
 	fmt.Printf(
 		"[+] Searching with specified filter: %s in LDAP with baseDN %s\n",
@@ -1400,7 +1400,7 @@ func filter(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func fsmoroles(c *ldaptickler.Conn, args ...string) error {
+func fsmoroles(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all FSMO role holders in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1414,7 +1414,7 @@ func fsmoroles(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
+func gmsaaccounts(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all Group Managed Service Accounts in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1428,7 +1428,7 @@ func gmsaaccounts(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func groups(c *ldaptickler.Conn, args ...string) error {
+func groups(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all groups in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1442,7 +1442,7 @@ func groups(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func groupswithmembers(c *ldaptickler.Conn, args ...string) error {
+func groupswithmembers(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all groups and their members in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1456,7 +1456,7 @@ func groupswithmembers(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func kerberoastable(c *ldaptickler.Conn, args ...string) error {
+func kerberoastable(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all Kerberoastable users in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1470,7 +1470,7 @@ func kerberoastable(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func laps(c *ldaptickler.Conn, args ...string) error {
+func laps(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all LAPS passwords in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1484,7 +1484,7 @@ func laps(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func machineaccountquota(c *ldaptickler.Conn, args ...string) error {
+func machineaccountquota(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for ms-DS-MachineAccountQuota in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1498,7 +1498,7 @@ func machineaccountquota(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func machinecreationdacl(c *ldaptickler.Conn, args ...string) error {
+func machinecreationdacl(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for ms-DS-MachineCreationRestrictedToDACL in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1512,7 +1512,7 @@ func machinecreationdacl(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func nopassword(c *ldaptickler.Conn, args ...string) error {
+func nopassword(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all users not required to have a password in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1526,7 +1526,7 @@ func nopassword(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func objectquery(c *ldaptickler.Conn, args ...string) error {
+func objectquery(c *ldaptickler.Tickler, args ...string) error {
 	objectname := cli.Arg(1)
 	fmt.Printf(
 		"[+] Searching for attributes of object %s in LDAP with baseDN %s\n",
@@ -1541,7 +1541,7 @@ func objectquery(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func passworddontexpire(c *ldaptickler.Conn, args ...string) error {
+func passworddontexpire(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all users all objects where the password doesn't expire in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1556,7 +1556,7 @@ func passworddontexpire(c *ldaptickler.Conn, args ...string) error {
 }
 
 func passwordchangenextlogin(
-	c *ldaptickler.Conn,
+	c *ldaptickler.Tickler,
 	args ...string,
 ) error {
 	fmt.Printf(
@@ -1572,7 +1572,7 @@ func passwordchangenextlogin(
 	return nil
 }
 
-func protectedusers(c *ldaptickler.Conn, args ...string) error {
+func protectedusers(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all users in Protected Users group in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1586,7 +1586,7 @@ func protectedusers(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func preauthdisabled(c *ldaptickler.Conn, args ...string) error {
+func preauthdisabled(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all Kerberos Pre-auth Disabled users in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1600,7 +1600,7 @@ func preauthdisabled(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func querydescription(c *ldaptickler.Conn, args ...string) error {
+func querydescription(c *ldaptickler.Tickler, args ...string) error {
 	querydescription := cli.Arg(1)
 	fmt.Printf(
 		"[+] Searching all objects for a description of %s in LDAP with baseDN %s\n",
@@ -1615,7 +1615,7 @@ func querydescription(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func rbcd(c *ldaptickler.Conn, args ...string) error {
+func rbcd(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all Resource Based Constrained Delegation objects in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1629,7 +1629,7 @@ func rbcd(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func schema(c *ldaptickler.Conn, args ...string) error {
+func schema(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Listing schema for LDAP database with baseDN %s\n",
 		flags.basedn,
@@ -1643,7 +1643,7 @@ func schema(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func shadowcredentials(c *ldaptickler.Conn, args ...string) error {
+func shadowcredentials(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all Shadow Credentials in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1658,7 +1658,7 @@ func shadowcredentials(c *ldaptickler.Conn, args ...string) error {
 }
 
 func unconstraineddelegation(
-	c *ldaptickler.Conn,
+	c *ldaptickler.Tickler,
 	args ...string,
 ) error {
 	fmt.Printf(
@@ -1674,7 +1674,7 @@ func unconstraineddelegation(
 	return nil
 }
 
-func users(c *ldaptickler.Conn, args ...string) error {
+func users(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all users in LDAP with baseDN %s\n",
 		flags.basedn,
@@ -1687,7 +1687,7 @@ func users(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func loginscripts(c *ldaptickler.Conn, args ...string) error {
+func loginscripts(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Searching for all login scripts with baseDN %s\n",
 		flags.basedn,
@@ -1701,7 +1701,7 @@ func loginscripts(c *ldaptickler.Conn, args ...string) error {
 	return nil
 }
 
-func whoami(c *ldaptickler.Conn, args ...string) error {
+func whoami(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
 		"[+] Querying the LDAP server for WhoAmI with baseDN %s\n",
 		flags.basedn,

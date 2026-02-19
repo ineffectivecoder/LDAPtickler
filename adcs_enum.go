@@ -39,7 +39,7 @@ var adcsCAAttrs = []string{
 }
 
 // ListADCSTemplates enumerates certificate templates with full security analysis
-func (c *Conn) ListADCSTemplates() ([]CertTemplate, error) {
+func (c *Tickler) ListADCSTemplates() ([]CertTemplate, error) {
 	pkiBaseDN := buildPKIConfigDN(c.baseDN)
 	filter := "(objectClass=pKICertificateTemplate)"
 
@@ -64,7 +64,7 @@ func (c *Conn) ListADCSTemplates() ([]CertTemplate, error) {
 }
 
 // ListEnterpriseCAs enumerates Enterprise CAs with permissions
-func (c *Conn) ListEnterpriseCAs() ([]EnterpriseCA, error) {
+func (c *Tickler) ListEnterpriseCAs() ([]EnterpriseCA, error) {
 	pkiBaseDN := buildPKIConfigDN(c.baseDN)
 	filter := "(objectClass=pKIEnrollmentService)"
 
@@ -89,7 +89,7 @@ func (c *Conn) ListEnterpriseCAs() ([]EnterpriseCA, error) {
 }
 
 // EnumerateADCS performs full ADCS enumeration
-func (c *Conn) EnumerateADCS() (*ADCSEnumResult, error) {
+func (c *Tickler) EnumerateADCS() (*ADCSEnumResult, error) {
 	result := &ADCSEnumResult{
 		DomainSID:  c.getDomainSID(c.baseDN),
 		DomainName: extractDomainFromDN(c.baseDN),
@@ -111,7 +111,7 @@ func (c *Conn) EnumerateADCS() (*ADCSEnumResult, error) {
 }
 
 // parseTemplateEntry parses LDAP entry into CertTemplate
-func (c *Conn) parseTemplateEntry(entry *ldapEntry) CertTemplate {
+func (c *Tickler) parseTemplateEntry(entry *ldapEntry) CertTemplate {
 	template := CertTemplate{
 		Name:        getAttrValue(entry, "cn"),
 		DisplayName: getAttrValue(entry, "displayName"),
@@ -190,7 +190,7 @@ func (c *Conn) parseTemplateEntry(entry *ldapEntry) CertTemplate {
 }
 
 // parseCAEntry parses LDAP entry into EnterpriseCA
-func (c *Conn) parseCAEntry(entry *ldapEntry) EnterpriseCA {
+func (c *Tickler) parseCAEntry(entry *ldapEntry) EnterpriseCA {
 	ca := EnterpriseCA{
 		Name:                 getAttrValue(entry, "cn"),
 		DN:                   getAttrValue(entry, "distinguishedName"),
@@ -208,7 +208,7 @@ func (c *Conn) parseCAEntry(entry *ldapEntry) EnterpriseCA {
 }
 
 // parseTemplateSecurityDescriptor extracts enrollment permissions and dangerous ACLs
-func (c *Conn) parseTemplateSecurityDescriptor(sdBytes []byte) ([]EnrollmentPermission, []ObjectPermission, string) {
+func (c *Tickler) parseTemplateSecurityDescriptor(sdBytes []byte) ([]EnrollmentPermission, []ObjectPermission, string) {
 	var enrollPerms []EnrollmentPermission
 	var objPerms []ObjectPermission
 	var ownerSID string
@@ -317,7 +317,7 @@ func (c *Conn) parseTemplateSecurityDescriptor(sdBytes []byte) ([]EnrollmentPerm
 }
 
 // parseCASecurityDescriptor extracts CA permissions for ESC7 detection
-func (c *Conn) parseCASecurityDescriptor(sdBytes []byte) []CAPermission {
+func (c *Tickler) parseCASecurityDescriptor(sdBytes []byte) []CAPermission {
 	var caPerms []CAPermission
 
 	sd, err := sddlparse.SDDLFromBinary(sdBytes)
@@ -375,7 +375,7 @@ func (c *Conn) parseCASecurityDescriptor(sdBytes []byte) []CAPermission {
 }
 
 // resolveSIDToPrincipal looks up a SID and returns name and type
-func (c *Conn) resolveSIDToPrincipal(sid string) (string, string) {
+func (c *Tickler) resolveSIDToPrincipal(sid string) (string, string) {
 	// Check well-known SIDs first
 	if name, ok := wellKnownSIDs[sid]; ok {
 		return name, "Group"
@@ -562,7 +562,7 @@ type ldapAttribute struct {
 }
 
 // ldapSearchWithSD performs LDAP search with security descriptor control
-func (c *Conn) ldapSearchWithSD(baseDN string, scope int, filter string, attrs []string) (*ldapSearchResult, error) {
+func (c *Tickler) ldapSearchWithSD(baseDN string, scope int, filter string, attrs []string) (*ldapSearchResult, error) {
 	// Request security descriptor with OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION
 	sdFlags := uint32(0x04 | 0x01) // OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION
 

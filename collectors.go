@@ -239,7 +239,7 @@ type BHMetadata struct {
 }
 
 // CollectSharpHound runs LDAP collectors and writes BloodHound-compatible JSON into a zip archive.
-func (c *Conn) CollectBloodHound(
+func (c *Tickler) CollectBloodHound(
 	collectors []string,
 	outputPath string,
 	baseDN string,
@@ -376,7 +376,7 @@ func addFileToZip(zw *zip.Writer, path string) error {
 
 // BloodHound-compatible collector implementations
 
-func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
+func (c *Tickler) collectUsersBloodHound(baseDN string) (any, error) {
 	// Get regular users
 	filter := "(objectCategory=person)"
 	attrs := []string{
@@ -575,7 +575,7 @@ func (c *Conn) collectUsersBloodHound(baseDN string) (any, error) {
 	}, nil
 }
 
-func (c *Conn) collectComputersBloodHound(
+func (c *Tickler) collectComputersBloodHound(
 	baseDN string,
 ) (any, error) {
 	filter := "(&(objectCategory=computer))"
@@ -789,7 +789,7 @@ func (c *Conn) collectComputersBloodHound(
 	}, nil
 }
 
-func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
+func (c *Tickler) collectGroupsBloodHound(baseDN string) (any, error) {
 	filter := "(objectCategory=group)"
 	attrs := []string{
 		// Identity attributes
@@ -934,7 +934,7 @@ func (c *Conn) collectGroupsBloodHound(baseDN string) (any, error) {
 	}, nil
 }
 
-func (c *Conn) collectDomainsBloodHound(baseDN string) (any, error) {
+func (c *Tickler) collectDomainsBloodHound(baseDN string) (any, error) {
 	// Match the domain object at the baseDN
 	// First try with scope 0 (base), then fall back to scope 2 (subtree) if needed
 	filter := "(objectClass=domain)"
@@ -1147,7 +1147,7 @@ func (c *Conn) collectDomainsBloodHound(baseDN string) (any, error) {
 	}, nil
 }
 
-func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
+func (c *Tickler) collectOUsBloodHound(baseDN string) (any, error) {
 	filter := "(objectClass=organizationalUnit)"
 	attrs := []string{
 		// Identity and basic info
@@ -1234,7 +1234,7 @@ func (c *Conn) collectOUsBloodHound(baseDN string) (any, error) {
 	}, nil
 }
 
-func (c *Conn) collectGPOsBloodHound(baseDN string) (any, error) {
+func (c *Tickler) collectGPOsBloodHound(baseDN string) (any, error) {
 	filter := "(objectClass=groupPolicyContainer)"
 	attrs := []string{
 		// Identity and naming
@@ -1302,7 +1302,7 @@ func (c *Conn) collectGPOsBloodHound(baseDN string) (any, error) {
 	}, nil
 }
 
-func (c *Conn) collectContainersBloodHound(
+func (c *Tickler) collectContainersBloodHound(
 	baseDN string,
 ) (any, error) {
 	// Collect all container objects from both domain and configuration partitions
@@ -1559,7 +1559,7 @@ func parseLDAPGeneralizedTime(timeStr string) int64 {
 }
 
 // getDomainSID retrieves the domain SID from the domain object
-func (c *Conn) getDomainSID(baseDN string) string {
+func (c *Tickler) getDomainSID(baseDN string) string {
 	filter := "(objectClass=domain)"
 	attrs := []string{"objectSid"}
 
@@ -1577,7 +1577,7 @@ func (c *Conn) getDomainSID(baseDN string) string {
 }
 
 // resolveSIDFromDN looks up the objectSid for a given DN
-func (c *Conn) resolveSIDFromDN(dn string) string {
+func (c *Tickler) resolveSIDFromDN(dn string) string {
 	if dn == "" {
 		return ""
 	}
@@ -1599,7 +1599,7 @@ func (c *Conn) resolveSIDFromDN(dn string) string {
 }
 
 // isGroup checks if a DN refers to a group object
-func (c *Conn) isGroup(dn string) bool {
+func (c *Tickler) isGroup(dn string) bool {
 	if dn == "" {
 		return false
 	}
@@ -1616,7 +1616,7 @@ func (c *Conn) isGroup(dn string) bool {
 }
 
 // collectDomainsForObject collects domain trusts for a given domain DN
-func (c *Conn) collectDomainsForObject(baseDN string) []string {
+func (c *Tickler) collectDomainsForObject(baseDN string) []string {
 	filter := "(objectClass=trustedDomain)"
 	attrs := []string{"cn", "objectSid"}
 
@@ -1662,7 +1662,7 @@ func buildPKIConfigDN(baseDN string) string {
 }
 
 // Helper function to find certificate template containers and Root CAs
-func (c *Conn) getCertTemplateContainerGUID(baseDN string) *string {
+func (c *Tickler) getCertTemplateContainerGUID(baseDN string) *string {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	containerDN := "CN=Certificate Templates," + pkiBaseDN
 	filter := "(objectClass=container)"
@@ -1680,7 +1680,7 @@ func (c *Conn) getCertTemplateContainerGUID(baseDN string) *string {
 	return nil
 }
 
-func (c *Conn) findRootCAForEnterprise(baseDN string) *string {
+func (c *Tickler) findRootCAForEnterprise(baseDN string) *string {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	filter := "(objectClass=certificationAuthority)"
 	attrs := []string{"objectGUID"}
@@ -1697,7 +1697,7 @@ func (c *Conn) findRootCAForEnterprise(baseDN string) *string {
 	return nil
 }
 
-func (c *Conn) getCertificationAuthoritiesContainerGUID(
+func (c *Tickler) getCertificationAuthoritiesContainerGUID(
 	baseDN string,
 ) *string {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
@@ -1717,7 +1717,7 @@ func (c *Conn) getCertificationAuthoritiesContainerGUID(
 	return nil
 }
 
-func (c *Conn) getPKIContainerGUID(baseDN string) *string {
+func (c *Tickler) getPKIContainerGUID(baseDN string) *string {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	filter := "(objectClass=container)"
 	attrs := []string{"objectGUID"}
@@ -1738,7 +1738,7 @@ func (c *Conn) getPKIContainerGUID(baseDN string) *string {
 // In AD, all templates published in the forest are available to all CAs, but specific
 // templates can be restricted. For now, we return all templates in the domain as all CAs
 // can theoretically issue them unless restricted via permissions.
-func (c *Conn) findCertTemplateGUIDsByCA(baseDN string) []string {
+func (c *Tickler) findCertTemplateGUIDsByCA(baseDN string) []string {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	filter := "(objectClass=pKICertificateTemplate)"
 	attrs := []string{"objectGUID"}
@@ -1760,7 +1760,7 @@ func (c *Conn) findCertTemplateGUIDsByCA(baseDN string) []string {
 }
 
 // getContainerGUIDByDN retrieves the objectGUID of a container by its DN
-func (c *Conn) getContainerGUIDByDN(dn string) string {
+func (c *Tickler) getContainerGUIDByDN(dn string) string {
 	attrs := []string{"objectGUID"}
 
 	result, err := c.ldapSearch(dn, 0, "(objectClass=*)", attrs)
@@ -1778,7 +1778,7 @@ func (c *Conn) getContainerGUIDByDN(dn string) string {
 }
 
 // findComputerByDNSName finds a computer GUID by matching its dNSHostName
-func (c *Conn) findComputerByDNSName(
+func (c *Tickler) findComputerByDNSName(
 	dnsHostname string,
 	baseDN string,
 ) *string {
@@ -1819,7 +1819,7 @@ func escapeFilterValue(value string) string {
 
 // ADCS Collectors - Active Directory Certificate Services collection
 
-func (c *Conn) collectCertTemplatesBloodHound(
+func (c *Tickler) collectCertTemplatesBloodHound(
 	baseDN string,
 ) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
@@ -1927,7 +1927,7 @@ func (c *Conn) collectCertTemplatesBloodHound(
 	}, nil
 }
 
-func (c *Conn) collectEnterpriseCAsBloodHound(
+func (c *Tickler) collectEnterpriseCAsBloodHound(
 	baseDN string,
 ) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
@@ -2046,7 +2046,7 @@ func (c *Conn) collectEnterpriseCAsBloodHound(
 	}, nil
 }
 
-func (c *Conn) collectAIACAsBloodHound(baseDN string) (any, error) {
+func (c *Tickler) collectAIACAsBloodHound(baseDN string) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	aiaContainerDN := "CN=AIA," + pkiBaseDN
 	attrs := []string{
@@ -2135,7 +2135,7 @@ func (c *Conn) collectAIACAsBloodHound(baseDN string) (any, error) {
 	}, nil
 }
 
-func (c *Conn) collectRootCAsBloodHound(baseDN string) (any, error) {
+func (c *Tickler) collectRootCAsBloodHound(baseDN string) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
 	// Search only in the Certification Authorities container to exclude NTAuthCertificates
 	rootCAsContainerDN := "CN=Certification Authorities," + pkiBaseDN
@@ -2218,7 +2218,7 @@ func (c *Conn) collectRootCAsBloodHound(baseDN string) (any, error) {
 	}, nil
 }
 
-func (c *Conn) collectNTAuthStoresBloodHound(
+func (c *Tickler) collectNTAuthStoresBloodHound(
 	baseDN string,
 ) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
@@ -2299,7 +2299,7 @@ func (c *Conn) collectNTAuthStoresBloodHound(
 	}, nil
 }
 
-func (c *Conn) collectIssuancePoliciesBloodHound(
+func (c *Tickler) collectIssuancePoliciesBloodHound(
 	baseDN string,
 ) (any, error) {
 	pkiBaseDN := buildPKIConfigDN(baseDN)
