@@ -565,11 +565,11 @@ func init() {
 }
 
 func main() {
+	var creds ldaptickler.Credentials
 	var proto string = "ldaps://"
 	if flags.insecure {
 		proto = "ldap://"
 	}
-	// add flag dbag
 	// ldaptickler.LDAPDebug = false
 	var c *ldaptickler.Tickler = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
 	if flags.proxy != "" {
@@ -580,40 +580,39 @@ func main() {
 	switch state.mode {
 	case ldaptickler.MethodBindAnonymous:
 		fmt.Printf("[+] Attempting anonymous bind to %s\n", flags.dc)
-		err = c.BindAnonymous(flags.username)
+		creds.Username = flags.username
 
 	case ldaptickler.MethodBindDomain:
 		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.dc)
-		err = c.BindDomain(
-			flags.domain,
-			flags.username,
-			state.password,
-		)
+		creds.Domain = flags.domain
+		creds.Username = flags.username
+		creds.Password = state.password
 
 	case ldaptickler.MethodBindDomainPTH:
 		fmt.Printf(
 			"[+] Attempting NTLM Pass The Hash bind to %s\n",
 			flags.dc,
 		)
-		err = c.BindDomainPTH(flags.domain, flags.username, flags.pth)
+		creds.Domain = flags.domain
+		creds.Username = flags.username
+		creds.Hash = flags.pth
 
 	case ldaptickler.MethodBindPassword:
 		fmt.Printf(
 			"[+] Attempting bind with credentials to %s\n",
 			flags.dc,
 		)
-		err = c.BindPassword(flags.username, state.password)
-
+		creds.Username = flags.username
+		creds.Password = state.password
 	case ldaptickler.MethodBindGSSAPI:
 		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", flags.dc)
-		err = c.BindGSSAPI(
-			flags.domain,
-			flags.username,
-			state.password,
-			"ldap/"+flags.dc,
-		)
+		creds.Domain = flags.domain
+		creds.Username = flags.username
+		creds.Password = state.password
+		creds.DC = flags.dc
 	}
 
+	err = c.Bind(state.mode, creds)
 	check(err)
 	defer c.Close()
 
@@ -1712,8 +1711,8 @@ func whoami(c *ldaptickler.Tickler, args ...string) error {
 		return err
 	}
 	fmt.Printf(
-		"[+] You are currently authenticated as %+v\n",
-		*result,
+		"[+] You are currently authenticated as %s\n",
+		result,
 	)
 
 	return nil

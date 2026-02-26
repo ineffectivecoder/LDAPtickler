@@ -13,7 +13,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net"
 	"os"
@@ -24,7 +23,6 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/go-ldap/ldap/v3/gssapi"
 	pkcs12 "software.sslmate.com/src/go-pkcs12"
 
 	// Todo replace below library, go-sddlparse is much better
@@ -137,21 +135,25 @@ type Credentials struct {
 }
 
 type Conn interface {
+	Add(dn string, attrs map[string][]string) error
 	Bind(method BindMethod, creds Credentials, skipVerify ...bool) error
 	Close() error
+	Delete(dn string) error
+	ModifyAdd(dn string, attr string, attrvals []string) error
+	ModifyDelete(dn string, attr string) error
+	ModifyReplace(dn string, attr string, attrvals []string) error
 	Query(baseDN string, scope int, filter string, attrs []string) (Results, error)
 	SetProxy(proxyURL string)
+	WhoAmI() (string, error)
 }
 
 // Tickler gives us a structure named lconn linked to *ldap.Conn
 type Tickler struct {
-	lconn      *ldap.Conn
-	gssClient  *gssapi.Client
 	baseDN     string
+	conn       Conn
 	skipVerify bool
 	url        string
 	username   string
-	proxyURL   string
 }
 
 // New TODO great note Chris
@@ -160,34 +162,22 @@ func New(url string, basedn string, skipVerify ...bool) *Tickler {
 	if len(skipVerify) > 0 {
 		connection.skipVerify = skipVerify[0]
 	}
-
+	switch {
+	case strings.HasPrefix(url, "ldap"):
+		connection.conn = &LDAPConn{}
+	case strings.HasPrefix(url, "http"):
+		//connection.conn = &ADWSConn{}
+	}
 	return connection
+}
+
+func (c *Tickler) Bind(method BindMethod, creds Credentials) error {
+	return nil
 }
 
 // SetProxy configures SOCKS5 proxy for LDAP connection
 func (c *Tickler) SetProxy(proxyURL string) {
-	//c.proxyURL = proxyURL FIXME
-}
-
-func (c *Tickler) createUnicodePasswordRequest(
-	username string,
-	password string,
-) (*ldap.ModifyRequest, error) {
-	passwordSet := ldap.NewModifyRequest(
-		"CN="+username+",CN=Users,"+c.baseDN,
-		nil,
-	)
-	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-
-	newunicodeEncoded, err := utf16.NewEncoder().
-		String(fmt.Sprintf("%q", password))
-	if err != nil {
-		return nil, err
-	}
-
-	passwordSet.Replace("unicodePwd", []string{newunicodeEncoded})
-
-	return passwordSet, nil
+	c.conn.SetProxy(proxyURL)
 }
 
 func encodePassword(password string) string {
@@ -231,16 +221,8 @@ func (c *Tickler) AddConstrainedDelegation(
 	delegationres = strings.TrimSpace(
 		fmt.Sprintf("%s %s", delegationres, spn),
 	)
-	enableReq := ldap.NewModifyRequest(
-		results[0].GetDN(),
-		[]ldap.Control{},
-	)
-	enableReq.Replace(
-		"msDS-AllowedToDelegateTo",
-		[]string{delegationres},
-	)
 
-	return c.lconn.Modify(enableReq)
+	return c.conn.ModifyReplace(results[0].GetDN(), "msDS-AllowedToDelegateTo", []string{delegationres})
 }
 
 // AddMachineAccount will attempt to add a machine account for the supplied machinename and machinepass
@@ -248,31 +230,21 @@ func (c *Tickler) AddMachineAccount(
 	machinename string,
 	machinepass string,
 ) error {
-	addReq := ldap.NewAddRequest(
-		"CN="+machinename+",CN=Computers,"+c.baseDN,
-		[]ldap.Control{},
-	)
-	addReq.Attribute(
-		"objectClass",
-		[]string{
+	var attrs map[string][]string = map[string][]string{
+		"cn": []string{machinename},
+		"objectClass": {
 			"top",
 			"person",
 			"organizationalPerson",
 			"user",
 			"computer",
 		},
-	)
-	addReq.Attribute("cn", []string{machinename})
-	addReq.Attribute("sAMAccountName", []string{machinename + "$"})
-	addReq.Attribute(
-		"userAccountControl",
-		[]string{"4096"},
-	) // WORKSTATION_TRUST_ACCOUNT
+		"sAMAccountName":     []string{machinename + "$"},
+		"unicodePwd":         []string{encodePassword(machinepass)},
+		"userAccountControl": []string{"4096"}, // WORKSTATION_TRUST_ACCOUNT
+	}
 
-	encodedPassword := encodePassword(machinepass)
-	addReq.Attribute("unicodePWD", []string{encodedPassword})
-
-	return c.lconn.Add(addReq)
+	return c.conn.Add("CN="+machinename+",CN=Computers,"+c.baseDN, attrs)
 }
 
 // AddMachineAccountLowPriv will attempt to add a machine account with the supplied details as a low privilege user
@@ -297,34 +269,27 @@ func (c *Tickler) AddMachineAccountLowPriv(
 	if err != nil {
 		return err
 	}
-
-	dn := fmt.Sprintf("CN=%s,CN=Computers,%s", cn, c.baseDN)
-	addReq := ldap.NewAddRequest(dn, nil)
-	// Required object classes for low-priv creation
-	addReq.Attribute("objectClass", []string{
-		"top",
-		"computer",
-	})
-	// DOES THE ORDER MATTER? Aligning with Impacket addcomputer.py
 	fqdn := fmt.Sprintf("%s.%s", cn, domain)
-	addReq.Attribute("dNSHostName", []string{fqdn})
-	addReq.Attribute(
-		"userAccountControl",
-		[]string{"4096"},
-	) // WORKSTATION_TRUST_ACCOUNT
-	addReq.Attribute("servicePrincipalName", []string{
-		"HOST/" + strings.ToLower(cn),
-		"HOST/" + strings.ToLower(fqdn),
-		"RestrictedKrbHost/" + strings.ToLower(cn),
-		"RestrictedKrbHost/" + strings.ToLower(fqdn),
-	})
-	addReq.Attribute("sAMAccountName", []string{sam})
-	addReq.Attribute("unicodePwd", []string{encodedPwd})
-	/*addReq.Attribute("operatingSystem", []string{"Windows"})
-	addReq.Attribute("operatingSystemVersion", []string{"11.0"})
-	addReq.Attribute("operatingSystemServicePack", []string{"Service Pack 0"})*/
+	dn := fmt.Sprintf("CN=%s,CN=Computers,%s", cn, c.baseDN)
+	var attrs map[string][]string = map[string][]string{
+		// Required object classes for low-priv creation
+		"objectClass": {
+			"top",
+			"computer",
+		},
+		"dNSHostName":        []string{fqdn},
+		"userAccountControl": []string{"4096"}, // WORKSTATION_TRUST_ACCOUNT
+		"servicePrincipalName": []string{
+			"HOST/" + strings.ToLower(cn),
+			"HOST/" + strings.ToLower(fqdn),
+			"RestrictedKrbHost/" + strings.ToLower(cn),
+			"RestrictedKrbHost/" + strings.ToLower(fqdn),
+		},
+		"sAMAccountName": []string{sam},
+		"unicodePwd":     []string{encodedPwd},
+	}
 
-	return c.lconn.Add(addReq)
+	return c.conn.Add(dn, attrs)
 }
 
 // AddResourceBasedConstrainedDelegation will attempt to add RBCD permissions from delegatingComputer to targetmachinename
@@ -361,7 +326,7 @@ func (c *Tickler) AddResourceBasedConstrainedDelegation(
 		return err
 	}
 
-	dn := results[0].GetAttr("DN")[0]
+	dn := results[0].GetDN()
 	if !strings.Contains(strings.ToLower(dn), "cn=computers") {
 		return errors.New("this object is not a computer, go away")
 	}
@@ -419,13 +384,7 @@ func (c *Tickler) AddResourceBasedConstrainedDelegation(
 		return err
 	}
 
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	enableReq.Replace(
-		"msDS-AllowedToActOnBehalfOfOtherIdentity",
-		[]string{string(b)},
-	)
-
-	return c.lconn.Modify(enableReq)
+	return c.conn.ModifyReplace(dn, "msDS-AllowedToActOnBehalfOfOtherIdentity", []string{string(b)})
 }
 
 // TODO Add filter elsewhere
@@ -450,19 +409,15 @@ func (c *Tickler) AddServicePrincipalName(
 		return fmt.Errorf("user %s not found", username)
 	}
 
-	userDN := results[0].GetAttr("DN")[0]
+	userDN := results[0].GetDN()
 
 	existingSPNs := results[0].GetAttr("servicePrincipalName")
 
 	// Check if SPN already exists
 	existingSPNs = append(existingSPNs, strings.Fields(spn)...)
 
-	// Prepare LDAP modify request to add SPN
-	modReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
-	modReq.Replace("servicePrincipalName", existingSPNs)
-
 	// Execute modification
-	return c.lconn.Modify(modReq)
+	return c.conn.ModifyReplace(userDN, "servicePrincipalName", existingSPNs)
 }
 
 // AddUserAccount will attempt to add a user account for the supplied username, note this requires SetUserPassword and
@@ -471,33 +426,26 @@ func (c *Tickler) AddUserAccount(
 	username string,
 	principalname string,
 ) error {
-	addReq := ldap.NewAddRequest(
-		"CN="+username+",CN=Users,"+c.baseDN,
-		[]ldap.Control{},
-	)
-	addReq.Attribute(
-		"accountExpires",
-		[]string{strconv.Itoa(0x00000000)},
-	)
-	addReq.Attribute("cn", []string{username})
-	addReq.Attribute("displayName", []string{username})
-	addReq.Attribute("givenName", []string{username})
-	addReq.Attribute(
-		"instanceType",
-		[]string{strconv.Itoa(0x00000004)},
-	)
-	addReq.Attribute("name", []string{username})
-	addReq.Attribute(
-		"objectClass",
-		[]string{"top", "organizationalPerson", "user", "person"},
-	)
-	addReq.Attribute("sAMAccountName", []string{username})
-	addReq.Attribute("sn", []string{username})
-	// Create the account disabled....
-	addReq.Attribute("userAccountControl", []string{"514"})
-	addReq.Attribute("userPrincipalName", []string{principalname})
-	// addReq.Attributes = attrs
-	return c.lconn.Add(addReq)
+	var attrs map[string][]string = map[string][]string{
+		"objectClass": {
+			"top",
+			"organizationalPerson",
+			"user",
+			"person",
+		},
+		"sAMAccountName":     []string{username},
+		"userPrincipalName":  []string{principalname},
+		"cn":                 []string{username},
+		"displayName":        []string{username},
+		"givenName":          []string{username},
+		"instanceType":       []string{strconv.Itoa(0x00000004)},
+		"name":               []string{username},
+		"accountExpires":     []string{strconv.Itoa(0x00000000)},
+		"sn":                 []string{username},
+		"userAccountControl": []string{"514"}, // Create the account disabled....
+	}
+
+	return c.conn.Add("CN="+username+",CN=Users,"+c.baseDN, attrs)
 }
 
 // AddUnconstrainedDelegation will modify the useraccountcontrol field to enable unconstrained delegation
@@ -520,33 +468,19 @@ func (c *Tickler) AddUnconstrainedDelegation(username string) error {
 	if results[0].Length("userAccountControl") > 0 {
 		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
-
+	// Get value for UAC, and then apply value to bitmask
 	uac, err := flagset(uacstr, UACTrustedForDelegation)
 	if err != nil {
 		return err
 	}
 
-	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(
-		results[0].GetAttr("DN")[0],
-		[]ldap.Control{},
-	)
-	enableReq.Replace(
-		"userAccountControl",
-		[]string{strconv.Itoa(uac)},
-	)
-
-	return c.lconn.Modify(enableReq)
+	return c.conn.ModifyReplace(results[0].GetDN(), "userAccountControl", []string{strconv.Itoa(uac)})
 }
 
 // Close closes the LDAP connection
 func (c *Tickler) Close() error {
-	if c.gssClient != nil {
-		c.gssClient.Close()
-	}
-
-	if c.lconn != nil {
-		c.lconn.Close()
+	if c.conn != nil {
+		c.conn.Close()
 	}
 
 	return nil
@@ -640,12 +574,7 @@ func (c *Tickler) DeleteObject(
 		cn = "Computers"
 	}
 
-	delReq := ldap.NewDelRequest(
-		"CN="+objectname+",CN="+cn+","+c.baseDN,
-		[]ldap.Control{},
-	)
-
-	return c.lconn.Del(delReq)
+	return c.conn.Delete("CN=" + objectname + ",CN=" + cn + "," + c.baseDN)
 }
 
 // FindUserByDescription will search the directory for a specified query description
@@ -891,42 +820,11 @@ func (c *Tickler) getAllResults(
 	attributes []string,
 	baseDN ...string,
 ) (Results, error) {
-	var results Results
-
-	var ldapControls []ldap.Control
 
 	if len(baseDN) == 0 {
 		baseDN = []string{c.baseDN}
 	}
-	for _, attribute := range attributes {
-		if control, ok := controlStringLookup[strings.ToLower(attribute)]; ok {
-			ldapControls = append(ldapControls, control)
-		}
-
-	}
-
-	result, err := c.ldapSearch(
-		baseDN[0],
-		searchscope,
-		filter,
-		attributes,
-		ldapControls...)
-	if err != nil {
-		return results, err
-	}
-
-	if len(result.Entries) == 0 {
-		return results, errors.New(
-			"no entries found",
-		) // custom error result not found
-	}
-
-	for _, entry := range result.Entries {
-		results.Add(*NewResultFromLDAP(entry))
-
-	}
-
-	return results, nil
+	return c.conn.Query(baseDN[0], searchscope, filter, attributes)
 }
 
 // Get the DN of a specific user
@@ -956,66 +854,8 @@ func (c *Tickler) getUserDN(username string) (string, error) {
 }
 
 // GetWhoAmI will query the LDAP server for who we currently are authenticated as
-func (c *Tickler) GetWhoAmI() (*ldap.WhoAmIResult, error) {
-	result, err := c.lconn.WhoAmI(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, err
-}
-
-func (c *Tickler) ldapSearch(
-	basedn string,
-	searchscope int,
-	filter string,
-	attributes []string,
-	controls ...ldap.Control,
-) (*ldap.SearchResult, error) {
-	if c.lconn == nil {
-		return nil, errors.New("you must bind before searching")
-	}
-
-	if Debug {
-		if c.username != "" {
-			log.Printf(
-				"[+] ldapsearch -H %s -D %s -W -b %s -o tls_reqcert=allow '%s' %s\n",
-				c.url,
-				c.username,
-				basedn,
-				filter,
-				strings.Join(attributes, " "),
-			)
-		} else {
-			log.Printf(
-				"[+] ldapsearch -H %s -b %s -o tls_reqcert=allow '%s' %s\n",
-				c.url,
-				basedn,
-				filter,
-				strings.Join(attributes, " "),
-			)
-		}
-	}
-	var err error
-	var result *ldap.SearchResult
-	searchReq := ldap.NewSearchRequest(
-		basedn,
-		searchscope,
-		0,
-		0,
-		0,
-		false,
-		filter,
-		attributes,
-		controls,
-	)
-
-	result, err = c.lconn.Search(searchReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, err
+func (c *Tickler) GetWhoAmI() (string, error) {
+	return c.conn.WhoAmI()
 }
 
 // LDAPSearch will search the directory by a supplied searchscope, filter and attributes
@@ -1098,19 +938,11 @@ func (c *Tickler) AddDNSARecord(hostname string, ipAddress string) error {
 	filter := fmt.Sprintf("(&(objectClass=dnsNode)(name=%s))", ldap.EscapeFilter(hostname))
 	attributes := []string{"name"}
 	searchBase := fmt.Sprintf("DC=%s,CN=MicrosoftDNS,DC=DomainDnsZones,%s", zone, c.baseDN)
-
-	searchReq := ldap.NewSearchRequest(
-		searchBase,
-		ldap.ScopeWholeSubtree,
-		ldap.NeverDerefAliases,
-		0, 0, false,
-		filter,
-		attributes,
-		nil,
-	)
-
-	result, err := c.lconn.Search(searchReq)
-	if err == nil && len(result.Entries) > 0 {
+	results, err := c.getAllResults(2, filter, attributes, searchBase)
+	if err != nil {
+		return err
+	}
+	if len(results) > 0 {
 		return fmt.Errorf("DNS record for '%s' already exists in zone '%s'", hostname, zone)
 	}
 
@@ -1119,24 +951,14 @@ func (c *Tickler) AddDNSARecord(hostname string, ipAddress string) error {
 	if err != nil {
 		return fmt.Errorf("failed to build DNS record: %w", err)
 	}
+	var attrs map[string][]string = map[string][]string{
+		"objectClass":   []string{"top", "dnsNode"},
+		"dNSTombstoned": []string{"FALSE"},
+		"name":          []string{hostname},
+		"dnsRecord":     []string{string(dnsRecord)},
+	}
 
-	// Create the LDAP Add request
-	addReq := ldap.NewAddRequest(dn, []ldap.Control{})
-
-	// Set object classes for dnsNode
-	addReq.Attribute("objectClass", []string{"top", "dnsNode"})
-
-	// Set the dNSTombstoned attribute to FALSE
-	addReq.Attribute("dNSTombstoned", []string{"FALSE"})
-
-	// Set the name attribute
-	addReq.Attribute("name", []string{hostname})
-
-	// Set the dnsRecord attribute (binary blob)
-	addReq.Attribute("dnsRecord", []string{string(dnsRecord)})
-
-	// Execute the add request
-	if err := c.lconn.Add(addReq); err != nil {
+	if err := c.conn.Add(dn, attrs); err != nil {
 		return fmt.Errorf("failed to add DNS record: %w", err)
 	}
 
@@ -1652,14 +1474,8 @@ func (c *Tickler) RemoveConstrainedDelegation(
 			}
 		}
 	}
-	// fmt.Printf("%s\n", delegationresstr)
-	enableReq := ldap.NewModifyRequest(
-		results[0].GetAttr("DN")[0],
-		[]ldap.Control{},
-	)
-	enableReq.Replace("msDS-AllowedToDelegateTo", updatedSPNs)
 
-	return c.lconn.Modify(enableReq)
+	return c.conn.ModifyReplace(results[0].GetDN(), "msDS-AllowedToDelegateTo", updatedSPNs)
 }
 
 // RemoveLoginScript removes login script from given user
@@ -1670,13 +1486,8 @@ func (c *Tickler) RemoveLoginScript(username string) error {
 		return err
 	}
 
-	// Create the LDAP modify request
-	modifyReq := ldap.NewModifyRequest(userDN, nil)
-
 	// Delete the scriptPath attribute (removes any existing value)
-	modifyReq.Delete("scriptPath", nil)
-
-	return c.lconn.Modify(modifyReq)
+	return c.conn.ModifyDelete(userDN, "scriptPath")
 }
 
 func (c *Tickler) RemoveResourceBasedConstrainedDelegation(
@@ -1691,11 +1502,7 @@ func (c *Tickler) RemoveResourceBasedConstrainedDelegation(
 		return err
 	}
 
-	dn := results[0].GetAttr("DN")[0]
-	enableReq := ldap.NewModifyRequest(dn, []ldap.Control{})
-	enableReq.Delete("msDS-AllowedToActOnBehalfOfOtherIdentity", nil)
-
-	return c.lconn.Modify(enableReq)
+	return c.conn.ModifyDelete(results[0].GetDN(), "msDS-AllowedToActOnBehalfOfOtherIdentity")
 }
 
 func (c *Tickler) RemoveSPNs(username string, spn string) error {
@@ -1731,13 +1538,7 @@ func (c *Tickler) RemoveSPNs(username string, spn string) error {
 		}
 	}
 
-	modReq := ldap.NewModifyRequest(
-		results[0].GetAttr("DN")[0],
-		[]ldap.Control{},
-	)
-	modReq.Replace("servicePrincipalName", updatedSPNs)
-
-	return c.lconn.Modify(modReq)
+	return c.conn.ModifyReplace(results[0].GetDN(), "servicePrincipalName", updatedSPNs)
 }
 
 // RemoveUnconstrainedDelegation will modify the useraccountcontrol field to disable unconstrained delegation
@@ -1758,22 +1559,13 @@ func (c *Tickler) RemoveUnconstrainedDelegation(username string) error {
 	if results[0].Length("userAccountControl") > 0 {
 		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
-
+	// Get value for UAC, and then apply value to bitmask
 	uac, err := flagunset(uacstr, UACTrustedForDelegation)
 	if err != nil {
 		return err
 	}
-	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(
-		results[0].GetAttr("DN")[0],
-		[]ldap.Control{},
-	)
-	enableReq.Replace(
-		"userAccountControl",
-		[]string{strconv.Itoa(uac)},
-	)
 
-	return c.lconn.Modify(enableReq)
+	return c.conn.ModifyReplace(results[0].GetDN(), "userAccountControl", []string{strconv.Itoa(uac)})
 }
 
 // SetDisableMachineAccount will modify the userAccountControl attribute to disable a machine account
@@ -1793,25 +1585,17 @@ func (c *Tickler) SetDisableMachineAccount(username string) error {
 	if results[0].Length("userAccountControl") > 0 {
 		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
-
+	// Get value for UAC, and then apply value to bitmask
 	uac, err := flagset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
 	}
-	// Get value for UAC, and then apply value to bitmask
-	disableReq := ldap.NewModifyRequest(
-		"CN="+strings.TrimSuffix(
-			username,
-			"$",
-		)+",CN=Computers,"+c.baseDN,
-		[]ldap.Control{},
-	)
-	disableReq.Replace(
+
+	return c.conn.ModifyReplace(
+		"CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN,
 		"userAccountControl",
 		[]string{strconv.Itoa(uac)},
 	)
-
-	return c.lconn.Modify(disableReq)
 }
 
 // SetEnableMachineAccount will modify the userAccountControl attribute to enable a machine account
@@ -1831,25 +1615,17 @@ func (c *Tickler) SetEnableMachineAccount(username string) error {
 	if results[0].Length("userAccountControl") > 0 {
 		uacstr = results[0].GetAttr("userAccountControl")[0]
 	}
-
+	// Get value for UAC, and then apply value to bitmask
 	uac, err := flagunset(uacstr, UACAccountDisable)
 	if err != nil {
 		return err
 	}
-	// Get value for UAC, and then apply value to bitmask
-	enableReq := ldap.NewModifyRequest(
-		"CN="+strings.TrimSuffix(
-			username,
-			"$",
-		)+",CN=Computers,"+c.baseDN,
-		[]ldap.Control{},
-	)
-	enableReq.Replace(
+
+	return c.conn.ModifyReplace(
+		"CN="+strings.TrimSuffix(username, "$")+",CN=Computers,"+c.baseDN,
 		"userAccountControl",
 		[]string{strconv.Itoa(uac)},
 	)
-
-	return c.lconn.Modify(enableReq)
 }
 
 // SetDisableUserAccount will modify the userAccountControl attribute to disable a user account
@@ -1875,16 +1651,7 @@ func (c *Tickler) SetDisableUserAccount(username string) error {
 		return err
 	}
 
-	disableReq := ldap.NewModifyRequest(
-		"CN="+username+",CN=Users,"+c.baseDN,
-		[]ldap.Control{},
-	)
-	disableReq.Replace(
-		"userAccountControl",
-		[]string{strconv.Itoa(uac)},
-	)
-
-	return c.lconn.Modify(disableReq)
+	return c.conn.ModifyReplace("CN="+username+",CN=Users,"+c.baseDN, "userAccountControl", []string{strconv.Itoa(uac)})
 }
 
 // SetEnableUserAccount will modify the userAccountControl attribute to enable a user account
@@ -1910,16 +1677,7 @@ func (c *Tickler) SetEnableUserAccount(username string) error {
 		return err
 	}
 
-	enableReq := ldap.NewModifyRequest(
-		"CN="+username+",CN=Users,"+c.baseDN,
-		[]ldap.Control{},
-	)
-	enableReq.Replace(
-		"userAccountControl",
-		[]string{strconv.Itoa(uac)},
-	)
-
-	return c.lconn.Modify(enableReq)
+	return c.conn.ModifyReplace("CN="+username+",CN=Users,"+c.baseDN, "userAccountControl", []string{strconv.Itoa(uac)})
 }
 
 // SetLoginScript
@@ -1932,14 +1690,8 @@ func (c *Tickler) SetLoginScript(
 	if err != nil {
 		return err
 	}
-	// Create the LDAP Modify request
-	modifyReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
-
-	// Replace the existing scriptPath attribute (or create if missing)
-	modifyReq.Replace("scriptPath", []string{scriptname})
-
 	// Apply the modification
-	return c.lconn.Modify(modifyReq)
+	return c.conn.ModifyReplace(userDN, "scriptPath", []string{scriptname})
 }
 
 // SetUserPassword will set a user account's password
@@ -1947,15 +1699,16 @@ func (c *Tickler) SetUserPassword(
 	username string,
 	userpass string,
 ) error {
-	passwordReq, err := c.createUnicodePasswordRequest(
-		username,
-		userpass,
-	)
+
+	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+
+	newunicodeEncoded, err := utf16.NewEncoder().
+		String(fmt.Sprintf("%q", userpass))
 	if err != nil {
 		return err
 	}
 
-	return c.lconn.Modify(passwordReq)
+	return c.conn.ModifyReplace("CN="+username+",CN=Users,"+c.baseDN, "unicodePwd", []string{newunicodeEncoded})
 }
 
 // RemoveShadowCredentials deletes all msDS-KeyCredentialLink entries from the specified user
@@ -1965,14 +1718,7 @@ func (c *Tickler) RemoveShadowCredentials(username string) error {
 		return err
 	}
 
-	modifyReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
-	modifyReq.Delete("msDS-KeyCredentialLink", nil)
-
-	if err := c.lconn.Modify(modifyReq); err != nil {
-		if ldapErr, ok := err.(*ldap.Error); ok &&
-			ldapErr.ResultCode == ldap.LDAPResultNoSuchAttribute {
-			return nil
-		}
+	if err := c.conn.ModifyDelete(userDN, "msDS-KeyCredentialLink"); err != nil {
 
 		return fmt.Errorf(
 			"failed to remove shadow credential(s) from LDAP: %w",
@@ -2110,11 +1856,7 @@ func (c *Tickler) AddShadowCredentialWithPFX(
 
 	// Create LDAP modify request with DN-Binary format
 	// msDS-KeyCredentialLink expects the value in DN-Binary format: B:length:hexdata:dn
-
-	modifyReq := ldap.NewModifyRequest(userDN, []ldap.Control{})
-	modifyReq.Add("msDS-KeyCredentialLink", []string{dnWithBinary})
-
-	err = c.lconn.Modify(modifyReq)
+	err = c.conn.ModifyAdd(userDN, "msDS-KeyCredentialLink", []string{dnWithBinary})
 	if err != nil {
 		return "", "", "", fmt.Errorf(
 			"failed to add shadow credential to LDAP: %w",

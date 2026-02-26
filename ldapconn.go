@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 
@@ -23,6 +24,32 @@ type LDAPConn struct {
 	username   string
 }
 
+func (c *LDAPConn) Add(dn string, attrs map[string][]string) error {
+	request := ldap.NewAddRequest(dn, nil)
+	for attr, attrvals := range attrs {
+		request.Attribute(attr, attrvals)
+	}
+	return c.lconn.Add(request)
+}
+
+func (c *LDAPConn) ModifyAdd(dn string, attr string, attrvals []string) error {
+	request := ldap.NewModifyRequest(dn, nil)
+	request.Add(attr, attrvals)
+	return c.lconn.Modify(request)
+}
+
+func (c *LDAPConn) ModifyDelete(dn string, attr string) error {
+	request := ldap.NewModifyRequest(dn, nil)
+	request.Delete(attr, nil)
+	return c.lconn.Modify(request)
+}
+
+func (c *LDAPConn) ModifyReplace(dn string, attr string, attrvals []string) error {
+	request := ldap.NewModifyRequest(dn, nil)
+	request.Replace(attr, attrvals)
+	return c.lconn.Modify(request)
+}
+
 func (c *LDAPConn) Bind(method BindMethod, creds Credentials, skipVerify ...bool) error {
 	var err error
 	if method < MethodBindAnonymous && method > MethodBindPassword {
@@ -33,29 +60,18 @@ func (c *LDAPConn) Bind(method BindMethod, creds Credentials, skipVerify ...bool
 	}
 	switch method {
 	case MethodBindAnonymous:
-		fmt.Printf("[+] Attempting anonymous bind to %s\n", creds.DC)
 		err = c.BindAnonymous(creds)
 
 	case MethodBindDomain:
-		fmt.Printf("[+] Attempting NTLM bind to %s\n", creds.DC)
 		err = c.BindDomain(creds)
 
 	case MethodBindDomainPTH:
-		fmt.Printf(
-			"[+] Attempting NTLM Pass The Hash bind to %s\n",
-			creds.DC,
-		)
 		err = c.BindDomainPTH(creds)
 
 	case MethodBindGSSAPI:
-		fmt.Printf("[+] Attempting GSSAPI bind to %s\n", creds.DC)
 		err = c.BindGSSAPI(creds)
 
 	case MethodBindPassword:
-		fmt.Printf(
-			"[+] Attempting bind with credentials to %s\n",
-			creds.DC,
-		)
 		err = c.BindPassword(creds)
 	}
 	if err != nil {
@@ -64,12 +80,90 @@ func (c *LDAPConn) Bind(method BindMethod, creds Credentials, skipVerify ...bool
 	return nil
 }
 
+func (c *LDAPConn) Delete(dn string) error {
+	delReq := ldap.NewDelRequest(dn, nil)
+	return c.lconn.Del(delReq)
+}
+
 func (c *LDAPConn) Close() error {
+	if c.gssClient != nil {
+		c.gssClient.Close()
+	}
+	if c.lconn != nil {
+		c.lconn.Close()
+	}
 	return nil
 }
 
-func (c *LDAPConn) Query(baseDN string, scope int, filter string, attrs []string) (Results, error) {
-	return nil, nil
+func (c *LDAPConn) Query(basedn string,
+	searchscope int,
+	filter string,
+	attributes []string) (Results, error) {
+	if c.lconn == nil {
+		return nil, errors.New("you must bind before searching")
+	}
+	var ldapControls []ldap.Control
+
+	for _, attribute := range attributes {
+		if control, ok := controlStringLookup[strings.ToLower(attribute)]; ok {
+			ldapControls = append(ldapControls, control)
+		}
+
+	}
+
+	if Debug {
+		if c.username != "" {
+			log.Printf(
+				"[+] ldapsearch -H %s -D %s -W -b %s -o tls_reqcert=allow '%s' %s\n",
+				c.url,
+				c.username,
+				basedn,
+				filter,
+				strings.Join(attributes, " "),
+			)
+		} else {
+			log.Printf(
+				"[+] ldapsearch -H %s -b %s -o tls_reqcert=allow '%s' %s\n",
+				c.url,
+				basedn,
+				filter,
+				strings.Join(attributes, " "),
+			)
+		}
+	}
+	var err error
+	var result *ldap.SearchResult
+	searchReq := ldap.NewSearchRequest(
+		basedn,
+		searchscope,
+		0,
+		0,
+		0,
+		false,
+		filter,
+		attributes,
+		ldapControls,
+	)
+
+	result, err = c.lconn.Search(searchReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var results Results
+
+	if len(result.Entries) == 0 {
+		return nil, errors.New(
+			"no entries found",
+		) // custom error result not found
+	}
+
+	for _, entry := range result.Entries {
+		results.Add(*NewResultFromLDAP(entry))
+
+	}
+
+	return results, nil
 }
 
 func (c *LDAPConn) bindSetup() error {
@@ -270,4 +364,13 @@ func (c *LDAPConn) BindPassword(cred Credentials) error {
 }
 func (c *LDAPConn) SetProxy(proxyURL string) {
 	c.proxyURL = proxyURL
+}
+
+func (c *LDAPConn) WhoAmI() (string, error) {
+	result, err := c.lconn.WhoAmI(nil)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%v", *result), nil
 }
