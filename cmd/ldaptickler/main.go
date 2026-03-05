@@ -609,9 +609,8 @@ func main() {
 		creds.Domain = flags.domain
 		creds.Username = flags.username
 		creds.Password = state.password
-		creds.DC = flags.dc
 	}
-
+	creds.DC = flags.dc
 	err = c.Bind(state.mode, creds)
 	check(err)
 	defer c.Close()

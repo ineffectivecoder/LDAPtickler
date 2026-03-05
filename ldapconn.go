@@ -50,7 +50,7 @@ func (c *LDAPConn) ModifyReplace(dn string, attr string, attrvals []string) erro
 	return c.lconn.Modify(request)
 }
 
-func (c *LDAPConn) Bind(method BindMethod, creds Credentials, skipVerify ...bool) error {
+func (c *LDAPConn) Bind(url string, method BindMethod, creds Credentials, skipVerify ...bool) error {
 	var err error
 	if method < MethodBindAnonymous && method > MethodBindPassword {
 		return errors.New("invalid bind method")
@@ -58,6 +58,7 @@ func (c *LDAPConn) Bind(method BindMethod, creds Credentials, skipVerify ...bool
 	if len(skipVerify) > 0 {
 		c.skipVerify = skipVerify[0]
 	}
+	c.url = url
 	switch method {
 	case MethodBindAnonymous:
 		err = c.BindAnonymous(creds)
@@ -367,6 +368,9 @@ func (c *LDAPConn) SetProxy(proxyURL string) {
 }
 
 func (c *LDAPConn) WhoAmI() (string, error) {
+	if c.lconn == nil {
+		return "", errors.New("you must bind before searching")
+	}
 	result, err := c.lconn.WhoAmI(nil)
 	if err != nil {
 		return "", err

@@ -11,6 +11,7 @@ import (
 // This is our custom Result type
 type Result struct {
 	attrs map[string][]string
+	bytes map[string][][]byte
 	dn    string
 }
 
@@ -21,6 +22,7 @@ func NewResultFromLDAP(entry *ldap.Entry) *Result {
 	r.dn = entry.DN
 
 	r.attrs = map[string][]string{}
+	r.bytes = map[string][][]byte{}
 	for _, attr := range entry.Attributes {
 		r.preprocess(attr)
 	}
@@ -33,11 +35,12 @@ func (r *Result) preprocess(attribute *ldap.EntryAttribute) {
 	if strings.ToLower(attribute.Name) != "dn" {
 		if transform, ok := transformsLookup[strings.ToLower(attribute.Name)]; ok {
 			r.attrs[attribute.Name] = transform(attribute.ByteValues)
-			r.attrs[attribute.Name+"_raw"] = attribute.Values
+			r.attrs[attribute.Name+"_orig"] = attribute.Values
 		} else {
 			r.attrs[attribute.Name] = attribute.Values
-			r.attrs[attribute.Name+"_raw"] = attribute.Values
+			r.attrs[attribute.Name+"_orig"] = attribute.Values
 		}
+		r.bytes[attribute.Name] = attribute.ByteValues
 	}
 }
 
@@ -49,9 +52,34 @@ func (r *Result) GetAttr(attr string) []string {
 	return r.attrs[attr]
 }
 
+func (r *Result) GetAttrBytes(attr string) [][]byte {
+	if _, ok := r.bytes[attr]; !ok {
+		attr = strings.ToLower(attr)
+	}
+	return r.bytes[attr]
+}
+
+func (r *Result) GetFirstAttr(attr string) string {
+	if len(r.GetAttr(attr)) == 0 {
+		return ""
+	}
+	return r.GetAttr(attr)[0]
+}
+
+func (r *Result) GetFirstBytes(attr string) []byte {
+	if len(r.GetAttrBytes(attr)) == 0 {
+		return nil
+	}
+	return r.GetAttrBytes(attr)[0]
+}
+
 // Helper to return things
 func (r *Result) GetAttrs() map[string][]string {
 	return r.attrs
+}
+
+func (r *Result) GetBytes() map[string][][]byte {
+	return r.bytes
 }
 
 // Helper to return things
@@ -86,7 +114,7 @@ func (rs *Results) Print() {
 		slices.Sort(keys)
 
 		for _, key := range keys {
-			if strings.HasSuffix(key, "_raw") {
+			if strings.HasSuffix(key, "_orig") {
 				continue
 			}
 

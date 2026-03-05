@@ -1763,14 +1763,14 @@ func (c *Tickler) findCertTemplateGUIDsByCA(baseDN string) []string {
 func (c *Tickler) getContainerGUIDByDN(dn string) string {
 	attrs := []string{"objectGUID"}
 
-	result, err := c.ldapSearch(dn, 0, "(objectClass=*)", attrs)
-	if err != nil || len(result.Entries) == 0 {
+	results, err := c.LDAPSearch(0, "(objectClass=*)", attrs, dn)
+	if err != nil || len(results) == 0 {
 		return ""
 	}
 
-	for _, attr := range result.Entries[0].Attributes {
-		if attr.Name == "objectGUID" && len(attr.ByteValues) > 0 {
-			return decodeGUID(attr.ByteValues[0])
+	for attrName, attrBytes := range results[0].GetBytes() {
+		if attrName == "objectGUID" && len(attrBytes) > 0 {
+			return decodeGUID(attrBytes[0])
 		}
 	}
 

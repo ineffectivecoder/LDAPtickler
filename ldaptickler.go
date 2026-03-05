@@ -136,7 +136,7 @@ type Credentials struct {
 
 type Conn interface {
 	Add(dn string, attrs map[string][]string) error
-	Bind(method BindMethod, creds Credentials, skipVerify ...bool) error
+	Bind(url string, method BindMethod, creds Credentials, skipVerify ...bool) error
 	Close() error
 	Delete(dn string) error
 	ModifyAdd(dn string, attr string, attrvals []string) error
@@ -156,7 +156,6 @@ type Tickler struct {
 	username   string
 }
 
-// New TODO great note Chris
 func New(url string, basedn string, skipVerify ...bool) *Tickler {
 	var connection *Tickler = &Tickler{url: url, baseDN: basedn}
 	if len(skipVerify) > 0 {
@@ -172,6 +171,10 @@ func New(url string, basedn string, skipVerify ...bool) *Tickler {
 }
 
 func (c *Tickler) Bind(method BindMethod, creds Credentials) error {
+	err := c.conn.Bind(c.url, method, creds, c.skipVerify)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -231,7 +234,7 @@ func (c *Tickler) AddMachineAccount(
 	machinepass string,
 ) error {
 	var attrs map[string][]string = map[string][]string{
-		"cn": []string{machinename},
+		"cn": {machinename},
 		"objectClass": {
 			"top",
 			"person",
@@ -239,9 +242,9 @@ func (c *Tickler) AddMachineAccount(
 			"user",
 			"computer",
 		},
-		"sAMAccountName":     []string{machinename + "$"},
-		"unicodePwd":         []string{encodePassword(machinepass)},
-		"userAccountControl": []string{"4096"}, // WORKSTATION_TRUST_ACCOUNT
+		"sAMAccountName":     {machinename + "$"},
+		"unicodePwd":         {encodePassword(machinepass)},
+		"userAccountControl": {"4096"}, // WORKSTATION_TRUST_ACCOUNT
 	}
 
 	return c.conn.Add("CN="+machinename+",CN=Computers,"+c.baseDN, attrs)
@@ -277,16 +280,16 @@ func (c *Tickler) AddMachineAccountLowPriv(
 			"top",
 			"computer",
 		},
-		"dNSHostName":        []string{fqdn},
-		"userAccountControl": []string{"4096"}, // WORKSTATION_TRUST_ACCOUNT
-		"servicePrincipalName": []string{
+		"dNSHostName":        {fqdn},
+		"userAccountControl": {"4096"}, // WORKSTATION_TRUST_ACCOUNT
+		"servicePrincipalName": {
 			"HOST/" + strings.ToLower(cn),
 			"HOST/" + strings.ToLower(fqdn),
 			"RestrictedKrbHost/" + strings.ToLower(cn),
 			"RestrictedKrbHost/" + strings.ToLower(fqdn),
 		},
-		"sAMAccountName": []string{sam},
-		"unicodePwd":     []string{encodedPwd},
+		"sAMAccountName": {sam},
+		"unicodePwd":     {encodedPwd},
 	}
 
 	return c.conn.Add(dn, attrs)
@@ -433,16 +436,16 @@ func (c *Tickler) AddUserAccount(
 			"user",
 			"person",
 		},
-		"sAMAccountName":     []string{username},
-		"userPrincipalName":  []string{principalname},
-		"cn":                 []string{username},
-		"displayName":        []string{username},
-		"givenName":          []string{username},
-		"instanceType":       []string{strconv.Itoa(0x00000004)},
-		"name":               []string{username},
-		"accountExpires":     []string{strconv.Itoa(0x00000000)},
-		"sn":                 []string{username},
-		"userAccountControl": []string{"514"}, // Create the account disabled....
+		"sAMAccountName":     {username},
+		"userPrincipalName":  {principalname},
+		"cn":                 {username},
+		"displayName":        {username},
+		"givenName":          {username},
+		"instanceType":       {strconv.Itoa(0x00000004)},
+		"name":               {username},
+		"accountExpires":     {strconv.Itoa(0x00000000)},
+		"sn":                 {username},
+		"userAccountControl": {"514"}, // Create the account disabled....
 	}
 
 	return c.conn.Add("CN="+username+",CN=Users,"+c.baseDN, attrs)
@@ -952,10 +955,10 @@ func (c *Tickler) AddDNSARecord(hostname string, ipAddress string) error {
 		return fmt.Errorf("failed to build DNS record: %w", err)
 	}
 	var attrs map[string][]string = map[string][]string{
-		"objectClass":   []string{"top", "dnsNode"},
-		"dNSTombstoned": []string{"FALSE"},
-		"name":          []string{hostname},
-		"dnsRecord":     []string{string(dnsRecord)},
+		"objectClass":   {"top", "dnsNode"},
+		"dNSTombstoned": {"FALSE"},
+		"name":          {hostname},
+		"dnsRecord":     {string(dnsRecord)},
 	}
 
 	if err := c.conn.Add(dn, attrs); err != nil {
