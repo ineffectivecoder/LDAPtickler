@@ -253,6 +253,7 @@ var flags struct {
 	insecure          bool
 	null              bool
 	output            string
+	parsedc           bool
 	password          bool
 	passwordcli       string
 	proxy             string
@@ -370,6 +371,7 @@ func init() {
 	)
 	cli.Flag(&flags.dc, "dc", "", "Identify domain controller")
 	cli.Flag(&flags.domain, "d", "domain", "", "Domain for NTLM bind")
+	cli.Flag(&flags.parsedc, "D", false, "Parse domain from domain controller")
 	cli.Flag(
 		&flags.gssapi,
 		"g",
@@ -445,7 +447,6 @@ func init() {
 	)
 	cli.Flag(
 		&ldaptickler.Debug,
-		"D",
 		"debug",
 		false,
 		"Display LDAP equivalent command",
@@ -486,6 +487,14 @@ func init() {
 		log.Fatal(
 			"[-] Silly Goose detected, you can't PTH and provide a password",
 		)
+	}
+	if flags.parsedc {
+		// Deriving the basedn from the dc hostname
+		if strings.Contains(flags.dc, ".") && flags.domain == "" {
+			if net.ParseIP(flags.dc) == nil {
+				_, flags.domain, _ = strings.Cut(flags.dc, ".")
+			}
+		}
 	}
 	// Parse flags to determine bind mode
 	switch {
@@ -603,7 +612,7 @@ func main() {
 
 	case ldaptickler.MethodBindDomainPTH:
 		fmt.Printf(
-			"[+] Attempting domain Pass The Hash bind to %s\n",
+			"[+] Attempting Pass The Hash domain bind to %s\n",
 			flags.dc,
 		)
 		creds.Domain = flags.domain
@@ -612,7 +621,7 @@ func main() {
 
 	case ldaptickler.MethodBindPassword:
 		fmt.Printf(
-			"[+] Attempting bind with credentials to %s\n",
+			"[+] Attempting credentialed bind to %s\n",
 			flags.dc,
 		)
 		creds.Username = flags.username
