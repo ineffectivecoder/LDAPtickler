@@ -110,36 +110,36 @@ func (c *Tickler) EnumerateADCS() (*ADCSEnumResult, error) {
 	return result, nil
 }
 
-// parseTemplateEntry parses LDAP entry into CertTemplate
-func (c *Tickler) parseTemplateEntry(entry Result) CertTemplate {
+// parseTemplateEntry parses LDAP result into CertTemplate
+func (c *Tickler) parseTemplateEntry(result Result) CertTemplate {
 	template := CertTemplate{
-		Name:        entry.GetFirstAttr("cn"),
-		DisplayName: entry.GetFirstAttr("displayName"),
-		DN:          entry.GetFirstAttr("distinguishedName"),
-		ObjectGUID:  entry.GetFirstAttr("objectGUID"),
+		Name:        result.GetFirstAttr("cn"),
+		DisplayName: result.GetFirstAttr("displayName"),
+		DN:          result.GetFirstAttr("distinguishedName"),
+		ObjectGUID:  result.GetFirstAttr("objectGUID"),
 	}
 
 	// Parse flag values
-	if v := entry.GetFirstAttr("msPKI-Certificate-Name-Flag"); v != "" {
+	if v := result.GetFirstAttr("msPKI-Certificate-Name-Flag"); v != "" {
 		if val, err := strconv.ParseUint(v, 10, 32); err == nil {
 			template.CertificateNameFlag = uint32(val)
 		}
 	}
 
-	if v := entry.GetFirstAttr("msPKI-Enrollment-Flag"); v != "" {
+	if v := result.GetFirstAttr("msPKI-Enrollment-Flag"); v != "" {
 		if val, err := strconv.ParseUint(v, 10, 32); err == nil {
 			template.EnrollmentFlag = uint32(val)
 		}
 	}
 
-	if v := entry.GetFirstAttr("msPKI-Private-Key-Flag"); v != "" {
+	if v := result.GetFirstAttr("msPKI-Private-Key-Flag"); v != "" {
 		if val, err := strconv.ParseUint(v, 10, 32); err == nil {
 			template.PrivateKeyFlag = uint32(val)
 		}
 	}
 
 	// Parse RA signatures required
-	if v := entry.GetFirstAttr("msPKI-RA-Signature"); v != "" {
+	if v := result.GetFirstAttr("msPKI-RA-Signature"); v != "" {
 		if val, err := strconv.Atoi(v); err == nil {
 			template.RASignaturesRequired = val
 			template.AuthorizedSignaturesNeeded = val
@@ -147,28 +147,28 @@ func (c *Tickler) parseTemplateEntry(entry Result) CertTemplate {
 	}
 
 	// Parse schema version
-	if v := entry.GetFirstAttr("msPKI-Template-Schema-Version"); v != "" {
+	if v := result.GetFirstAttr("msPKI-Template-Schema-Version"); v != "" {
 		if val, err := strconv.Atoi(v); err == nil {
 			template.SchemaVersion = val
 		}
 	}
 
 	// Parse EKUs - try both attributes
-	template.EKUs = entry.GetAttr("pKIExtendedKeyUsage")
+	template.EKUs = result.GetAttr("pKIExtendedKeyUsage")
 	if len(template.EKUs) == 0 {
-		template.EKUs = entry.GetAttr("msPKI-Certificate-Application-Policy")
+		template.EKUs = result.GetAttr("msPKI-Certificate-Application-Policy")
 	}
 
 	// Parse application policies
-	template.ApplicationPolicies = entry.GetAttr("msPKI-RA-Application-Policies")
-	template.IssuancePolicies = entry.GetAttr("msPKI-Certificate-Policy")
+	template.ApplicationPolicies = result.GetAttr("msPKI-RA-Application-Policies")
+	template.IssuancePolicies = result.GetAttr("msPKI-Certificate-Policy")
 
 	// Parse validity period
-	if periodBytes := entry.GetFirstBytes("pKIExpirationPeriod"); len(periodBytes) >= 8 {
+	if periodBytes := result.GetFirstBytes("pKIExpirationPeriod"); len(periodBytes) >= 8 {
 		template.ValidityPeriod = parseFiletimeDuration(periodBytes)
 	}
 
-	if periodBytes := entry.GetFirstBytes("pKIOverlapPeriod"); len(periodBytes) >= 8 {
+	if periodBytes := result.GetFirstBytes("pKIOverlapPeriod"); len(periodBytes) >= 8 {
 		template.RenewalPeriod = parseFiletimeDuration(periodBytes)
 	}
 
@@ -179,7 +179,7 @@ func (c *Tickler) parseTemplateEntry(entry Result) CertTemplate {
 	template.ClientAuthEnabled = template.HasClientAuthEKU()
 
 	// Parse security descriptor for enrollment permissions
-	if sdBytes := entry.GetFirstBytes("nTSecurityDescriptor"); len(sdBytes) > 0 {
+	if sdBytes := result.GetFirstBytes("nTSecurityDescriptor"); len(sdBytes) > 0 {
 		enrollPerms, objPerms, owner := c.parseTemplateSecurityDescriptor(sdBytes)
 		template.EnrollmentPrincipals = enrollPerms
 		template.ObjectControllers = objPerms
@@ -189,18 +189,18 @@ func (c *Tickler) parseTemplateEntry(entry Result) CertTemplate {
 	return template
 }
 
-// parseCAEntry parses LDAP entry into EnterpriseCA
-func (c *Tickler) parseCAEntry(entry Result) EnterpriseCA {
+// parseCAEntry parses LDAP result into EnterpriseCA
+func (c *Tickler) parseCAEntry(result Result) EnterpriseCA {
 	ca := EnterpriseCA{
-		Name:                 entry.GetFirstAttr("cn"),
-		DN:                   entry.GetFirstAttr("distinguishedName"),
-		DNSHostname:          entry.GetFirstAttr("dNSHostName"),
-		ObjectGUID:           entry.GetFirstAttr("objectGUID"),
-		CertificateTemplates: entry.GetAttr("certificateTemplates"),
+		Name:                 result.GetFirstAttr("cn"),
+		DN:                   result.GetFirstAttr("distinguishedName"),
+		DNSHostname:          result.GetFirstAttr("dNSHostName"),
+		ObjectGUID:           result.GetFirstAttr("objectGUID"),
+		CertificateTemplates: result.GetAttr("certificateTemplates"),
 	}
 
 	// Parse security descriptor for CA permissions
-	if sdBytes := entry.GetFirstBytes("nTSecurityDescriptor"); len(sdBytes) > 0 {
+	if sdBytes := result.GetFirstBytes("nTSecurityDescriptor"); len(sdBytes) > 0 {
 		ca.CASecurityPermissions = c.parseCASecurityDescriptor(sdBytes)
 	}
 

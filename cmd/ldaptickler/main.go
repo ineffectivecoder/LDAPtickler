@@ -566,16 +566,29 @@ func init() {
 
 func main() {
 	var creds ldaptickler.Credentials
-	var proto string = "ldaps://"
-	if flags.insecure {
-		proto = "ldap://"
+	var proto string
+
+	if before, after, ok := strings.Cut(flags.dc, "://"); ok {
+		proto = before + "://"
+		flags.dc = after
+	} else {
+		proto = "ldaps://"
+		if flags.insecure {
+			proto = "ldap://"
+		}
 	}
+
 	// ldaptickler.LDAPDebug = false
-	var c *ldaptickler.Tickler = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
+	var c *ldaptickler.Tickler
+	var err error
+	c, err = ldaptickler.New(proto+flags.dc, flags.basedn, flags.skipVerify)
+	if err != nil {
+		log.Fatalf("[-] Last received error message: %s", err)
+	}
 	if flags.proxy != "" {
 		c.SetProxy(flags.proxy)
 	}
-	var err error
+	fmt.Printf("[+] Using %s protocol for bind\n", c.Proto)
 	// Attempt anonymous bind, check for flag
 	switch state.mode {
 	case ldaptickler.MethodBindAnonymous:
@@ -583,14 +596,14 @@ func main() {
 		creds.Username = flags.username
 
 	case ldaptickler.MethodBindDomain:
-		fmt.Printf("[+] Attempting NTLM bind to %s\n", flags.dc)
+		fmt.Printf("[+] Attempting domain bind to %s\n", flags.dc)
 		creds.Domain = flags.domain
 		creds.Username = flags.username
 		creds.Password = state.password
 
 	case ldaptickler.MethodBindDomainPTH:
 		fmt.Printf(
-			"[+] Attempting NTLM Pass The Hash bind to %s\n",
+			"[+] Attempting domain Pass The Hash bind to %s\n",
 			flags.dc,
 		)
 		creds.Domain = flags.domain
@@ -1701,7 +1714,7 @@ func loginscripts(c *ldaptickler.Tickler, args ...string) error {
 
 func whoami(c *ldaptickler.Tickler, args ...string) error {
 	fmt.Printf(
-		"[+] Querying the LDAP server for WhoAmI with baseDN %s\n",
+		"[+] Querying the server for WhoAmI with baseDN %s\n",
 		flags.basedn,
 	)
 

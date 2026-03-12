@@ -80,10 +80,14 @@ type BindMethod int
 // These enums are bind methods for the bind function
 const (
 	MethodBindAnonymous = iota
-	MethodBindDomain
-	MethodBindDomainPTH
 	MethodBindGSSAPI
 	MethodBindPassword
+	MethodBindDomain
+	MethodBindDomainPTH
+	MethodBindAESKey
+	MethodBindCCache
+	MethodBindPFX
+	MethodBindCertKey
 )
 
 // Enums for modification of useraccountcontrol field
@@ -151,12 +155,13 @@ type Conn interface {
 type Tickler struct {
 	baseDN     string
 	conn       Conn
+	Proto      string
 	skipVerify bool
 	url        string
 	username   string
 }
 
-func New(url string, basedn string, skipVerify ...bool) *Tickler {
+func New(url string, basedn string, skipVerify ...bool) (*Tickler, error) {
 	var connection *Tickler = &Tickler{url: url, baseDN: basedn}
 	if len(skipVerify) > 0 {
 		connection.skipVerify = skipVerify[0]
@@ -164,10 +169,14 @@ func New(url string, basedn string, skipVerify ...bool) *Tickler {
 	switch {
 	case strings.HasPrefix(url, "ldap"):
 		connection.conn = &LDAPConn{}
+		connection.Proto = "LDAP"
 	case strings.HasPrefix(url, "http"):
-		//connection.conn = &ADWSConn{}
+		connection.conn = &ADWSConn{}
+		connection.Proto = "ADWS"
+	default:
+		return nil, errors.New("Unsupported protocol")
 	}
-	return connection
+	return connection, nil
 }
 
 func (c *Tickler) Bind(method BindMethod, creds Credentials) error {

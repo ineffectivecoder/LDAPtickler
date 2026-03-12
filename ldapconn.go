@@ -52,9 +52,7 @@ func (c *LDAPConn) ModifyReplace(dn string, attr string, attrvals []string) erro
 
 func (c *LDAPConn) Bind(url string, method BindMethod, creds Credentials, skipVerify ...bool) error {
 	var err error
-	if method < MethodBindAnonymous && method > MethodBindPassword {
-		return errors.New("invalid bind method")
-	}
+
 	if len(skipVerify) > 0 {
 		c.skipVerify = skipVerify[0]
 	}
@@ -74,6 +72,9 @@ func (c *LDAPConn) Bind(url string, method BindMethod, creds Credentials, skipVe
 
 	case MethodBindPassword:
 		err = c.BindPassword(creds)
+
+	default:
+		return errors.New("invalid bind method")
 	}
 	if err != nil {
 		return err
