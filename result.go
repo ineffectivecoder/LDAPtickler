@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/go-ldap/ldap/v3"
 )
 
 // This is our custom Result type
@@ -13,35 +11,6 @@ type Result struct {
 	attrs map[string][]string
 	bytes map[string][][]byte
 	dn    string
-}
-
-// This parses the ldap.SearchResult.Entries
-func NewResultFromLDAP(entry *ldap.Entry) *Result {
-	var r Result
-
-	r.dn = entry.DN
-
-	r.attrs = map[string][]string{}
-	r.bytes = map[string][][]byte{}
-	for _, attr := range entry.Attributes {
-		r.preprocess(attr)
-	}
-
-	return &r
-}
-
-// Adds all attributes except DN
-func (r *Result) preprocess(attribute *ldap.EntryAttribute) {
-	if strings.ToLower(attribute.Name) != "dn" {
-		if transform, ok := transformsLookup[strings.ToLower(attribute.Name)]; ok {
-			r.attrs[attribute.Name] = transform(attribute.ByteValues)
-			r.attrs[attribute.Name+"_orig"] = attribute.Values
-		} else {
-			r.attrs[attribute.Name] = attribute.Values
-			r.attrs[attribute.Name+"_orig"] = attribute.Values
-		}
-		r.bytes[attribute.Name] = attribute.ByteValues
-	}
 }
 
 // Helper to return things

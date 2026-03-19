@@ -97,6 +97,33 @@ func (c *LDAPConn) Close() error {
 	return nil
 }
 
+// This parses the ldap.SearchResult.Entries
+func NewResultFromLDAP(entry *ldap.Entry) *Result {
+	r := &Result{
+		dn:    entry.DN,
+		attrs: map[string][]string{},
+		bytes: map[string][][]byte{},
+	}
+	for _, attr := range entry.Attributes {
+		preprocessLDAP(r, attr)
+	}
+
+	return r
+}
+
+func preprocessLDAP(r *Result, attribute *ldap.EntryAttribute) {
+	if strings.ToLower(attribute.Name) != "dn" {
+		if transform, ok := transformsLookup[strings.ToLower(attribute.Name)]; ok {
+			r.attrs[attribute.Name] = transform(attribute.ByteValues)
+			r.attrs[attribute.Name+"_orig"] = attribute.Values
+		} else {
+			r.attrs[attribute.Name] = attribute.Values
+			r.attrs[attribute.Name+"_orig"] = attribute.Values
+		}
+		r.bytes[attribute.Name] = attribute.ByteValues
+	}
+}
+
 func (c *LDAPConn) Query(basedn string,
 	searchscope int,
 	filter string,

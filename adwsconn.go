@@ -120,8 +120,57 @@ func (c *ADWSConn) ModifyReplace(dn string, attr string, attrvals []string) erro
 
 }
 
+// This parses the adws.ADWSItem
+func NewResultFromADWS(item adws.ADWSItem) *Result {
+	r := &Result{
+		dn:    item.DistinguishedName,
+		attrs: map[string][]string{},
+		bytes: map[string][][]byte{},
+	}
+
+	for attrname, attrvalues := range item.Attributes {
+		preprocessADWS(r, attrname, attrvalues)
+	}
+	return r
+}
+
+func preprocessADWS(r *Result, name string, values []adws.ADWSValue) {
+	var bs [][]byte
+	var orig []string
+	for _, v := range values {
+		bs = append(bs, v.RawValue)
+		orig = append(orig, v.Value)
+	}
+	if strings.ToLower(name) != "distinguishedname" {
+		if transform, ok := transformsLookup[strings.ToLower(name)]; ok {
+			r.attrs[name] = transform(bs)
+			r.attrs[name+"_orig"] = orig
+		} else {
+			r.attrs[name] = orig
+			r.attrs[name+"_orig"] = orig
+		}
+		r.bytes[name] = bs
+	}
+}
+
 func (c *ADWSConn) Query(basedn string, searchscope int, filter string, attributes []string) (Results, error) {
-	return nil, errors.New("Not Implemented")
+	var results Results
+	items, err := c.wsclient.Query(basedn, filter, attributes, searchscope)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) == 0 {
+		return nil, errors.New(
+			"no entries found",
+		) // custom error result not found
+	}
+
+	for _, item := range items {
+		results.Add(*NewResultFromADWS(item))
+
+	}
+	return results, nil
 }
 
 func (c *ADWSConn) SetProxy(proxyURL string) {
